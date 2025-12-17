@@ -1,0 +1,9 @@
+# Dependencies (The bulky files)
+node_modules/
+
+# Build Output (Webpack generates this)
+dist/
+
+# System Files (Junk files)
+.DS_Store
+Thumbs.db
