@@ -13,13 +13,14 @@ body {
     align-items: center;
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent; /* Remove blue highlight on Android tap */
 }
 
 /* --- SETTINGS UI --- */
 .settings-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 1.5rem;
+    right: 1.5rem;
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -28,62 +29,76 @@ body {
 
 .gear-btn {
     background: white;
-    border: 2px solid #e5e5e5;
+    border: 1px solid $border-color;
     border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    width: 3.5rem;
+    height: 3.5rem;
     font-size: 1.5rem;
     cursor: pointer;
-    box-shadow: 0 4px 0 #e5e5e5; /* 3D Button Look */
-    transition: all 0.1s;
+    box-shadow: $shadow-md;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.2s;
 
     &:active {
-        transform: translateY(4px);
-        box-shadow: none;
+        transform: rotate(45deg);
     }
 }
 
 .settings-dropdown {
-    margin-top: 15px;
+    margin-top: 10px;
     background: white;
-    border-radius: 15px;
-    padding: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    border: 2px solid #e5e5e5;
-    width: 280px;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: $shadow-xl;
+    border: 1px solid $border-color;
+    width: 300px;
     
-    /* Animation for toggling */
     display: none; 
-    &.is-open { display: block; }
+    &.is-open { display: block; animation: fadeIn 0.2s ease-out; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .setting-group {
-    margin-bottom: 15px;
+    margin-bottom: 1.5rem;
+    
+    &:last-child { margin-bottom: 0; }
     
     label {
         display: block;
-        font-weight: 700;
-        margin-bottom: 5px;
-        color: $text-sub;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: $text-color;
         font-size: 0.9rem;
     }
     
     select {
         width: 100%;
-        padding: 10px;
-        border-radius: 10px;
-        border: 2px solid #e5e5e5;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid $border-color;
         font-family: $font-main;
         font-size: 1rem;
-        background-color: white;
+        background-color: $bg-color;
+        outline: none;
+        
+        &:focus {
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px color.adjust($primary-color, $lightness: 40%);
+        }
     }
 }
 
 #main-content {
     width: 100%;
+    /* Ensure content is centered vertically and horizontally */
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
 }
