@@ -22,11 +22,12 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.s[ac]ss$/i, // This Regex matches .scss and .sass
+        test: /\.s[ac]ss$/i,
         use: [
-          "style-loader", // 3. Inject styles into DOM
-          "css-loader",   // 2. Turns css into commonjs
-          "sass-loader",  // 1. Turns sass into css
+          "style-loader",   // 4. Inject styles into DOM
+          "css-loader",     // 3. Turns css into commonjs
+          "postcss-loader", // 2. Runs Tailwind logic <--- ADD THIS HERE
+          "sass-loader",    // 1. Turns sass into css
         ],
       },
     ],

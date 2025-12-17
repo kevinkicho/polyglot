@@ -1,104 +1,15 @@
-// src/styles/main.scss
+/* 1. Tailwind Imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 2. Your Custom Imports */
+@use 'flashcard';
 @use 'variables' as *;
-@use "sass:color";
-@use 'flashcard'; 
 
+/* 3. Global Styles using Tailwind */
 body {
-    margin: 0;
-    font-family: $font-main;
-    background-color: $bg-color;
-    color: $text-color;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    overflow-x: hidden;
-    -webkit-tap-highlight-color: transparent; /* Remove blue highlight on Android tap */
+    @apply bg-gray-50 text-gray-900 font-sans min-h-screen flex flex-col items-center justify-center overflow-x-hidden;
 }
 
-/* --- SETTINGS UI --- */
-.settings-container {
-    position: fixed;
-    top: 1.5rem;
-    right: 1.5rem;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.gear-btn {
-    background: white;
-    border: 1px solid $border-color;
-    border-radius: 50%;
-    width: 3.5rem;
-    height: 3.5rem;
-    font-size: 1.5rem;
-    cursor: pointer;
-    box-shadow: $shadow-md;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
-
-    &:active {
-        transform: rotate(45deg);
-    }
-}
-
-.settings-dropdown {
-    margin-top: 10px;
-    background: white;
-    border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: $shadow-xl;
-    border: 1px solid $border-color;
-    width: 300px;
-    
-    display: none; 
-    &.is-open { display: block; animation: fadeIn 0.2s ease-out; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.setting-group {
-    margin-bottom: 1.5rem;
-    
-    &:last-child { margin-bottom: 0; }
-    
-    label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        color: $text-color;
-        font-size: 0.9rem;
-    }
-    
-    select {
-        width: 100%;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid $border-color;
-        font-family: $font-main;
-        font-size: 1rem;
-        background-color: $bg-color;
-        outline: none;
-        
-        &:focus {
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px color.adjust($primary-color, $lightness: 40%);
-        }
-    }
-}
-
-#main-content {
-    width: 100%;
-    /* Ensure content is centered vertically and horizontally */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
+/* ... keep your other custom styles here ... */
