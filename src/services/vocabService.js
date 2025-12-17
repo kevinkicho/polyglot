@@ -1,51 +1,59 @@
-// Import the large JSON file directly
 import dbData from '../data/export_rtdb_121725.json';
 
 class VocabService {
     constructor() {
-        // Access the 'vocab' array from the JSON object
         this.vocabList = dbData.vocab || [];
+        this.targetLang = 'en'; // Default to English
     }
 
-    // Get all vocabulary items
+    setTargetLanguage(langCode) {
+        this.targetLang = langCode;
+    }
+
     getAll() {
         return this.vocabList;
     }
 
-    // Get a specific item by ID
-    getById(id) {
-        return this.vocabList.find(item => item.id === id);
-    }
-
-    // Convert the database format to the simpler format our Card component expects
-    // This allows us to switch languages easily in the future
     formatForFlashcard(item) {
         if (!item) return null;
 
+        const lang = this.targetLang;
+        
+        // Dynamic Key Selection based on language
+        // Example: if lang is 'es', we look for item.es and item.es_ex
+        const targetMeaning = item[lang] || 'Translation unavailable';
+        const targetSentence = item[lang + '_ex'] || '';
+        
+        // Handle special Romanization/Pinyin cases if they exist
+        // Chinese has 'zh_pin', Korean has 'ko_roma', Russian has 'ru_tr' (or ru_translit)
+        let romanization = '';
+        if (lang === 'zh') romanization = item.zh_pin || item.zh_pinyin || '';
+        if (lang === 'ko') romanization = item.ko_roma || item.ko_romaji || '';
+        if (lang === 'ru') romanization = item.ru_tr || item.ru_translit || '';
+
+        // If a romanization exists, append it to the meaning for display
+        const displayMeaning = romanization 
+            ? `${targetMeaning} \n(${romanization})` 
+            : targetMeaning;
+
         return {
             id: item.id,
-            // Main Display (Japanese)
+            // FRONT: Always Japanese
             japanese: item.ja || '',
-            reading: item.ja_furi || item.ja_roma || '', // Fallback to Romaji if Furigana missing
+            reading: item.ja_furi || item.ja_roma || '', 
             
-            // Back Display (English)
-            english: item.en || '',
+            // BACK: Selected Language
+            english: displayMeaning, // We reuse the 'english' field key for the Card component
             
-            // Sentences
+            // SENTENCES
             sentenceJp: item.ja_ex || '',
-            sentenceEn: item.en_ex || '',
-
-            // Extra Metadata (Useful for future expansions)
-            partOfSpeech: item.pos || '', 
-            audio: item.audio || null
+            sentenceEn: targetSentence // We reuse 'sentenceEn' for the target sentence
         };
     }
 
-    // Get formatted list for the app
     getFlashcardData() {
         return this.vocabList.map(item => this.formatForFlashcard(item));
     }
 }
 
-// Export a single instance (Singleton pattern)
 export const vocabService = new VocabService();

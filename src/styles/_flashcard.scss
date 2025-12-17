@@ -1,0 +1,99 @@
+@use 'variables' as *;
+@use "sass:color";
+
+/* Card Container for 3D perspective */
+.flashcard-scene {
+    width: $card-width;
+    height: $card-height;
+    perspective: 1000px;
+    margin: 20px auto;
+    cursor: pointer;
+}
+
+/* The actual card moving object */
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform $anim-speed;
+    transform-style: preserve-3d;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border-radius: 15px;
+}
+
+.flashcard-inner.is-flipped {
+    transform: rotateY(180deg);
+}
+
+/* Common styles for Front and Back */
+.card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background-color: $card-bg;
+    color: $text-color;
+}
+
+.card-front {
+    background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+    
+    h2 {
+        font-size: 3rem;
+        margin: 0;
+        color: $primary-color;
+    }
+    
+    p {
+        font-size: 1.2rem;
+        color: #888;
+    }
+}
+
+.card-back {
+    background: linear-gradient(135deg, $secondary-color 0%, color.adjust($secondary-color, $lightness: -10%) 100%);
+    color: white;
+    transform: rotateY(180deg);
+
+    h2 {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    .sentence {
+        margin-top: 20px;
+        font-style: italic;
+        background: rgba(0,0,0,0.1);
+        padding: 10px;
+        border-radius: 8px;
+    }
+}
+
+.controls {
+    margin-top: 20px;
+    
+    button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 5px;
+        background-color: $primary-color;
+        color: white;
+        margin: 0 10px;
+        cursor: pointer;
+        transition: transform 0.1s;
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+}

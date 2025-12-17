@@ -1,46 +1,36 @@
-import './styles/main.scss';
-import { createCardDOM } from './components/Card';
-import { vocabService } from './services/vocabService';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Flashcards</title>
+</head>
+<body>
+    <nav class="topbar">
+        <div class="accordion">
+            <button class="accordion-header" id="settings-toggle">
+                ⚙️ Flashcard Settings
+            </button>
+            <div class="accordion-content" id="settings-content">
+                <div class="setting-item">
+                    <label for="language-select">Translation Language:</label>
+                    <select id="language-select">
+                        <option value="en" selected>English</option>
+                        <option value="ko">Korean (한국어)</option>
+                        <option value="zh">Chinese (中文)</option>
+                        <option value="es">Spanish (Español)</option>
+                        <option value="de">German (Deutsch)</option>
+                        <option value="fr">French (Français)</option>
+                        <option value="pt">Portuguese (Português)</option>
+                        <option value="ru">Russian (Русский)</option>
+                        <option value="it">Italian (Italiano)</option>
+                        <option value="ja">Japanese (Show JP only)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-// Initialize State
-let currentIndex = 0;
-// Load data from the service
-const vocabList = vocabService.getFlashcardData();
-
-const container = document.getElementById('card-container');
-const prevBtn = document.getElementById('prev-btn');
-const nextBtn = document.getElementById('next-btn');
-
-function renderCard(index) {
-    // Safety check
-    if (!vocabList || vocabList.length === 0) {
-        container.innerHTML = '<p>No vocabulary data found.</p>';
-        return;
-    }
-
-    container.innerHTML = '';
-    const data = vocabList[index];
-    const cardElement = createCardDOM(data);
-    container.appendChild(cardElement);
-}
-
-// Initial Render
-renderCard(currentIndex);
-
-// Button Logic
-nextBtn.addEventListener('click', () => {
-    if (currentIndex < vocabList.length - 1) {
-        currentIndex++;
-        renderCard(currentIndex);
-    } else {
-        currentIndex = 0; // Loop back to start
-        renderCard(currentIndex);
-    }
-});
-
-prevBtn.addEventListener('click', () => {
-    if (currentIndex > 0) {
-        currentIndex--;
-        renderCard(currentIndex);
-    }
-});
+    <div id="main-content"></div>
+</body>
+</html>

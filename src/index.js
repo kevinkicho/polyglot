@@ -1,42 +1,29 @@
-import './styles/main.scss'; // Import SCSS so Webpack handles it
-import { vocabList } from './data/vocab';
-import { createCardDOM } from './components/Card';
+import './styles/main.scss';
+import { vocabService } from './services/vocabService';
+import { flashcardApp } from './components/FlashcardApp';
 
-let currentIndex = 0;
-const container = document.getElementById('card-container');
-const prevBtn = document.getElementById('prev-btn');
-const nextBtn = document.getElementById('next-btn');
+// --- 1. Mount the Flashcard Component ---
+// This injects the flashcard HTML/JS into the #main-content div
+flashcardApp.mount('main-content');
 
-function renderCard(index) {
-    // Clear existing card
-    container.innerHTML = '';
-    
-    // Get Data
-    const data = vocabList[index];
-    
-    // Create DOM and append
-    const cardElement = createCardDOM(data);
-    container.appendChild(cardElement);
-}
 
-// Initial Render
-renderCard(currentIndex);
+// --- 2. Global Topbar Logic ---
+const settingsToggle = document.getElementById('settings-toggle');
+const settingsContent = document.getElementById('settings-content');
+const langSelect = document.getElementById('language-select');
 
-// Button Logic
-nextBtn.addEventListener('click', () => {
-    if (currentIndex < vocabList.length - 1) {
-        currentIndex++;
-        renderCard(currentIndex);
-    } else {
-        // Optional: Loop back to start
-        currentIndex = 0; 
-        renderCard(currentIndex);
-    }
+// Accordion Toggle
+settingsToggle.addEventListener('click', () => {
+    settingsContent.classList.toggle('is-open');
 });
 
-prevBtn.addEventListener('click', () => {
-    if (currentIndex > 0) {
-        currentIndex--;
-        renderCard(currentIndex);
-    }
+// Language Change Logic
+langSelect.addEventListener('change', (e) => {
+    const newLang = e.target.value;
+    
+    // Update the service data
+    vocabService.setTargetLanguage(newLang);
+    
+    // Tell the component to re-render itself
+    flashcardApp.refresh();
 });
