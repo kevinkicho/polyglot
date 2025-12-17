@@ -1,10 +1,21 @@
-$primary-color: #ff6b6b;
-$secondary-color: #4ecdc4;
-$dark-bg: #2d3436;
-$card-bg: #ffffff;
-$text-color: #2d3436;
-$font-stack: 'Helvetica Neue', sans-serif;
+// src/styles/_variables.scss
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap');
 
-$card-width: 300px;
-$card-height: 400px;
-$anim-speed: 0.6s;
+// --- FONTS ---
+$font-main: 'Nunito', sans-serif;
+$font-jp: 'Noto Sans JP', sans-serif;
+
+// --- COLORS (Modern Palette) ---
+$primary-color: #58cc02;     /* Duolingo-ish Green */
+$primary-shadow: #46a302;    /* Darker Green for 3D effect */
+$secondary-color: #1cb0f6;   /* Blue */
+$text-color: #4b4b4b;
+$text-sub: #777777;
+$bg-color: #f7f7f7;          /* Light Grey BG */
+$card-bg: #ffffff;
+$danger-color: #ff4b4b;
+
+// --- DIMENSIONS ---
+$card-width: 320px;
+$card-height: 480px;
+$border-radius: 20px;

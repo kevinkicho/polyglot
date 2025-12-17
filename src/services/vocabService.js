@@ -1,58 +1,67 @@
+// src/services/vocabService.js
 import dbData from '../data/export_rtdb_121725.json';
+import { settingsService } from './settingsService';
 
 class VocabService {
     constructor() {
         this.vocabList = dbData.vocab || [];
-        this.targetLang = 'en'; // Default to English
-    }
-
-    setTargetLanguage(langCode) {
-        this.targetLang = langCode;
     }
 
     getAll() {
         return this.vocabList;
     }
 
-    formatForFlashcard(item) {
-        if (!item) return null;
-
-        const lang = this.targetLang;
-        
-        // Dynamic Key Selection based on language
-        // Example: if lang is 'es', we look for item.es and item.es_ex
-        const targetMeaning = item[lang] || 'Translation unavailable';
-        const targetSentence = item[lang + '_ex'] || '';
-        
-        // Handle special Romanization/Pinyin cases if they exist
-        // Chinese has 'zh_pin', Korean has 'ko_roma', Russian has 'ru_tr' (or ru_translit)
-        let romanization = '';
-        if (lang === 'zh') romanization = item.zh_pin || item.zh_pinyin || '';
-        if (lang === 'ko') romanization = item.ko_roma || item.ko_romaji || '';
-        if (lang === 'ru') romanization = item.ru_tr || item.ru_translit || '';
-
-        // If a romanization exists, append it to the meaning for display
-        const displayMeaning = romanization 
-            ? `${targetMeaning} \n(${romanization})` 
-            : targetMeaning;
-
-        return {
-            id: item.id,
-            // FRONT: Always Japanese
-            japanese: item.ja || '',
-            reading: item.ja_furi || item.ja_roma || '', 
-            
-            // BACK: Selected Language
-            english: displayMeaning, // We reuse the 'english' field key for the Card component
-            
-            // SENTENCES
-            sentenceJp: item.ja_ex || '',
-            sentenceEn: targetSentence // We reuse 'sentenceEn' for the target sentence
-        };
+    // Helper to identify language types
+    getLangType(code) {
+        if (code === 'ja') return 'JAPANESE';
+        if (['zh', 'ko', 'ru'].includes(code)) return 'NON_LATIN';
+        return 'WESTERN'; // en, es, fr, de, it, pt
     }
 
     getFlashcardData() {
-        return this.vocabList.map(item => this.formatForFlashcard(item));
+        const { targetLang, originLang } = settingsService.get();
+        
+        return this.vocabList.map(item => {
+            const type = this.getLangType(targetLang);
+            
+            // --- FRONT CONTENT (Target Language) ---
+            let frontMain = item[targetLang] || '';
+            let frontSub = ''; // For Romaji/Pinyin
+            let frontExtra = ''; // For Furigana (Specific to JP)
+
+            if (type === 'JAPANESE') {
+                frontExtra = item.ja_furi || ''; // Furigana
+                frontSub = item.ja_roma || '';   // Romaji
+            } else if (type === 'NON_LATIN') {
+                // Map the specific romanization keys
+                if (targetLang === 'zh') frontSub = item.zh_pin || item.zh_pinyin;
+                if (targetLang === 'ko') frontSub = item.ko_roma || item.ko_romaji;
+                if (targetLang === 'ru') frontSub = item.ru_tr || item.ru_translit;
+            }
+
+            // --- BACK CONTENT (Origin Language + Sentences) ---
+            const definition = item[originLang] || 'No definition available';
+            
+            // Sentence in Target Language
+            const sentenceTarget = item[targetLang + '_ex'] || '';
+            // Sentence translation in Origin Language
+            const sentenceOrigin = item[originLang + '_ex'] || '';
+
+            return {
+                id: item.id,
+                type: type,
+                front: {
+                    main: frontMain,
+                    sub: frontSub,
+                    extra: frontExtra // Furigana
+                },
+                back: {
+                    definition: definition,
+                    sentenceTarget: sentenceTarget,
+                    sentenceOrigin: sentenceOrigin
+                }
+            };
+        });
     }
 }
 

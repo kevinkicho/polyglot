@@ -1,29 +1,42 @@
 import './styles/main.scss';
 import { vocabService } from './services/vocabService';
+import { settingsService } from './services/settingsService';
 import { flashcardApp } from './components/FlashcardApp';
 
-// --- 1. Mount the Flashcard Component ---
-// This injects the flashcard HTML/JS into the #main-content div
+// 1. Mount App
 flashcardApp.mount('main-content');
 
-
-// --- 2. Global Topbar Logic ---
+// 2. DOM Elements
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsContent = document.getElementById('settings-content');
-const langSelect = document.getElementById('language-select');
+const targetSelect = document.getElementById('target-select');
+const originSelect = document.getElementById('origin-select');
 
-// Accordion Toggle
-settingsToggle.addEventListener('click', () => {
+// 3. Initialize Selectors with Default Values
+const defaults = settingsService.get();
+targetSelect.value = defaults.targetLang;
+originSelect.value = defaults.originLang;
+
+// 4. Toggle Settings Menu
+settingsToggle.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent closing immediately
     settingsContent.classList.toggle('is-open');
 });
 
-// Language Change Logic
-langSelect.addEventListener('change', (e) => {
-    const newLang = e.target.value;
-    
-    // Update the service data
-    vocabService.setTargetLanguage(newLang);
-    
-    // Tell the component to re-render itself
-    flashcardApp.refresh();
+// Close settings if clicking outside
+document.addEventListener('click', (e) => {
+    if (!settingsContent.contains(e.target) && e.target !== settingsToggle) {
+        settingsContent.classList.remove('is-open');
+    }
+});
+
+// 5. Handle Changes
+targetSelect.addEventListener('change', (e) => {
+    settingsService.setTarget(e.target.value);
+    flashcardApp.refresh(); // Reload cards
+});
+
+originSelect.addEventListener('change', (e) => {
+    settingsService.setOrigin(e.target.value);
+    flashcardApp.refresh(); // Reload cards
 });

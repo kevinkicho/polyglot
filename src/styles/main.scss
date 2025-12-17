@@ -1,92 +1,89 @@
+// src/styles/main.scss
 @use 'variables' as *;
 @use "sass:color";
+@use 'flashcard'; 
 
-// 1. GLOBAL RESETS
 body {
     margin: 0;
-    font-family: $font-stack;
-    background-color: $dark-bg;
-    color: white;
+    font-family: $font-main;
+    background-color: $bg-color;
+    color: $text-color;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    flex-direction: column; 
+    overflow-x: hidden;
 }
 
-// 2. TOPBAR STYLES
-.topbar {
-    width: 100%;
+/* --- SETTINGS UI --- */
+.settings-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    background-color: color.adjust($dark-bg, $lightness: -5%);
-    z-index: 100;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-
-.accordion {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.accordion-header {
-    width: 100%;
-    padding: 15px;
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1rem;
-    text-align: left;
-    cursor: pointer;
-    font-weight: bold;
-    outline: none;
-    
-    &:hover {
-        background-color: rgba(255,255,255,0.05);
-    }
-}
-
-.accordion-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
-    background-color: color.adjust($dark-bg, $lightness: 5%);
-}
-
-.accordion-content.is-open {
-    max-height: 200px; 
-}
-
-.setting-item {
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    label {
-        margin-right: 10px;
-        color: #ddd;
-    }
-
-    select {
-        padding: 5px 10px;
-        border-radius: 4px;
-        border: none;
-        font-size: 1rem;
-    }
-}
-
-// 3. MAIN CONTENT AREA
-#main-content {
-    text-align: center;
-    margin-top: 60px; /* Space for the fixed topbar */
-    width: 100%;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
 }
 
-// 4. IMPORT COMPONENT STYLES
-@use 'flashcard';
+.gear-btn {
+    background: white;
+    border: 2px solid #e5e5e5;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #e5e5e5; /* 3D Button Look */
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:active {
+        transform: translateY(4px);
+        box-shadow: none;
+    }
+}
+
+.settings-dropdown {
+    margin-top: 15px;
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border: 2px solid #e5e5e5;
+    width: 280px;
+    
+    /* Animation for toggling */
+    display: none; 
+    &.is-open { display: block; }
+}
+
+.setting-group {
+    margin-bottom: 15px;
+    
+    label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: $text-sub;
+        font-size: 0.9rem;
+    }
+    
+    select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 10px;
+        border: 2px solid #e5e5e5;
+        font-family: $font-main;
+        font-size: 1rem;
+        background-color: white;
+    }
+}
+
+#main-content {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}

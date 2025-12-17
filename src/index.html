@@ -3,34 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Japanese Flashcards</title>
+    <title>Polyglot Flashcards</title>
 </head>
 <body>
-    <nav class="topbar">
-        <div class="accordion">
-            <button class="accordion-header" id="settings-toggle">
-                ⚙️ Flashcard Settings
-            </button>
-            <div class="accordion-content" id="settings-content">
-                <div class="setting-item">
-                    <label for="language-select">Translation Language:</label>
-                    <select id="language-select">
-                        <option value="en" selected>English</option>
-                        <option value="ko">Korean (한국어)</option>
-                        <option value="zh">Chinese (中文)</option>
-                        <option value="es">Spanish (Español)</option>
-                        <option value="de">German (Deutsch)</option>
-                        <option value="fr">French (Français)</option>
-                        <option value="pt">Portuguese (Português)</option>
-                        <option value="ru">Russian (Русский)</option>
-                        <option value="it">Italian (Italiano)</option>
-                        <option value="ja">Japanese (Show JP only)</option>
-                    </select>
-                </div>
+    
+    <div class="settings-container">
+        <button class="gear-btn" id="settings-toggle">⚙️</button>
+        
+        <div class="settings-dropdown" id="settings-content">
+            <div class="setting-group">
+                <label>I want to learn (Target):</label>
+                <select id="target-select">
+                    <option value="ja" selected>Japanese (日本語)</option>
+                    <option value="ko">Korean (한국어)</option>
+                    <option value="zh">Chinese (中文)</option>
+                    <option value="es">Spanish (Español)</option>
+                    <option value="fr">French (Français)</option>
+                    <option value="de">German (Deutsch)</option>
+                    <option value="it">Italian (Italiano)</option>
+                    <option value="pt">Portuguese (Português)</option>
+                    <option value="ru">Russian (Русский)</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            
+            <div class="setting-group">
+                <label>I speak (Origin):</label>
+                <select id="origin-select">
+                    <option value="en" selected>English</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                    <option value="es">Spanish</option>
+                </select>
             </div>
         </div>
-    </nav>
+    </div>
 
     <div id="main-content"></div>
+
 </body>
 </html>

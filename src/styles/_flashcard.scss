@@ -1,99 +1,141 @@
+// src/styles/_flashcard.scss
 @use 'variables' as *;
-@use "sass:color";
 
-/* Card Container for 3D perspective */
 .flashcard-scene {
     width: $card-width;
     height: $card-height;
     perspective: 1000px;
-    margin: 20px auto;
-    cursor: pointer;
 }
 
-/* The actual card moving object */
 .flashcard-inner {
     position: relative;
     width: 100%;
     height: 100%;
     text-align: center;
-    transition: transform $anim-speed;
+    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
     transform-style: preserve-3d;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    border-radius: 15px;
 }
 
 .flashcard-inner.is-flipped {
     transform: rotateY(180deg);
 }
 
-/* Common styles for Front and Back */
 .card-face {
     position: absolute;
     width: 100%;
     height: 100%;
-    -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    border-radius: 15px;
+    border-radius: $border-radius;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    padding: 30px;
     box-sizing: border-box;
     background-color: $card-bg;
-    color: $text-color;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    border: 2px solid #f0f0f0;
+    border-bottom: 6px solid #e5e5e5; /* 3D bottom edge */
 }
 
+/* --- FRONT FACE STYLES --- */
 .card-front {
-    background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
-    
-    h2 {
-        font-size: 3rem;
-        margin: 0;
-        color: $primary-color;
+    .main-word {
+        font-size: 3.5rem;
+        font-weight: 700;
+        color: $text-color;
+        margin: 20px 0;
+        font-family: $font-jp; /* Works for JP/CN/KR too */
     }
-    
-    p {
+
+    /* Furigana Layout */
+    .word-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .furigana {
         font-size: 1.2rem;
-        color: #888;
+        color: $text-sub;
+        margin-bottom: -5px;
+    }
+
+    .romaji {
+        margin-top: 10px;
+        font-size: 1.2rem;
+        color: $secondary-color;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 }
 
+/* --- BACK FACE STYLES --- */
 .card-back {
-    background: linear-gradient(135deg, $secondary-color 0%, color.adjust($secondary-color, $lightness: -10%) 100%);
-    color: white;
     transform: rotateY(180deg);
+    justify-content: flex-start;
+    padding-top: 60px;
 
-    h2 {
+    .definition {
         font-size: 2rem;
+        font-weight: 800;
+        color: $primary-color;
+        margin-bottom: 30px;
+    }
+
+    .sentence-box {
+        background: #fdfdfd;
+        border: 2px solid #f0f0f0;
+        border-radius: 15px;
+        padding: 15px;
+        width: 100%;
+        text-align: left;
         margin-bottom: 10px;
     }
 
-    .sentence {
-        margin-top: 20px;
+    .sentence-target {
+        font-size: 1.1rem;
+        color: $text-color;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .sentence-origin {
+        font-size: 0.95rem;
+        color: $text-sub;
         font-style: italic;
-        background: rgba(0,0,0,0.1);
-        padding: 10px;
-        border-radius: 8px;
     }
 }
 
+/* --- CONTROLS --- */
 .controls {
-    margin-top: 20px;
-    
+    margin-top: 30px;
+    display: flex;
+    gap: 20px;
+
     button {
-        padding: 10px 20px;
+        background: white;
+        border: 2px solid #e5e5e5;
+        border-bottom: 4px solid #e5e5e5;
+        padding: 12px 30px;
+        border-radius: 12px;
         font-size: 1rem;
-        border: none;
-        border-radius: 5px;
-        background-color: $primary-color;
-        color: white;
-        margin: 0 10px;
+        font-weight: 700;
+        color: $text-sub;
         cursor: pointer;
-        transition: transform 0.1s;
+        transition: all 0.1s;
 
         &:active {
-            transform: scale(0.95);
+            transform: translateY(4px);
+            border-bottom-width: 0px;
+            margin-top: 4px; /* To keep alignment */
+        }
+
+        &#next-btn {
+            background-color: $primary-color;
+            border-color: $primary-shadow;
+            color: white;
         }
     }
 }
