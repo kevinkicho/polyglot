@@ -1,12 +1,17 @@
-// src/services/settingsService.js
-
 class SettingsService {
     constructor() {
-        // Default defaults: Learn Japanese, knowing English
+        // Default Settings
         this.config = {
             targetLang: 'ja',
-            originLang: 'en'
+            originLang: 'en',
+            font: 'font-inter' // Default font class
         };
+        
+        // Load from localStorage if available
+        const saved = localStorage.getItem('flashcard-settings');
+        if (saved) {
+            this.config = { ...this.config, ...JSON.parse(saved) };
+        }
     }
 
     get() {
@@ -15,10 +20,21 @@ class SettingsService {
 
     setTarget(lang) {
         this.config.targetLang = lang;
+        this.save();
     }
 
     setOrigin(lang) {
         this.config.originLang = lang;
+        this.save();
+    }
+
+    setFont(fontClass) {
+        this.config.font = fontClass;
+        this.save();
+    }
+
+    save() {
+        localStorage.setItem('flashcard-settings', JSON.stringify(this.config));
     }
 }
 

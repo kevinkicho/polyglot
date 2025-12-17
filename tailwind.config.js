@@ -4,16 +4,19 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        // We define our font "variables" here
-        sans: ['Inter', 'sans-serif'],
+        // Japanese Font
         jp: ['Noto Sans JP', 'sans-serif'],
+        
+        // English Font Options (We will switch these via JS)
+        inter: ['Inter', 'sans-serif'],
+        lato: ['Lato', 'sans-serif'],
+        roboto: ['Roboto', 'sans-serif'],
       },
-      // We can also add custom colors if we want specific branding
       colors: {
         brand: {
-          light: '#4f46e5', // Indigo 600
-          DEFAULT: '#4338ca', // Indigo 700
-          dark: '#3730a3', // Indigo 800
+          light: '#4f46e5',
+          DEFAULT: '#4338ca',
+          dark: '#3730a3',
         }
       }
     },

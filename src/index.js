@@ -1,54 +1,68 @@
-// 1. Initialize Firebase (New Line)
 import './services/firebase';
-
-// 2. Styles & Components
-import './styles/main.scss';
-import { vocabService } from './services/vocabService';
+import './styles/main.scss'; // Imports Tailwind & Fonts
 import { settingsService } from './services/settingsService';
 import { flashcardApp } from './components/FlashcardApp';
 
-// 3. Mount App
+// 1. Mount App
 flashcardApp.mount('main-content');
 
-// 4. DOM Elements
-const settingsToggle = document.getElementById('settings-toggle');
-const settingsContent = document.getElementById('settings-content');
+// 2. Elements
+const openBtn = document.getElementById('settings-open-btn');
+const closeBtn = document.getElementById('settings-close-btn');
+const doneBtn = document.getElementById('modal-done-btn');
+const modal = document.getElementById('settings-modal');
+const backdrop = document.getElementById('modal-backdrop');
+
 const targetSelect = document.getElementById('target-select');
 const originSelect = document.getElementById('origin-select');
+const fontSelect = document.getElementById('font-select');
 
-// 5. Initialize Selectors with Default Values
-const defaults = settingsService.get();
-if (targetSelect) targetSelect.value = defaults.targetLang;
-if (originSelect) originSelect.value = defaults.originLang;
+// 3. Load Saved Settings
+const saved = settingsService.get();
 
-// 6. Toggle Settings Menu
-if (settingsToggle) {
-    settingsToggle.addEventListener('click', (e) => {
-        e.stopPropagation(); 
-        settingsContent.classList.toggle('is-open');
-    });
+// Apply values to dropdowns
+if(targetSelect) targetSelect.value = saved.targetLang;
+if(originSelect) originSelect.value = saved.originLang;
+if(fontSelect) fontSelect.value = saved.font;
+
+// Apply Font Immediately
+applyFont(saved.font);
+
+// 4. Modal Functions
+function openModal() {
+    modal.classList.remove('hidden');
 }
 
-// Close settings if clicking outside
-document.addEventListener('click', (e) => {
-    if (settingsContent && settingsToggle) {
-        if (!settingsContent.contains(e.target) && e.target !== settingsToggle) {
-            settingsContent.classList.remove('is-open');
-        }
-    }
+function closeModal() {
+    modal.classList.add('hidden');
+}
+
+function applyFont(fontClass) {
+    // Remove old fonts
+    document.body.classList.remove('font-inter', 'font-lato', 'font-roboto');
+    // Add new font
+    document.body.classList.add(fontClass);
+}
+
+// 5. Event Listeners
+openBtn.addEventListener('click', openModal);
+closeBtn.addEventListener('click', closeModal);
+doneBtn.addEventListener('click', closeModal);
+backdrop.addEventListener('click', closeModal); // Close when clicking background
+
+// Settings Changes
+targetSelect.addEventListener('change', (e) => {
+    settingsService.setTarget(e.target.value);
+    flashcardApp.refresh();
 });
 
-// 7. Handle Changes
-if (targetSelect) {
-    targetSelect.addEventListener('change', (e) => {
-        settingsService.setTarget(e.target.value);
-        flashcardApp.refresh(); 
-    });
-}
+originSelect.addEventListener('change', (e) => {
+    settingsService.setOrigin(e.target.value);
+    flashcardApp.refresh();
+});
 
-if (originSelect) {
-    originSelect.addEventListener('change', (e) => {
-        settingsService.setOrigin(e.target.value);
-        flashcardApp.refresh(); 
-    });
-}
+fontSelect.addEventListener('change', (e) => {
+    const newFont = e.target.value;
+    settingsService.setFont(newFont);
+    applyFont(newFont);
+});
