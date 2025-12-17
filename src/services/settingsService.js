@@ -7,17 +7,19 @@ class SettingsService {
             // Audio
             autoPlay: true,
             // Quiz
-            quizChoices: 4, quizClickMode: 'double', quizAnswerAudio: true,
-            // Sentences (NEW)
-            sentencesWordAudio: true,
-            // Blanks (NEW)
-            blanksChoices: 4
+            quizChoices: 4, quizClickMode: 'double', quizAnswerAudio: true, quizAutoPlayCorrect: true,
+            // Sentences
+            sentencesWordAudio: true, sentAutoPlayCorrect: true,
+            // Blanks
+            blanksChoices: 4, blanksAnswerAudio: true, blanksAutoPlayCorrect: true,
+            // Global Game
+            gameWaitAudio: true // Wait for audio to finish before advancing
         };
         
         try {
             const saved = localStorage.getItem('flashcard-settings');
             if (saved) this.config = { ...this.config, ...JSON.parse(saved) };
-        } catch (e) { console.error("Failed to load settings", e); }
+        } catch (e) { console.error("Settings Load Error", e); }
     }
 
     get() { return this.config; }

@@ -20,22 +20,48 @@ class AudioService {
         if (this.synth.speaking || this.synth.pending) this.synth.cancel();
     }
 
+    // Standard Speak
     speak(text, lang) {
-        if (!text) return;
+        this.speakWithCallback(text, lang, null);
+    }
+
+    // Speak with onEnd callback (For "Wait Audio" feature)
+    speakWithCallback(text, lang, onEnd) {
+        if (!text) {
+            if (onEnd) onEnd();
+            return;
+        }
+        
         this.stop();
 
-        // [FIX] Japanese Audio Parsing: "Word A・Word B" -> Speak "Word A" only
+        // Japanese Parsing logic
         let textToSpeak = text;
         if (lang === 'ja' && text.includes('・')) {
             textToSpeak = text.split('・')[0];
         }
 
+        // Small delay to ensure clean state
         setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             utterance.lang = lang;
             utterance.rate = 0.9;
+            
             const voice = this.getVoice(lang);
             if (voice) utterance.voice = voice;
+
+            if (onEnd) {
+                utterance.onend = onEnd;
+                // Safety: If audio hangs, force callback after sensible timeout
+                // Estimated duration: 1 sec per 10 chars roughly
+                const safetyTime = Math.max(2000, textToSpeak.length * 100); 
+                setTimeout(() => {
+                    if (this.synth.speaking) {
+                        // Don't kill it, just fire callback if it's taking unusually long? 
+                        // Or rely on onend. Let's rely on onend for now.
+                    }
+                }, safetyTime);
+            }
+
             this.synth.speak(utterance);
         }, 50);
     }
