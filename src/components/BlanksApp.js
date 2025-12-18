@@ -11,10 +11,10 @@ export class BlanksApp {
     next(specificId = null) { 
         this.isAnswered = false; audioService.stop();
         
-        // [FIX] Data Check
+        // [FIX] Verify Data Existence
         const allVocab = vocabService.getAll();
         if (!allVocab || allVocab.length < 4) {
-            this.renderError("Not enough vocab data (Need 4+ items).");
+            this.renderError("Not enough data to play.");
             return;
         }
 
@@ -22,6 +22,7 @@ export class BlanksApp {
              const idx = vocabService.findIndexById(this.currentData.target.id);
              let found = false;
              let nextIdx = idx;
+             // Try next 10 items to find one with a sentence
              for(let i=0; i<allVocab.length; i++) {
                  nextIdx = (nextIdx + 1) % allVocab.length;
                  const q = blanksService.generateQuestion(allVocab[nextIdx].id);
@@ -33,7 +34,7 @@ export class BlanksApp {
         }
         
         if(!this.currentData) { 
-            this.renderError("Could not generate a sentence question (missing sentence data?)."); 
+            this.renderError("Could not find a valid sentence.");
             return; 
         } 
         this.render(); 
@@ -41,7 +42,7 @@ export class BlanksApp {
 
     renderError(msg) {
         if(!this.container) return;
-        this.container.innerHTML = `<div class="flex flex-col items-center justify-center h-full p-8 text-center"><h2 class="text-xl font-bold text-red-400">Error</h2><p class="text-gray-500">${msg}</p><button id="blanks-back-btn" class="mt-4 px-4 py-2 bg-gray-200 rounded">Back</button></div>`;
+        this.container.innerHTML = `<div class="flex flex-col items-center justify-center h-full p-8 text-center"><h2 class="text-xl font-bold text-gray-400">Error</h2><p class="text-gray-500">${msg}</p><button id="blanks-back-btn" class="mt-4 px-4 py-2 bg-gray-200 rounded">Back</button></div>`;
         document.getElementById('blanks-back-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
     }
 

@@ -11,7 +11,7 @@ export class QuizApp {
     next(specificId = null) {
         this.isAnswered = false; this.selectedId = null; audioService.stop();
         
-        // Safety Check
+        // [FIX] Prevent Freeze
         const allVocab = vocabService.getAll();
         if (!allVocab || allVocab.length < 4) {
             this.renderError("Not enough vocabulary to generate a quiz (Need 4+ words).");
@@ -26,10 +26,8 @@ export class QuizApp {
         
         this.currentData = quizService.generateQuestion(specificId);
         
-        // [FIX] Freeze Prevention: If generation fails, show error, don't loop
         if (!this.currentData) {
-            console.error("[QuizApp] Question Generation Failed");
-            this.renderError("Could not generate question. Check console for data issues.");
+            this.renderError("Could not generate question.");
             return;
         }
         this.render();
@@ -109,18 +107,17 @@ export class QuizApp {
 
     renderError(msg) {
         if(!this.container) return;
-        this.container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full p-8 text-center">
-                <h2 class="text-xl font-bold text-red-400">Game Error</h2>
-                <p class="text-gray-500 mt-2">${msg}</p>
-                <button id="quiz-back-btn" class="mt-6 px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Back to Menu</button>
-            </div>
-        `;
+        this.container.innerHTML = `<div class="flex flex-col items-center justify-center h-full p-8 text-center"><h2 class="text-xl font-bold text-red-400">Error</h2><p class="text-gray-500 mt-2">${msg}</p><button id="quiz-back-btn" class="mt-6 px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Back to Menu</button></div>`;
         document.getElementById('quiz-back-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
     }
 
     render() {
         if (!this.container) return;
+        if (!this.currentData || !this.currentData.target) {
+            this.container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">Loading...</div>';
+            return;
+        }
+
         const settings = settingsService.get();
         const { target, choices } = this.currentData;
         const mainText = target.front?.main || "???";
@@ -148,7 +145,7 @@ export class QuizApp {
         if(settings.autoPlay) setTimeout(() => this.playQuestionAudio(), 300);
         this.container.querySelectorAll('.quiz-option').forEach(btn => { btn.addEventListener('click', (e) => this.handleClick(parseInt(e.currentTarget.getAttribute('data-id')), e.currentTarget)); });
         document.getElementById('quiz-question-box').addEventListener('click', () => this.playQuestionAudio());
-        document.getElementById('quiz-random-btn').addEventListener('click', () => { this.next(null); }); // [FIX] Call next(null) to regen random
+        document.getElementById('quiz-random-btn').addEventListener('click', () => { this.next(null); });
         document.getElementById('quiz-close-btn').addEventListener('click', () => { audioService.stop(); window.dispatchEvent(new CustomEvent('router:home')); });
         document.getElementById('quiz-id-input').addEventListener('change', (e) => { const newId = parseInt(e.target.value); vocabService.findIndexById(newId) !== -1 ? this.next(newId) : alert('ID not found'); });
     }

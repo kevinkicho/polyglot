@@ -19,9 +19,9 @@ export class SentencesApp {
         audioService.stop();
         const list = vocabService.getAll();
         
-        // [FIX] Freeze Prevention
+        // [FIX] Empty List check
         if (!list || list.length === 0) {
-            this.renderError("No data available to build sentences.");
+            this.renderError("No vocabulary data available.");
             return;
         }
 
@@ -49,15 +49,16 @@ export class SentencesApp {
         if (!list || list.length === 0) return;
 
         const item = list[this.currentIndex];
-        // [FIX] Ensure valid sentence string
-        const targetSentence = item.back?.sentenceTarget || item.front?.main || "Empty";
+        
+        // [FIX] Fallback for missing sentence
+        const targetSentence = item.back.sentenceTarget || item.front.main || "No Sentence";
         const cleanSentence = targetSentence.replace(/<[^>]*>?/gm, '');
         
         const settings = settingsService.get();
         let words = [];
         
         if (settings.targetLang === 'ja') {
-            words = textService.tokenizeJapanese(cleanSentence, item.front?.main || '', true);
+            words = textService.tokenizeJapanese(cleanSentence, item.front.main, true);
         } else if (settings.targetLang === 'zh') {
             words = cleanSentence.split('');
         } else {
@@ -141,6 +142,7 @@ export class SentencesApp {
                     <button id="sent-close-btn" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
             </div>
+            
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_1fr] md:grid-rows-1 gap-4">
                 <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl dark:shadow-none border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative overflow-hidden transition-all">
                     <div class="mt-2 text-center flex-none"><h2 class="text-base md:text-lg font-bold text-gray-500 dark:text-gray-400 leading-snug cursor-pointer hover:text-indigo-500 transition-colors">${item.back?.sentenceOrigin || ''}</h2></div>

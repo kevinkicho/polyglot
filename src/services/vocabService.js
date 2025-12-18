@@ -1,8 +1,9 @@
 import { db, ref, get, child } from './firebase';
+import { settingsService } from './settingsService';
 
 class VocabService {
     constructor() {
-        this.list = [];
+        this.rawList = [];
         this.isInitialized = false;
     }
 
@@ -12,71 +13,70 @@ class VocabService {
         try {
             console.log("[Vocab] Connecting to Firebase...");
             const dbRef = ref(db);
-            
-            // 1. Fetch Root to inspect structure (helps debug path issues)
-            const rootSnapshot = await get(dbRef);
-            if (rootSnapshot.exists()) {
-                const rootVal = rootSnapshot.val();
-                console.log("[Vocab] DB Connected. Root Keys found:", Object.keys(rootVal));
-            } else {
-                console.error("[Vocab] CRITICAL: Database is completely empty!");
-                return;
-            }
-
-            // 2. Attempt to fetch 'vocab' node
             const snapshot = await get(child(dbRef, 'vocab'));
             
             if (snapshot.exists()) {
                 const val = snapshot.val();
-                let rawList = Array.isArray(val) ? val : Object.values(val);
-                console.log(`[Vocab] Raw entries found: ${rawList.length}`);
-
-                // 3. Debugging the first item to ensure filter logic is correct
-                if (rawList.length > 0) {
-                    console.log("[Vocab] Sample Item 0:", JSON.stringify(rawList[0]));
-                }
-
-                // 4. LENIENT FILTER (Prevents rejecting valid data with slight mismatches)
-                this.list = rawList.filter((item, index) => {
-                    const isValid = item && (typeof item === 'object');
-                    if (!isValid) {
-                        if (index < 5) console.warn(`[Vocab] Item ${index} invalid structure:`, item);
-                        return false;
-                    }
-                    
-                    // Allow if it has at least 'front' OR 'id' to be safe
-                    const hasData = (item.front || item.id); 
-                    if (!hasData && index < 5) {
-                        console.warn(`[Vocab] Item ${index} missing 'front' or 'id':`, item);
-                    }
-                    return hasData;
-                });
-
+                // Handle both Array (exported from JSON) and Object (pushed to Firebase) structures
+                const data = Array.isArray(val) ? val : Object.values(val);
+                
+                // Filter out nulls or empty slots
+                this.rawList = data.filter(item => item && item.id !== undefined);
+                
                 this.isInitialized = true;
-                console.log(`[Vocab] Final valid list size: ${this.list.length}`);
+                console.log(`[Vocab] Loaded ${this.rawList.length} items successfully.`);
             } else {
-                console.error("[Vocab] Node '/vocab' does not exist! Check the Root Keys log above.");
-                // Fallback: Check if user uploaded list directly to root?
-                // const rootVal = rootSnapshot.val();
-                // if (Array.isArray(rootVal)) { ... } 
+                console.warn("[Vocab] No data found at node '/vocab'. Check DB structure.");
+                this.rawList = [];
             }
         } catch (error) {
-            console.error("[Vocab] Fetch FAILED:", error);
-            this.list = [];
+            console.error("[Vocab] Fetch Critical Error:", error);
+            this.rawList = [];
         }
     }
 
-    getAll() { return this.list || []; }
-    getFlashcardData() { return this.list || []; }
-    
-    getRandomIndex() { 
-        if (!this.list || this.list.length === 0) return 0;
-        return Math.floor(Math.random() * this.list.length); 
+    // [CRITICAL] Transforms Flat DB Data -> App Structure
+    formatItem(item) {
+        const settings = settingsService.get();
+        const t = settings.targetLang || 'ja'; // Target (e.g. 'ja')
+        const o = settings.originLang || 'en'; // Origin (e.g. 'en')
+
+        return {
+            id: item.id,
+            front: {
+                // Get target lang (e.g. item['ja'])
+                main: item[t] || "???",
+                // Try reading/pinyin fields if they exist
+                sub: item[t + '_furi'] || item[t + '_pin'] || item[t + '_roma'] || "",
+                type: t
+            },
+            back: {
+                // Get origin lang (e.g. item['en'])
+                definition: item[o] || "???",
+                // Get example sentences
+                sentenceTarget: item[t + '_ex'] || "",
+                sentenceOrigin: item[o + '_ex'] || ""
+            },
+            raw: item // Keep original just in case
+        };
     }
-    
-    findIndexById(id) { 
-        if (!this.list) return -1;
-        return this.list.findIndex(item => item.id === id); 
+
+    getAll() {
+        // Return mapped data so games see 'front' and 'back'
+        return this.rawList.map(item => this.formatItem(item));
+    }
+
+    getFlashcardData() {
+        return this.getAll();
+    }
+
+    getRandomIndex() {
+        if (this.rawList.length === 0) return 0;
+        return Math.floor(Math.random() * this.rawList.length);
+    }
+
+    findIndexById(id) {
+        return this.rawList.findIndex(item => item.id === id);
     }
 }
 
