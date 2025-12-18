@@ -1,35 +1,71 @@
-import dbData from '../data/export_rtdb_121725.json';
-import { settingsService } from './settingsService';
+import { db } from './firebase'; 
+import { ref, get, child } from 'firebase/database';
 
 class VocabService {
     constructor() {
-        this.vocabList = dbData.vocab || [];
+        this.vocabList = [];
+        this.isLoaded = false;
     }
 
-    getAll() {
-        return this.vocabList;
+    async fetchData() {
+        if (this.isLoaded) return;
+
+        try {
+            console.log("[Vocab] Fetching...");
+            // Guard against Firebase not loading
+            if (!db) throw new Error("Firebase DB not initialized");
+
+            const dbRef = ref(db);
+            const snapshot = await get(child(dbRef, 'vocab'));
+
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                const rawList = Array.isArray(data) ? data : Object.values(data);
+                
+                // Sanitize and Sort
+                this.vocabList = rawList.map(item => ({
+                    ...item,
+                    id: item.id !== undefined ? parseInt(item.id, 10) : 0
+                }));
+
+                this.vocabList.sort((a, b) => a.id - b.id);
+                console.log(`[Vocab] Loaded ${this.vocabList.length} items.`);
+            } else {
+                console.warn("[Vocab] No data found.");
+                this.vocabList = [];
+            }
+            this.isLoaded = true;
+        } catch (error) {
+            console.error("[Vocab] Error:", error);
+            this.vocabList = [];
+            this.isLoaded = true;
+        }
     }
+
+    getAll() { return this.vocabList || []; }
     
-    // Find array index by Vocab ID (e.g. ID 250 -> Index 249)
-    findIndexById(id) {
-        // Loose equality (==) allows string '250' to match number 250
-        return this.vocabList.findIndex(item => item.id == id);
+    findIndexById(id) { 
+        if(!this.vocabList) return -1;
+        return this.vocabList.findIndex(item => item.id == id); 
     }
 
-    // Get a random index from the list
     getRandomIndex() {
+        if (!this.vocabList || this.vocabList.length === 0) return -1;
         return Math.floor(Math.random() * this.vocabList.length);
     }
 
-    getFlashcardData() {
-        const { targetLang, originLang } = settingsService.get();
+    // UPDATED: Settings must be passed in. No internal dependency.
+    getFlashcardData(settings) {
+        if (!this.vocabList) return [];
+        
+        // Defaults if settings are missing
+        const targetLang = settings ? settings.targetLang : 'ja';
+        const originLang = settings ? settings.originLang : 'en';
         
         return this.vocabList.map(item => {
-            // FRONT CARD LOGIC
             const mainText = item[targetLang] || '...';
             let subText = '', extraText = '';
 
-            // Handle specific language features
             if (targetLang === 'ja') {
                 extraText = item.ja_furi || ''; 
                 subText = item.ja_roma || '';
@@ -39,35 +75,16 @@ class VocabService {
                 if(targetLang === 'ru') subText = item.ru_tr || '';
             }
             
-            // Determine visual type
-            const type = (targetLang === 'ja') ? 'JAPANESE' : 
-                         (['zh', 'ko', 'ru'].includes(targetLang)) ? 'NON_LATIN' : 'WESTERN';
-
-            // BACK CARD LOGIC
-            // Definition in origin language, fallback to English
+            const type = (targetLang === 'ja') ? 'JAPANESE' : (['zh', 'ko', 'ru'].includes(targetLang)) ? 'NON_LATIN' : 'WESTERN';
             const definition = item[originLang] || item['en'] || 'Definition unavailable';
             const sentenceTarget = item[targetLang + '_ex'] || '';
             const sentenceOrigin = item[originLang + '_ex'] || '';
 
-            // ENGLISH EXTRAS (For "Show English" feature)
-            const englishDef = item['en'] || '';
-            const englishSent = item['en_ex'] || '';
-
             return {
                 id: item.id,
                 type: type,
-                front: { 
-                    main: mainText, 
-                    sub: subText, 
-                    extra: extraText 
-                },
-                back: { 
-                    definition: definition, 
-                    sentenceTarget: sentenceTarget, 
-                    sentenceOrigin: sentenceOrigin,
-                    englishDef: englishDef,
-                    englishSent: englishSent
-                }
+                front: { main: mainText, sub: subText, extra: extraText },
+                back: { definition: definition, sentenceTarget: sentenceTarget, sentenceOrigin: sentenceOrigin }
             };
         });
     }

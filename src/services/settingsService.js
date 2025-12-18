@@ -3,6 +3,8 @@ const defaultSettings = {
     originLang: 'en',
     darkMode: false,
     autoPlay: true,
+    fontFamily: 'font-inter',
+    fontWeight: 'font-bold',
     
     // Visuals
     showVocab: true,
@@ -17,15 +19,15 @@ const defaultSettings = {
     // Games
     quizAnswerAudio: false,
     quizAutoPlayCorrect: true,
-    quizWaitAudio: false, // New
+    quizWaitAudio: false,
     
     sentencesWordAudio: true,
     sentAutoPlayCorrect: true,
-    sentWaitAudio: false, // New
+    sentWaitAudio: false,
     
     blanksAnswerAudio: true,
     blanksAutoPlayCorrect: true,
-    blanksWaitAudio: false // New
+    blanksWaitAudio: false
 };
 
 class SettingsService {
@@ -34,7 +36,10 @@ class SettingsService {
     load() {
         try {
             const saved = localStorage.getItem('polyglot_settings');
-            if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
+            if (saved) {
+                // Merge saved settings ON TOP of defaults to ensure new keys exist
+                return { ...defaultSettings, ...JSON.parse(saved) };
+            }
         } catch (e) { console.error(e); }
         return { ...defaultSettings };
     }
@@ -47,7 +52,8 @@ class SettingsService {
     }
 
     setTarget(lang) { this.set('targetLang', lang); }
-    
+    setOrigin(lang) { this.set('originLang', lang); }
+
     save() {
         try { localStorage.setItem('polyglot_settings', JSON.stringify(this.settings)); } catch (e) {}
     }
