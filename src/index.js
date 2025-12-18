@@ -3,7 +3,7 @@ import './styles/main.scss';
 import { settingsService } from './services/settingsService';
 import { vocabService } from './services/vocabService';
 import { dictionaryService } from './services/dictionaryService';
-import { auth, signInAnonymously, onAuthStateChanged, googleProvider, signInWithPopup, signOut, update, ref, get, child } from './services/firebase';
+import { auth, signInAnonymously, onAuthStateChanged, googleProvider, signInWithPopup, signOut, update, ref, get, child, db } from './services/firebase';
 import { flashcardApp } from './components/FlashcardApp';
 import { quizApp } from './components/QuizApp';
 import { sentencesApp } from './components/SentencesApp';
@@ -13,11 +13,11 @@ import { audioService } from './services/audioService';
 // --- PERSISTENCE ---
 const savedHistory = JSON.parse(localStorage.getItem('polyglot_history') || '{}');
 window.saveGameHistory = (game, id) => {
+    if (!id) return;
     savedHistory[game] = id;
     localStorage.setItem('polyglot_history', JSON.stringify(savedHistory));
 };
 
-// --- MAIN INIT WRAPPER ---
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- UI ELEMENTS ---
@@ -33,32 +33,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconIn = document.getElementById('icon-user-in');
     let currentUser = null;
 
-    // --- AUTH LOGIC ---
+    // --- AUTH ---
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
         if (user && !user.isAnonymous) {
-            iconOut.classList.add('hidden');
-            iconIn.classList.remove('hidden');
-            iconIn.src = user.photoURL;
+            if(iconOut) iconOut.classList.add('hidden');
+            if(iconIn) { iconIn.classList.remove('hidden'); iconIn.src = user.photoURL; }
         } else {
-            iconOut.classList.remove('hidden');
-            iconIn.classList.add('hidden');
+            if(iconOut) iconOut.classList.remove('hidden');
+            if(iconIn) iconIn.classList.add('hidden');
         }
         updateEditPermissions();
     });
 
-    document.getElementById('user-login-btn').addEventListener('click', async () => {
-        if (currentUser && !currentUser.isAnonymous) {
-            if(confirm("Log out?")) await signOut(auth);
-        } else {
-            try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); }
-        }
+    const loginBtn = document.getElementById('user-login-btn');
+    if(loginBtn) loginBtn.addEventListener('click', async () => {
+        if (currentUser && !currentUser.isAnonymous) { if(confirm("Log out?")) await signOut(auth); }
+        else { try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); } }
     });
 
     function updateEditPermissions() {
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com';
-        const saveBtns = document.querySelectorAll('#btn-save-vocab, .btn-save-dict, #btn-add-dict');
-        saveBtns.forEach(btn => {
+        document.querySelectorAll('#btn-save-vocab, .btn-save-dict, #btn-add-dict').forEach(btn => {
             if(btn.id === 'btn-add-dict') btn.style.display = isAdmin ? 'block' : 'none';
             else btn.disabled = !isAdmin;
         });
@@ -67,17 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ROUTER ---
     function renderView(viewName) {
         audioService.stop();
-        
         if (viewName === 'home') document.body.classList.remove('game-mode');
         else document.body.classList.add('game-mode');
 
         Object.values(views).forEach(el => el.classList.add('hidden'));
         const target = views[viewName];
-        
         if (target) {
             target.classList.remove('hidden');
             const lastId = savedHistory[viewName];
-            
             if (viewName === 'flashcard') { flashcardApp.mount('flashcard-view'); if(lastId) flashcardApp.goto(lastId); }
             if (viewName === 'quiz') { quizApp.mount('quiz-view'); if(lastId) quizApp.next(lastId); }
             if (viewName === 'sentences') { sentencesApp.mount('sentences-view'); if(lastId) sentencesApp.next(lastId); }
@@ -85,24 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function navigateTo(viewName) { 
-        history.pushState({ view: viewName }, '', `#${viewName}`); 
-        renderView(viewName); 
-    }
-    
+    const bindNav = (id, view) => { const btn = document.getElementById(id); if(btn) btn.addEventListener('click', () => { history.pushState({view}, '', `#${view}`); renderView(view); }); };
+    bindNav('menu-flashcard-btn', 'flashcard'); bindNav('menu-quiz-btn', 'quiz'); bindNav('menu-sentences-btn', 'sentences'); bindNav('menu-blanks-btn', 'blanks');
     window.addEventListener('popstate', (e) => renderView(e.state ? e.state.view : 'home'));
     window.addEventListener('router:home', () => history.back());
 
-    const bindNav = (id, view) => { 
-        const btn = document.getElementById(id); 
-        if(btn) btn.addEventListener('click', () => navigateTo(view)); 
-    };
-    bindNav('menu-flashcard-btn', 'flashcard');
-    bindNav('menu-quiz-btn', 'quiz');
-    bindNav('menu-sentences-btn', 'sentences');
-    bindNav('menu-blanks-btn', 'blanks');
-
-    // --- DICTIONARY ---
+    // --- DICTIONARY POPUP (Viewer) ---
     const popup = document.getElementById('dictionary-popup');
     const popupContent = document.getElementById('dict-content');
     const popupClose = document.getElementById('dict-close-btn');
@@ -124,45 +105,30 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('');
             popup.classList.remove('hidden');
             setTimeout(() => popup.classList.remove('opacity-0'), 10);
-            
-            // Audio check
-            if (settingsService.get().dictAudio) {
-                const u = new SpeechSynthesisUtterance(results[0].simp); 
-                u.lang = 'zh-CN'; 
-                window.speechSynthesis.speak(u);
-            }
         }
     }
-
-    if(popupClose) popupClose.addEventListener('click', () => { 
-        popup.classList.add('opacity-0'); 
-        setTimeout(() => popup.classList.add('hidden'), 200); 
-    });
+    if(popupClose) popupClose.addEventListener('click', () => { popup.classList.add('opacity-0'); setTimeout(() => popup.classList.add('hidden'), 200); });
 
     const handleStart = (e) => {
         if (!settingsService.get().dictEnabled) return;
         const target = e.target.closest('.quiz-option, #flashcard-text, #quiz-question-box, #blanks-question-box, .user-word, .bank-word');
         if (!target) return;
-        if (e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } 
-        else { startX = e.clientX; startY = e.clientY; }
+        if (e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } else { startX = e.clientX; startY = e.clientY; }
         longPressTimer = setTimeout(() => { showDictionary(target.textContent.trim()); }, 600);
     };
-
     const handleMove = (e) => {
         if (!longPressTimer) return;
-        let clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        let clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        if (Math.abs(clientX - startX) > 10 || Math.abs(clientY - startY) > 10) { clearTimeout(longPressTimer); longPressTimer = null; }
+        let cX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+        let cY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        if (Math.abs(cX - startX) > 10 || Math.abs(cY - startY) > 10) { clearTimeout(longPressTimer); longPressTimer = null; }
     };
-
     const handleEnd = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } };
-
-    document.addEventListener('touchstart', handleStart, { passive: true });
+    document.addEventListener('touchstart', handleStart, {passive:true});
     document.addEventListener('touchend', handleEnd);
-    document.addEventListener('touchmove', handleMove);
     document.addEventListener('mousedown', handleStart);
     document.addEventListener('mouseup', handleEnd);
     document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove);
 
     // --- EDIT MODAL ---
     const editModal = document.getElementById('edit-modal');
@@ -183,10 +149,75 @@ document.addEventListener('DOMContentLoaded', () => {
             tabVocabBtn.classList.replace('bg-indigo-600', 'bg-gray-200'); tabVocabBtn.classList.replace('text-white', 'text-gray-600');
         }
     }
-    tabVocabBtn.addEventListener('click', () => switchEditTab('vocab'));
-    tabDictBtn.addEventListener('click', () => switchEditTab('dict'));
+    if(tabVocabBtn) tabVocabBtn.addEventListener('click', () => switchEditTab('vocab'));
+    if(tabDictBtn) tabDictBtn.addEventListener('click', () => switchEditTab('dict'));
     document.getElementById('edit-close-btn').addEventListener('click', () => { editModal.classList.add('opacity-0'); setTimeout(()=>editModal.classList.add('hidden'), 200); });
 
+    // --- POPULATE DICTIONARY EDIT LIST ---
+    function populateDictionaryEdit(item) {
+        const listContainer = document.getElementById('edit-dict-list');
+        listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">Scanning text...</div>';
+        
+        // Collect text from all fields
+        const combinedText = (item.front.main || "") + (item.back.sentenceTarget || "") + (item.front.sub || "") + (item.back.definition || "");
+        
+        // Use service to find chars
+        const entries = dictionaryService.lookupText(combinedText);
+        
+        listContainer.innerHTML = '';
+        if (entries.length === 0) {
+            listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">No dictionary entries found in this card.</div>';
+            return;
+        }
+
+        entries.forEach(entry => {
+            // Find key in dictionary index to save back to
+            // Since we need the ID/Key to update Firebase, we need to find it. 
+            // In the optimized service, we stored the whole object. Let's assume 'id' is part of it, 
+            // or we need to find the key by character if ID is missing.
+            // For now, let's assume entry has an ID or we use the char as key if structured that way.
+            // Based on previous JSON, dictionary has numeric IDs.
+            
+            const div = document.createElement('div');
+            div.className = "bg-gray-100 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-gray-700";
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-2xl font-black text-indigo-600 dark:text-indigo-400">${entry.simp}</span>
+                    <span class="text-xs font-mono text-gray-400">ID: ${entry.id || '?'}</span>
+                </div>
+                <div class="grid grid-cols-1 gap-2 text-sm">
+                    <input class="p-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 dark:text-white" value="${entry.pinyin || ''}" placeholder="Pinyin" id="dict-p-${entry.id}">
+                    <input class="p-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 dark:text-white" value="${entry.en || ''}" placeholder="English" id="dict-e-${entry.id}">
+                    <input class="p-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 dark:text-white" value="${entry.ko || ''}" placeholder="Korean" id="dict-k-${entry.id}">
+                    <button class="btn-save-dict w-full mt-2 py-2 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors" data-id="${entry.id}">SAVE ENTRY</button>
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+
+        // Attach Listeners to new buttons
+        document.querySelectorAll('.btn-save-dict').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.target.dataset.id;
+                if(!id) return;
+                
+                const p = document.getElementById(`dict-p-${id}`).value;
+                const en = document.getElementById(`dict-e-${id}`).value;
+                const ko = document.getElementById(`dict-k-${id}`).value;
+                
+                try {
+                    await update(ref(db, `dictionary/${id}`), { p, e, k: ko });
+                    alert('Dictionary Entry Saved!');
+                    // Reload dict data silently
+                    dictionaryService.fetchData();
+                } catch(err) { console.error(err); alert('Save failed'); }
+            });
+        });
+        
+        updateEditPermissions();
+    }
+
+    // Global Edit Button Listener
     document.addEventListener('click', (e) => {
         if (e.target.closest('.game-edit-btn')) {
             let app = null;
@@ -196,8 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!views.blanks.classList.contains('hidden')) app = blanksApp;
 
             if (app) {
-                // FIXED: FlashcardApp now exposes 'currentData' correctly getter
-                let item = app.currentData && app.currentData.target ? app.currentData.target : app.currentData;
+                // Determine item safely
+                let item = app.currentData;
+                if (item && item.target) item = item.target; // Quiz/Blanks structure
                 
                 if (item) {
                     currentEditId = item.id;
@@ -211,49 +243,45 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('inp-vocab-sentence-t').value = item.back.sentenceTarget || '';
                     document.getElementById('inp-vocab-sentence-o').value = item.back.sentenceOrigin || '';
                     
+                    populateDictionaryEdit(item);
                     updateEditPermissions();
                 }
             }
         }
     });
 
-    document.getElementById('btn-save-vocab').addEventListener('click', async () => {
-        if (!currentEditId) return;
-        const settings = settingsService.get();
-        const updates = {};
-        // Map fields based on current language
-        updates[`${settings.targetLang}`] = document.getElementById('inp-vocab-target').value;
-        updates[`${settings.originLang}`] = document.getElementById('inp-vocab-origin').value;
-        updates[`${settings.targetLang}_ex`] = document.getElementById('inp-vocab-sentence-t').value;
-        updates[`${settings.originLang}_ex`] = document.getElementById('inp-vocab-sentence-o').value;
+    const btnSaveVocab = document.getElementById('btn-save-vocab');
+    if(btnSaveVocab) {
+        btnSaveVocab.addEventListener('click', async () => {
+            if (!currentEditId) return;
+            const settings = settingsService.get();
+            const updates = {};
+            updates[`${settings.targetLang}`] = document.getElementById('inp-vocab-target').value;
+            updates[`${settings.originLang}`] = document.getElementById('inp-vocab-origin').value;
+            updates[`${settings.targetLang}_ex`] = document.getElementById('inp-vocab-sentence-t').value;
+            updates[`${settings.originLang}_ex`] = document.getElementById('inp-vocab-sentence-o').value;
 
-        try {
-            await update(ref(db, `vocab/${currentEditId}`), updates);
-            alert('Saved!');
-            await vocabService.fetchData();
-            // Refresh current view
-            if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
-            if (!views.quiz.classList.contains('hidden')) quizApp.next(currentEditId);
-        } catch(e) { console.error(e); alert('Error'); }
-    });
+            try {
+                await update(ref(db, `vocab/${currentEditId}`), updates);
+                alert('Vocab Saved!');
+                await vocabService.fetchData();
+                if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
+            } catch(e) { console.error(e); alert('Error saving.'); }
+        });
+    }
 
     // --- SETTINGS ---
     const settingsModal = document.getElementById('settings-modal');
     const openSettings = () => { settingsModal.classList.remove('hidden'); setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); };
     const closeSettings = () => { settingsModal.classList.add('opacity-0'); setTimeout(()=>settingsModal.classList.add('hidden'), 200); };
-    document.getElementById('settings-open-btn').addEventListener('click', openSettings);
-    document.getElementById('modal-done-btn').addEventListener('click', closeSettings);
+    if(document.getElementById('settings-open-btn')) document.getElementById('settings-open-btn').addEventListener('click', openSettings);
+    if(document.getElementById('modal-done-btn')) document.getElementById('modal-done-btn').addEventListener('click', closeSettings);
     document.addEventListener('click', (e) => { if(e.target.closest('.game-settings-btn')) openSettings(); });
 
-    // Global Settings Update
-    function updateAllApps() {
-        if(!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
-        if(!views.quiz.classList.contains('hidden')) quizApp.render();
-    }
-    document.getElementById('toggle-vocab').addEventListener('change', updateAllApps);
-    document.getElementById('toggle-english').addEventListener('change', updateAllApps);
-    document.getElementById('toggle-sentence').addEventListener('change', updateAllApps);
-    document.getElementById('target-select').addEventListener('change', (e) => { settingsService.setTarget(e.target.value); updateAllApps(); });
+    // Updates
+    function updateAllApps() { if(!views.flashcard.classList.contains('hidden')) flashcardApp.refresh(); }
+    if(document.getElementById('toggle-vocab')) document.getElementById('toggle-vocab').addEventListener('change', updateAllApps);
+    if(document.getElementById('target-select')) document.getElementById('target-select').addEventListener('change', (e) => { settingsService.setTarget(e.target.value); updateAllApps(); });
 
     const accordions = [
         { btn: 'dict-accordion-btn', content: 'dict-options', arrow: 'accordion-arrow-dict' },
@@ -272,19 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const saved = settingsService.get();
             if(saved.darkMode) document.documentElement.classList.add('dark');
-            
-            updateSplashCheck(0, 'active');
             await signInAnonymously(auth);
-            updateSplashCheck(0, 'done');
-
-            updateSplashCheck(1, 'active');
-            await vocabService.fetchData();
-            updateSplashCheck(1, 'done');
-
-            updateSplashCheck(2, 'active');
-            await dictionaryService.fetchData();
-            updateSplashCheck(2, 'done');
-
+            await Promise.all([vocabService.fetchData(), dictionaryService.fetchData()]);
             const startBtn = document.getElementById('start-app-btn');
             if(startBtn) {
                 startBtn.disabled = false;
@@ -292,24 +309,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 startBtn.classList.add('bg-indigo-600', 'text-white');
                 startBtn.innerText = "Start Learning";
                 startBtn.onclick = () => {
-                    const silent = new SpeechSynthesisUtterance(''); window.speechSynthesis.speak(silent);
+                    const s = new SpeechSynthesisUtterance(''); window.speechSynthesis.speak(s);
                     document.getElementById('splash-screen').style.display = 'none';
                     document.body.classList.remove('is-loading');
                     renderView('home');
                 };
             }
-        } catch(e) { console.error("Init Error", e); }
-    }
-
-    function updateSplashCheck(index, state) {
-        const checks = [document.getElementById('check-0'), document.getElementById('check-1'), document.getElementById('check-2')];
-        if(checks[index]) {
-            if(state==='active') checks[index].style.borderColor = '#6366f1';
-            else checks[index].style.backgroundColor = '#22c55e';
-        }
+        } catch(e) { console.error(e); }
     }
     initApp();
-    
-    // Fullscreen
-    document.getElementById('fullscreen-btn').addEventListener('click', () => (!document.fullscreenElement) ? document.documentElement.requestFullscreen() : document.exitFullscreen());
+    const fsBtn = document.getElementById('fullscreen-btn');
+    if(fsBtn) fsBtn.addEventListener('click', () => (!document.fullscreenElement) ? document.documentElement.requestFullscreen() : document.exitFullscreen());
 });
