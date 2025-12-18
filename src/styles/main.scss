@@ -1,16 +1,31 @@
-/* 1. SASS Modules (MUST BE FIRST) */
-@use 'flashcard';
-
-/* 2. Google Fonts Import (Loads the actual font files) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700;900&family=Lato:wght@400;700&family=Roboto:wght@400;700&display=swap');
-
-/* 3. Tailwind Engine */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 4. Global Body Reset */
-body {
-    /* We default to Inter, but this class will be changed by JS */
-    @apply bg-gray-100 min-h-screen flex flex-col items-center overflow-x-hidden font-inter;
+// ... (Existing styles) ...
+
+/* DICTIONARY POPUP */
+#dictionary-popup {
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-out;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -40%) scale(0.95); // Start slightly offset
+    
+    &.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.dict-char {
+    position: relative;
+    /* Optional: Add a subtle underline to show it's interactable */
+    /* border-bottom: 1px dotted rgba(156, 163, 175, 0.5); */ 
+}
+
+.dict-char:active {
+    color: #4f46e5; /* Indigo-600 */
+    background-color: rgba(79, 70, 229, 0.1);
+    border-radius: 4px;
 }

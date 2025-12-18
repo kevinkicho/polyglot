@@ -13,7 +13,11 @@ class SettingsService {
             // Blanks
             blanksChoices: 4, blanksAnswerAudio: true, blanksAutoPlayCorrect: true,
             // Global Game
-            gameWaitAudio: true // Wait for audio to finish before advancing
+            gameWaitAudio: true,
+            // Dictionary (NEW)
+            dictEnabled: true,
+            dictDuration: '2', // '1', '2', '3', 'infinity'
+            dictAudio: true
         };
         
         try {
