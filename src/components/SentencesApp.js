@@ -5,12 +5,7 @@ import { textService } from '../services/textService';
 
 export class SentencesApp {
     constructor() { this.container = null; this.currentIndex = 0; this.currentData = null; this.userSentence = []; this.shuffledWords = []; this.wordBankStatus = []; }
-    
-    mount(elementId) { 
-        this.container = document.getElementById(elementId); 
-        if (!this.currentData) this.random();
-        else this.render();
-    }
+    mount(elementId) { this.container = document.getElementById(elementId); if(!this.currentData) this.random(); else this.render(); }
 
     bind(selector, event, handler) {
         if (!this.container) return;
@@ -18,27 +13,13 @@ export class SentencesApp {
         if (el) el.addEventListener(event, handler);
     }
 
-    random() { 
-        this.currentIndex = vocabService.getRandomIndex(); 
-        this.loadGame(); 
-    }
-
+    random() { this.currentIndex = vocabService.getRandomIndex(); this.loadGame(); }
     next(id = null) { 
-        if (id !== null) { 
-            const idx = vocabService.findIndexById(id); 
-            if (idx !== -1) this.currentIndex = idx; 
-        } else { 
-            const list = vocabService.getAll(); 
-            this.currentIndex = (this.currentIndex + 1) % list.length; 
-        } 
+        if (id !== null) { const idx = vocabService.findIndexById(id); if (idx !== -1) this.currentIndex = idx; } 
+        else { const list = vocabService.getAll(); this.currentIndex = (this.currentIndex + 1) % list.length; } 
         this.loadGame(); 
     }
-    
-    prev() { 
-        const list = vocabService.getAll(); 
-        this.currentIndex = (this.currentIndex - 1 + list.length) % list.length; 
-        this.loadGame(); 
-    }
+    prev() { const list = vocabService.getAll(); this.currentIndex = (this.currentIndex - 1 + list.length) % list.length; this.loadGame(); }
 
     loadGame() {
         const list = vocabService.getFlashcardData();
@@ -54,11 +35,9 @@ export class SentencesApp {
         this.shuffledWords = [...words].map((word, id) => ({ word, id })).sort(() => Math.random() - 0.5);
         this.wordBankStatus = new Array(this.shuffledWords.length).fill(false);
         this.userSentence = []; 
-        
-        if (window.saveGameHistory) window.saveGameHistory('sentences', item.id);
-        
+        if(window.saveGameHistory) window.saveGameHistory('sentences', item.id);
         this.render();
-        if (settings.autoPlay) setTimeout(() => audioService.speak(clean, settings.targetLang), 300);
+        if(settings.autoPlay) setTimeout(() => audioService.speak(clean, settings.targetLang), 300);
     }
 
     handleBankClick(idx) { 
@@ -80,8 +59,7 @@ export class SentencesApp {
     
     checkWin() { 
         if (this.userSentence.length === this.shuffledWords.length) {
-            const u = this.userSentence.map(o => o.word).join(''); 
-            const t = this.currentData.originalWords.join('');
+            const u = this.userSentence.map(o => o.word).join(''); const t = this.currentData.originalWords.join('');
             if (u.replace(/\s/g, '') === t.replace(/\s/g, '')) {
                 const zone = this.container.querySelector('#sentence-drop-zone');
                 if (zone) zone.classList.add('bg-green-100', 'border-green-500');

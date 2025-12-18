@@ -35,7 +35,15 @@ export class QuizApp {
     
     prev() { if(this.currentData) { const l=vocabService.getAll(); const i=vocabService.findIndexById(this.currentData.target.id); this.next(l[(i-1+l.length)%l.length].id); } }
 
-    renderError() { if(this.container) this.container.innerHTML="<div class='p-10 text-white text-center pt-24'>Not enough vocabulary.</div>"; }
+    renderError() { 
+        if (this.container) {
+            this.container.innerHTML = `
+                <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm"><div></div><button id="quiz-close-err" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                <div class="p-10 text-center text-white pt-24">Not enough vocabulary.</div>
+            `;
+            this.bind('#quiz-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
+        }
+    }
 
     submitAnswer(id, el) {
         this.isAnswered=true; const correct=this.currentData.target.id===id;
@@ -75,14 +83,8 @@ export class QuizApp {
         this.bind('#quiz-question-box', 'click', () => audioService.speak(target.front.main, settingsService.get().targetLang));
         this.bind('#quiz-id-input', 'change', (e) => { const newId = parseInt(e.target.value); vocabService.findIndexById(newId) !== -1 ? this.next(newId) : alert('ID not found'); });
         
-        this.container.querySelectorAll('.quiz-option').forEach(btn => {
-            btn.addEventListener('click', (e) => this.submitAnswer(parseInt(e.currentTarget.dataset.id), e.currentTarget));
-        });
-        
-        requestAnimationFrame(() => {
-            this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el));
-        });
-        
+        this.container.querySelectorAll('.quiz-option').forEach(btn => btn.addEventListener('click', (e) => this.submitAnswer(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
+        requestAnimationFrame(() => this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)));
         if (settingsService.get().autoPlay) setTimeout(() => audioService.speak(target.front.main, settingsService.get().targetLang), 300);
     }
 }
