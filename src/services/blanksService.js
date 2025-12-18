@@ -6,13 +6,13 @@ export const blanksService = {
         const allVocab = vocabService.getAll();
         if (!allVocab || allVocab.length === 0) return null;
 
-        // [FIX] Strict check: Must have sentenceTarget
+        // Strict Check: Must have a sentence
         const candidates = allVocab.filter(item => 
             item && item.back && item.back.sentenceTarget && item.back.sentenceTarget.length > 0
         );
 
         if (candidates.length === 0) {
-            console.warn("[BlanksService] No vocab with sentences found.");
+            console.warn("[BlanksService] No sentences found in vocab.");
             return null;
         }
 
@@ -31,16 +31,13 @@ export const blanksService = {
         while (choices.length < numChoices && attempts < 50) {
             attempts++;
             const random = candidates[Math.floor(Math.random() * candidates.length)];
-            // Prevent duplicates
             if (random && !choices.find(c => c.id === random.id)) {
                 choices.push(random);
             }
         }
         
-        // Prepare sentence
         const cleanSentence = target.back.sentenceTarget.replace(/<[^>]*>?/gm, '');
         const answerWord = target.front.main; 
-        // Simple masking (Replace main word with blanks)
         const maskedSentence = cleanSentence.replace(answerWord, '_______');
 
         return {

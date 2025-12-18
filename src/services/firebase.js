@@ -18,7 +18,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// [CRITICAL] Named Exports for other services
+// Named Exports
 export { 
     app, 
     db, 

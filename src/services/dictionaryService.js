@@ -1,6 +1,4 @@
-// Ensure this path is correct. If your file is in src/data/export_rtdb_121725.json
-// and this service is in src/services/dictionaryService.js, then '../data/...' is correct.
-import dbData from '../data/export_rtdb_121725.json';
+import { db, ref, get, child } from './firebase';
 
 class DictionaryService {
     constructor() {
@@ -8,43 +6,54 @@ class DictionaryService {
         this.isInitialized = false;
     }
 
-    init() {
+    async fetchData() {
         if (this.isInitialized) return;
         
-        console.log("Dictionary Initializing...");
-        
-        // Safety Check: Ensure dbData exists
-        if (!dbData) {
-            console.error("CRITICAL: dbData is undefined. Check JSON import.");
-            return;
+        try {
+            console.log("[Dictionary] Fetching...");
+            const dbRef = ref(db);
+            const snapshot = await get(child(dbRef, 'dictionary'));
+            
+            if (snapshot.exists()) {
+                const val = snapshot.val();
+                const list = Array.isArray(val) ? val : Object.values(val);
+
+                list.forEach(item => {
+                    if (!item) return;
+                    // Map Simplified
+                    if (item.s) this.index[item.s] = item;
+                    // Map Traditional
+                    if (item.t && item.t !== item.s) this.index[item.t] = item;
+                });
+                
+                this.isInitialized = true;
+                console.log(`[Dictionary] Loaded ${Object.keys(this.index).length} entries.`);
+            } else {
+                console.warn("[Dictionary] No data found.");
+            }
+        } catch (error) {
+            console.error("[Dictionary] Fetch Failed:", error);
         }
-
-        const rawDict = dbData.dictionary || {};
-        const list = Array.isArray(rawDict) ? rawDict : Object.values(rawDict);
-
-        list.forEach(item => {
-            if (!item) return;
-            if (item.s) this.index[item.s] = item;
-            if (item.t && item.t !== item.s) this.index[item.t] = item;
-        });
-        
-        this.isInitialized = true;
-        console.log(`Dictionary ready: ${Object.keys(this.index).length} entries.`);
     }
 
     lookup(char) {
-        if (!this.isInitialized) this.init();
+        if (!this.isInitialized) return null;
         const entry = this.index[char];
         if (!entry) return null;
-        return { simp: entry.s, trad: entry.t, pinyin: entry.p, en: entry.e, ko: entry.k };
+        
+        return {
+            simp: entry.s,
+            trad: entry.t,
+            pinyin: entry.p,
+            en: entry.e,
+            ko: entry.k
+        };
     }
 
     lookupText(text) {
         if (!text) return [];
-        if (!this.isInitialized) this.init();
-
         const results = [];
-        const seen = new Set(); 
+        const seen = new Set();
         const regex = /[\u4E00-\u9FFF]/g;
         const matches = text.match(regex);
 

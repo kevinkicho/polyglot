@@ -8,6 +8,8 @@ export const textService = {
         element.style.width = 'auto'; 
         
         const parent = element.parentElement;
+        if (!parent) return;
+        
         const maxWidth = parent.offsetWidth - 32; 
         const maxHeight = parent.offsetHeight - 16;
 
@@ -42,10 +44,9 @@ export const textService = {
 
     // 3. JAPANESE TOKENIZER (Safe Mode)
     tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
-        // [FIX] Safety check for Segmenter support
-        if (typeof Intl.Segmenter !== 'function') {
-            console.warn("Intl.Segmenter not supported, falling back to simple split.");
-            return text.split('');
+        // Safety check for Segmenter support
+        if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
+            return text.split(''); // Fallback to char split
         }
 
         const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
@@ -58,7 +59,6 @@ export const textService = {
 
     postProcessJapanese(chunks, vocab = '') {
         if (chunks.length === 0) return [];
-        // ... (Logic identical to previous versions) ...
         const smallKana = /^([っゃゅょャュョん])/;
         const punctuation = /^([、。？?！!])/; 
         const isAllKanji = /^[\u4e00-\u9faf]+$/;
@@ -100,44 +100,40 @@ export const textService = {
         }
 
         if (vocab && vocab.trim().length > 0) {
-            // Simple single vocab check for robustness
-            const variations = [vocab];
-            for(const targetVocab of variations) {
-                const cleanVocab = targetVocab.replace(/\s+/g, '');
-                let currentMapStr = "";
-                const chunkMap = processed.map((chunk, idx) => {
-                    const cleanChunk = chunk.replace(/\s+/g, '');
-                    const start = currentMapStr.length;
-                    currentMapStr += cleanChunk;
-                    const end = currentMapStr.length;
-                    return { idx, start, end };
-                });
-                const vocabRanges = [];
-                let searchPos = 0;
-                let foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
-                while (foundIdx !== -1) {
-                    vocabRanges.push({ start: foundIdx, end: foundIdx + cleanVocab.length });
-                    searchPos = foundIdx + 1;
-                    foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
-                }
-                if (vocabRanges.length > 0) {
-                    const groups = Array.from({ length: processed.length }, (_, i) => i);
-                    vocabRanges.forEach(vRange => {
-                        let startIndex = -1; let endIndex = -1;
-                        for(let i=0; i<chunkMap.length; i++) {
-                            const c = chunkMap[i];
-                            if (c.start < vRange.end && c.end > vRange.start) { if (startIndex === -1) startIndex = i; endIndex = i; }
-                        }
-                        if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
-                            const targetGroup = groups[startIndex]; for(let k = startIndex + 1; k <= endIndex; k++) { groups[k] = targetGroup; }
-                        }
-                    });
-                    const mergedChunks = []; let currentChunk = ""; let currentGroup = -1;
-                    for(let i=0; i<processed.length; i++) {
-                        if (groups[i] !== currentGroup) { if (currentChunk) mergedChunks.push(currentChunk); currentChunk = processed[i]; currentGroup = groups[i]; } else { currentChunk += processed[i]; }
+            const cleanVocab = vocab.replace(/\s+/g, '');
+            let currentMapStr = "";
+            const chunkMap = processed.map((chunk, idx) => {
+                const cleanChunk = chunk.replace(/\s+/g, '');
+                const start = currentMapStr.length;
+                currentMapStr += cleanChunk;
+                const end = currentMapStr.length;
+                return { idx, start, end };
+            });
+            const vocabRanges = [];
+            let searchPos = 0;
+            let foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
+            while (foundIdx !== -1) {
+                vocabRanges.push({ start: foundIdx, end: foundIdx + cleanVocab.length });
+                searchPos = foundIdx + 1;
+                foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
+            }
+            if (vocabRanges.length > 0) {
+                const groups = Array.from({ length: processed.length }, (_, i) => i);
+                vocabRanges.forEach(vRange => {
+                    let startIndex = -1; let endIndex = -1;
+                    for(let i=0; i<chunkMap.length; i++) {
+                        const c = chunkMap[i];
+                        if (c.start < vRange.end && c.end > vRange.start) { if (startIndex === -1) startIndex = i; endIndex = i; }
                     }
-                    if (currentChunk) mergedChunks.push(currentChunk); processed = mergedChunks;
+                    if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
+                        const targetGroup = groups[startIndex]; for(let k = startIndex + 1; k <= endIndex; k++) { groups[k] = targetGroup; }
+                    }
+                });
+                const mergedChunks = []; let currentChunk = ""; let currentGroup = -1;
+                for(let i=0; i<processed.length; i++) {
+                    if (groups[i] !== currentGroup) { if (currentChunk) mergedChunks.push(currentChunk); currentChunk = processed[i]; currentGroup = groups[i]; } else { currentChunk += processed[i]; }
                 }
+                if (currentChunk) mergedChunks.push(currentChunk); processed = mergedChunks;
             }
         }
 

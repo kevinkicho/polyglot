@@ -3,7 +3,7 @@ import { settingsService } from './settingsService';
 
 class VocabService {
     constructor() {
-        this.rawList = [];
+        this.list = [];
         this.isInitialized = false;
     }
 
@@ -17,43 +17,52 @@ class VocabService {
             
             if (snapshot.exists()) {
                 const val = snapshot.val();
-                // Handle both Array (exported from JSON) and Object (pushed to Firebase) structures
-                const data = Array.isArray(val) ? val : Object.values(val);
+                // Handle Array (from JSON import) or Object (from manual push)
+                let rawList = Array.isArray(val) ? val : Object.values(val);
                 
-                // Filter out nulls or empty slots
-                this.rawList = data.filter(item => item && item.id !== undefined);
+                // 1. Remove nulls/empty slots
+                rawList = rawList.filter(item => item && typeof item === 'object');
+                console.log(`[Vocab] Found ${rawList.length} raw items. Mapping data...`);
+
+                // 2. Map Flat Data -> App Structure
+                this.list = rawList.map(item => this.mapItem(item));
                 
+                // 3. Final Check: Ensure main text exists
+                this.list = this.list.filter(item => item.front.main && item.front.main !== "???");
+
                 this.isInitialized = true;
-                console.log(`[Vocab] Loaded ${this.rawList.length} items successfully.`);
+                console.log(`[Vocab] Initialization Complete. ${this.list.length} valid cards ready.`);
             } else {
-                console.warn("[Vocab] No data found at node '/vocab'. Check DB structure.");
-                this.rawList = [];
+                console.warn("[Vocab] No data found at '/vocab'. Check Database Import.");
+                this.list = [];
             }
         } catch (error) {
-            console.error("[Vocab] Fetch Critical Error:", error);
-            this.rawList = [];
+            console.error("[Vocab] Fetch Error:", error);
+            this.list = [];
         }
     }
 
-    // [CRITICAL] Transforms Flat DB Data -> App Structure
-    formatItem(item) {
+    mapItem(item) {
         const settings = settingsService.get();
-        const t = settings.targetLang || 'ja'; // Target (e.g. 'ja')
-        const o = settings.originLang || 'en'; // Origin (e.g. 'en')
+        const t = settings.targetLang || 'ja'; 
+        const o = settings.originLang || 'en';
+
+        // Dynamic Field Access: item['ja'], item['en']
+        const frontText = item[t] || "???";
+        const backText = item[o] || "???";
+        
+        // Reading Priority: Furigana > Pinyin > Romaji > Empty
+        let subText = item[t + '_furi'] || item[t + '_pin'] || item[t + '_roma'] || "";
 
         return {
-            id: item.id,
+            id: item.id || Math.floor(Math.random() * 9999999),
             front: {
-                // Get target lang (e.g. item['ja'])
-                main: item[t] || "???",
-                // Try reading/pinyin fields if they exist
-                sub: item[t + '_furi'] || item[t + '_pin'] || item[t + '_roma'] || "",
+                main: frontText,
+                sub: subText,
                 type: t
             },
             back: {
-                // Get origin lang (e.g. item['en'])
-                definition: item[o] || "???",
-                // Get example sentences
+                definition: backText,
                 sentenceTarget: item[t + '_ex'] || "",
                 sentenceOrigin: item[o + '_ex'] || ""
             },
@@ -61,22 +70,16 @@ class VocabService {
         };
     }
 
-    getAll() {
-        // Return mapped data so games see 'front' and 'back'
-        return this.rawList.map(item => this.formatItem(item));
+    getAll() { return this.list; }
+    getFlashcardData() { return this.list; }
+    
+    getRandomIndex() { 
+        if (this.list.length === 0) return 0;
+        return Math.floor(Math.random() * this.list.length); 
     }
-
-    getFlashcardData() {
-        return this.getAll();
-    }
-
-    getRandomIndex() {
-        if (this.rawList.length === 0) return 0;
-        return Math.floor(Math.random() * this.rawList.length);
-    }
-
-    findIndexById(id) {
-        return this.rawList.findIndex(item => item.id === id);
+    
+    findIndexById(id) { 
+        return this.list.findIndex(item => item.id === id); 
     }
 }
 
