@@ -8,8 +8,7 @@ import { sentencesApp } from './components/SentencesApp';
 import { blanksApp } from './components/BlanksApp';
 import { audioService } from './services/audioService';
 
-// --- 1. ENABLE ON-SCREEN LOGGING (For Tablet Debugging) ---
-// This redirects console.log to the F9 Red Box so you can see what's happening.
+// --- 1. ENABLE ON-SCREEN LOGGING ---
 const originalLog = console.log;
 const originalWarn = console.warn;
 const originalError = console.error;
@@ -17,10 +16,8 @@ const originalError = console.error;
 function logToScreen(type, args) {
     const box = document.getElementById('error-text');
     if (box) {
-        // Convert objects to string for readability
         const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
         box.innerText += `[${type}] ${msg}\n`;
-        // Auto-scroll to bottom
         box.scrollTop = box.scrollHeight; 
     }
 }
@@ -29,7 +26,6 @@ console.log = function(...args) { originalLog.apply(console, args); logToScreen(
 console.warn = function(...args) { originalWarn.apply(console, args); logToScreen('WRN', args); };
 console.error = function(...args) { originalError.apply(console, args); logToScreen('ERR', args); };
 
-// Clear loading state
 if(document.body.classList.contains('is-loading')) document.body.classList.remove('is-loading');
 
 console.log("App initializing...");
@@ -45,7 +41,7 @@ let popupTimer = null;
 let ignoreNextClick = false; 
 let startX = 0;
 let startY = 0;
-let lastInputType = null; // 'touch' or 'mouse'
+let lastInputType = null; 
 
 function renderDictionaryEntry(data) {
     return `
@@ -93,20 +89,26 @@ function hideDictionaryPopup() {
     if (popupTimer) clearTimeout(popupTimer);
 }
 
-// --- LONG PRESS OVERLOAD LOGIC (HYBRID FIX) ---
+// --- LONG PRESS LOGIC (EXTENDED) ---
 
 function getTargetButton(e) {
-    // Traverse up to find the clickable container
-    return e.target.closest('.quiz-option, .bank-word, .user-word, .flashcard-front, .flashcard-back');
+    // 1. Buttons
+    let target = e.target.closest('.quiz-option, .bank-word, .user-word');
+    
+    // 2. Question Text Containers (Big Text)
+    if (!target) {
+        // [FIX] Added 'flashcard-text' and 'flashcard-box' to the targeting logic
+        target = e.target.closest('#quiz-question-text, #blanks-question-text, #sent-hint-box h2, #flashcard-text, #flashcard-box');
+    }
+    
+    return target;
 }
 
 function handleStart(e) {
-    // 1. Filter Input Source to prevent double-firing (Touch + Mouse)
     const now = Date.now();
     if (e.type === 'touchstart') {
         lastInputType = 'touch';
     } else if (e.type === 'mousedown') {
-        // If we just had a touch event, ignore this mouse event (it's a ghost click)
         if (lastInputType === 'touch') return;
         lastInputType = 'mouse';
     }
@@ -117,8 +119,6 @@ function handleStart(e) {
     const targetBtn = getTargetButton(e);
     if (!targetBtn) return;
 
-    // console.log("Press started on:", targetBtn.textContent.substring(0, 5));
-
     if (e.type === 'touchstart') {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
@@ -127,32 +127,26 @@ function handleStart(e) {
         startY = e.clientY;
     }
 
+    // [IMPORTANT] Ensure we are getting textContent from the correct element level
     const text = targetBtn.textContent.trim();
     if (!text) return;
 
     ignoreNextClick = false; 
-    
-    // Clear any existing timer to be safe
     if (longPressTimer) clearTimeout(longPressTimer);
 
     longPressTimer = setTimeout(() => {
-        // Perform Lookup
         const results = dictionaryService.lookupText(text);
-        
         if (results.length > 0) {
-            console.log("Long Press Triggered! Found:", results.length, "Chinese chars");
+            console.log("Long Press Triggered on:", text.substring(0, 10) + "...");
             showDictionaryPopup(results);
             ignoreNextClick = true; 
             if (navigator.vibrate) navigator.vibrate(50);
-        } else {
-            console.log("Long Press ignored: No Chinese characters found in text.");
         }
-    }, 600); // Increased to 600ms to reduce accidental triggers
+    }, 600); 
 }
 
 function handleMove(e) {
     if (!longPressTimer) return;
-    
     let clientX, clientY;
     if (e.type === 'touchmove') {
         clientX = e.touches[0].clientX;
@@ -161,10 +155,7 @@ function handleMove(e) {
         clientX = e.clientX;
         clientY = e.clientY;
     }
-
-    // Increased tolerance to 15px for fat fingers
     if (Math.abs(clientX - startX) > 15 || Math.abs(clientY - startY) > 15) {
-        // console.log("Movement detected, cancelling long press");
         clearTimeout(longPressTimer);
         longPressTimer = null;
     }
@@ -175,11 +166,9 @@ function handleEnd(e) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
     }
-    // Note: We don't reset ignoreNextClick here. 
-    // We wait for the click event to fire (and kill it) or for the next start event.
 }
 
-// Intercept Click
+// Click Intercept
 document.addEventListener('click', function(e) {
     if (ignoreNextClick) {
         console.log("Blocking Click Event due to Long Press");
@@ -191,7 +180,7 @@ document.addEventListener('click', function(e) {
     }
 }, { capture: true });
 
-// Block Context Menu (Android/iOS native menu)
+// Block Context Menu
 document.addEventListener('contextmenu', function(e) {
     if (getTargetButton(e)) {
         e.preventDefault();
@@ -199,7 +188,6 @@ document.addEventListener('contextmenu', function(e) {
     }
 });
 
-// Bind Events
 document.addEventListener('mousedown', handleStart);
 document.addEventListener('touchstart', handleStart, { passive: true });
 document.addEventListener('mouseup', handleEnd);
@@ -209,7 +197,7 @@ document.addEventListener('touchmove', handleMove);
 
 if(popupClose) popupClose.addEventListener('click', hideDictionaryPopup);
 
-// --- APP ROUTING (Standard) ---
+// --- ROUTER & INIT (Standard logic follows) ---
 const mainMenu = document.getElementById('main-menu');
 const flashcardView = document.getElementById('flashcard-view');
 const quizView = document.getElementById('quiz-view');
@@ -244,7 +232,6 @@ if(menuQuizBtn) menuQuizBtn.addEventListener('click', showQuiz);
 if(menuSentencesBtn) menuSentencesBtn.addEventListener('click', showSentences);
 if(menuBlanksBtn) menuBlanksBtn.addEventListener('click', showBlanks);
 
-// --- INITIALIZATION ---
 const checks = [document.getElementById('check-1'), document.getElementById('check-2'), document.getElementById('check-3')];
 function initApp() {
     try {
@@ -266,7 +253,6 @@ initApp();
 
 function applyTypography(family, weight) { document.body.classList.remove('font-inter', 'font-lato', 'font-roboto', 'font-light', 'font-normal', 'font-bold', 'font-black'); document.body.classList.add(family, weight); }
 
-// --- SETTINGS MODAL & ACCORDIONS ---
 const modal = document.getElementById('settings-modal'); const backdrop = document.getElementById('modal-backdrop'); const openBtn = document.getElementById('settings-open-btn'); const doneBtn = document.getElementById('modal-done-btn');
 const targetSelect = document.getElementById('target-select'); const originSelect = document.getElementById('origin-select'); const darkToggle = document.getElementById('toggle-dark'); const fontFamilySelect = document.getElementById('font-family-select'); const fontWeightSelect = document.getElementById('font-weight-select');
 const vocabToggle = document.getElementById('toggle-vocab'); const readingToggle = document.getElementById('toggle-reading'); const sentenceToggle = document.getElementById('toggle-sentence'); const englishToggle = document.getElementById('toggle-english'); const audioToggle = document.getElementById('toggle-audio'); const gameWaitToggle = document.getElementById('toggle-game-wait');
@@ -275,7 +261,6 @@ const sentAudioToggle = document.getElementById('toggle-sent-audio'); const sent
 const blanksChoicesSelect = document.getElementById('blanks-choices-select'); const blanksAudioToggle = document.getElementById('toggle-blanks-audio'); const blanksAutoCorrectToggle = document.getElementById('toggle-blanks-autoplay-correct');
 const dictEnableToggle = document.getElementById('toggle-dict-enable'); const dictDurationSelect = document.getElementById('dict-duration-select'); const dictAudioToggle = document.getElementById('toggle-dict-audio');
 
-// Accordion Logic
 const accFontBtn = document.getElementById('font-accordion-btn'); const accFontContent = document.getElementById('font-options'); const accFontArrow = document.getElementById('accordion-arrow-font');
 const acc1Btn = document.getElementById('display-accordion-btn'); const acc1Content = document.getElementById('display-options'); const acc1Arrow = document.getElementById('accordion-arrow-1');
 const acc2Btn = document.getElementById('audio-accordion-btn'); const acc2Content = document.getElementById('audio-options'); const acc2Arrow = document.getElementById('accordion-arrow-2');
@@ -286,14 +271,7 @@ const accDictBtn = document.getElementById('dict-accordion-btn'); const accDictC
 
 function openModal() { if(modal) { modal.classList.remove('hidden'); setTimeout(() => modal.classList.remove('opacity-0'), 10); }}
 function closeModal() { if(modal) { modal.classList.add('opacity-0'); setTimeout(() => modal.classList.add('hidden'), 200); }}
-function toggleAccordion(c, a) { 
-    if(c && a) { 
-        c.classList.toggle('hidden'); 
-        a.style.transform = c.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)'; 
-    } else {
-        console.error("Accordion Elements Missing!", c, a);
-    }
-}
+function toggleAccordion(c, a) { if(c && a) { c.classList.toggle('hidden'); a.style.transform = c.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)'; } else { console.error("Accordion Elements Missing!", c, a); } }
 
 if(openBtn) openBtn.addEventListener('click', openModal); if(doneBtn) doneBtn.addEventListener('click', closeModal); if(backdrop) backdrop.addEventListener('click', closeModal);
 if(accFontBtn) accFontBtn.addEventListener('click', () => toggleAccordion(accFontContent, accFontArrow));
@@ -302,12 +280,7 @@ if(acc2Btn) acc2Btn.addEventListener('click', () => toggleAccordion(acc2Content,
 if(acc3Btn) acc3Btn.addEventListener('click', () => toggleAccordion(acc3Content, acc3Arrow));
 if(accSentBtn) accSentBtn.addEventListener('click', () => toggleAccordion(accSentContent, accSentArrow));
 if(accBlanksBtn) accBlanksBtn.addEventListener('click', () => toggleAccordion(accBlanksContent, accBlanksArrow));
-// [FIX] Binding the Dictionary Accordion
-if(accDictBtn) {
-    accDictBtn.addEventListener('click', () => toggleAccordion(accDictContent, accDictArrow));
-} else {
-    console.error("Dictionary Accordion Button Not Found in DOM");
-}
+if(accDictBtn) accDictBtn.addEventListener('click', () => toggleAccordion(accDictContent, accDictArrow));
 
 if(targetSelect) targetSelect.addEventListener('change', (e) => { settingsService.setTarget(e.target.value); flashcardApp.refresh(); });
 if(originSelect) originSelect.addEventListener('change', (e) => { settingsService.setOrigin(e.target.value); flashcardApp.refresh(); });

@@ -12,7 +12,6 @@ export class BlanksApp {
         this.isAnswered = false; audioService.stop();
         if (specificId === null && this.currentData) {
              const idx = vocabService.findIndexById(this.currentData.target.id);
-             // Try to find next VALID blank question by iterating
              let found = false;
              let nextIdx = idx;
              const list = vocabService.getAll();
@@ -21,11 +20,10 @@ export class BlanksApp {
                  const q = blanksService.generateQuestion(list[nextIdx].id);
                  if (q) { this.currentData = q; found = true; break; }
              }
-             if(!found) this.currentData = blanksService.generateQuestion(); // Fallback random
+             if(!found) this.currentData = blanksService.generateQuestion(); 
         } else {
              this.currentData = blanksService.generateQuestion(specificId); 
         }
-        
         if(!this.currentData) { setTimeout(() => this.next(), 10); return; } 
         this.render(); 
     }
@@ -33,8 +31,6 @@ export class BlanksApp {
     prev() { 
         audioService.stop();
         const list = vocabService.getAll();
-        // Simple prev not guaranteed for blanks, fall back to random for now or smart search
-        // Smart search backwards
         let idx = vocabService.findIndexById(this.currentData.target.id);
         for(let i=0; i<list.length; i++) {
              idx = (idx - 1 + list.length) % list.length;
@@ -48,7 +44,6 @@ export class BlanksApp {
         if (full) {
             audioService.speak(this.currentData.cleanSentence, settings.targetLang);
         } else {
-            // Play with pause
             const parts = this.currentData.sentence.split('_______');
             if (parts.length > 1) {
                 audioService.speak(parts[0], settings.targetLang);
@@ -73,8 +68,8 @@ export class BlanksApp {
         const isCorrect = selectedId === correctId;
         const questionText = document.getElementById('blanks-question-text');
         const questionBox = document.getElementById('blanks-question-box');
-        const blankSlot = document.getElementById('blank-slot');
         const blankText = document.getElementById('blank-text');
+        const blankSlot = document.getElementById('blank-slot');
 
         buttonElement.className = 'quiz-option relative w-full h-full p-2 rounded-2xl shadow-lg flex items-center justify-center transition-all border-2';
 
@@ -85,16 +80,14 @@ export class BlanksApp {
             questionText.classList.remove('text-gray-800', 'dark:text-white');
             questionText.classList.add('text-white');
 
-            // REVEAL ANSWER (Remove invisible class from the span inside blank-slot)
-            if(blankText) {
-                blankText.classList.remove('invisible');
-                blankSlot.classList.remove('border-b-4', 'border-dashed'); // Remove underline
-                blankSlot.classList.add('text-green-200', 'font-black'); // Highlight
+            if(blankText) blankText.classList.remove('invisible');
+            if(blankSlot) {
+                blankSlot.classList.remove('border-b-4', 'border-dashed');
+                blankSlot.classList.add('text-green-200', 'font-black');
             }
 
-            // PLAY AUDIO
             if (settings.blanksAutoPlayCorrect) {
-                const textToSpeak = settings.blanksAutoPlayCorrect ? this.currentData.cleanSentence : ""; 
+                const textToSpeak = this.currentData.cleanSentence; 
                 if (settings.gameWaitAudio && textToSpeak) {
                     audioService.speakWithCallback(textToSpeak, settings.targetLang, () => setTimeout(() => this.next(), 500));
                 } else {
@@ -114,19 +107,14 @@ export class BlanksApp {
 
     render() {
         if (!this.container || !this.currentData) return;
-        const { target, sentence, cleanSentence, answerWord, choices } = this.currentData;
+        const { target, sentence, answerWord, choices } = this.currentData;
         const settings = settingsService.get();
         const fontClass = settings.targetLang === 'ja' ? 'font-jp' : '';
         let gridClass = choices.length === 2 ? 'grid-cols-1 grid-rows-2' : choices.length === 3 ? 'grid-cols-1 grid-rows-3' : 'grid-cols-2 grid-rows-2';
 
-        // Split sentence for rendering: "Part A _______ Part B"
-        // We use the 'invisible text' trick to reserve exact space for the answer word.
         const parts = sentence.split('_______');
         const pre = parts[0] || '';
         const post = parts[1] || '';
-        
-        // The Blank Component: Holds the invisible answer word to set width, 
-        // with a border to show it's a blank.
         const blankHTML = `<span id="blank-slot" class="inline-block border-b-4 border-dashed border-indigo-400 min-w-[2em] text-center mx-1"><span id="blank-text" class="invisible">${answerWord}</span></span>`;
         const renderedSentence = pre + blankHTML + post;
 
@@ -156,11 +144,8 @@ export class BlanksApp {
         `;
 
         requestAnimationFrame(() => {
-            // Apply text fitting to question and choices
             const fitElements = this.container.querySelectorAll('[data-fit="true"]');
             fitElements.forEach(el => textService.fitText(el));
-            
-            // Smart wrapping for the sentence
             const qText = document.getElementById('blanks-question-text');
             if (qText) qText.innerHTML = textService.formatSentence(renderedSentence, settings.targetLang);
         });
@@ -168,7 +153,7 @@ export class BlanksApp {
         if(settings.autoPlay) setTimeout(() => this.playAudio(), 300);
 
         this.container.querySelectorAll('.quiz-option').forEach(btn => { btn.addEventListener('click', (e) => this.handleAnswer(parseInt(e.currentTarget.getAttribute('data-id')), e.currentTarget)); });
-        document.getElementById('blanks-question-box').addEventListener('click', () => this.playAudio(true)); // Click to play full
+        document.getElementById('blanks-question-box').addEventListener('click', () => this.playAudio(true)); 
         document.getElementById('blanks-random-btn').addEventListener('click', () => this.next(null));
         document.getElementById('blanks-close-btn').addEventListener('click', () => { audioService.stop(); window.dispatchEvent(new CustomEvent('router:home')); });
         document.getElementById('blanks-id-input').addEventListener('change', (e) => { const newId = parseInt(e.target.value); vocabService.findIndexById(newId) !== -1 ? this.next(newId) : alert('ID not found'); });
