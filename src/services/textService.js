@@ -17,7 +17,6 @@ export const textService = {
         let max = 150;
         let optimal = min;
 
-        // Binary Search
         while (min <= max) {
             const current = Math.floor((min + max) / 2);
             element.style.fontSize = `${current}px`;
@@ -29,11 +28,10 @@ export const textService = {
                 max = current - 1;
             }
         }
-        
         element.style.fontSize = `${optimal}px`;
     },
 
-    // 2. SMART WRAPPING (Visual)
+    // 2. SMART WRAPPING
     formatSentence(text, lang) {
         if (!text) return '';
         if (lang === 'ja') return text.replace(/([、。！？])/g, '$1<wbr>').replace(/(は|が|を|に|で|へ|と|も|から|より)(?![、。])/g, '$1<wbr>');
@@ -41,14 +39,28 @@ export const textService = {
         return text;
     },
 
+    // Helper: Parse vocab variations (e.g. "言い訳・言分け" -> ["言い訳", "言分け"])
+    parseVocabVariations(vocab) {
+        if (!vocab) return [];
+        // Replace brackets and middle dots with common separator
+        // Example: "こがね [黄金·金]" -> "こがね ・黄金・金"
+        let normalized = vocab.replace(/\[/g, '・').replace(/\]/g, '');
+        normalized = normalized.replace(/·/g, '・'); // Handle U+00B7 Middle Dot
+        
+        return normalized.split('・')
+            .map(v => v.trim())
+            .filter(v => v.length > 0);
+    },
+
     // 3. ADVANCED JAPANESE TOKENIZER
     tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
         const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
-        let chunks = Array.from(segmenter.segment(text)).map(s => s.segment);
+        // Filter out whitespace-only chunks immediately to prevent logic gaps
+        let chunks = Array.from(segmenter.segment(text))
+                          .map(s => s.segment)
+                          .filter(s => s.trim().length > 0);
         
-        if (!applyPostProcessing) {
-            return chunks; 
-        }
+        if (!applyPostProcessing) return chunks;
 
         return this.postProcessJapanese(chunks, vocab);
     },
@@ -58,14 +70,10 @@ export const textService = {
 
         // --- REGEX & LISTS ---
         const smallKana = /^([っゃゅょャュョん])/;
-        const punctuation = /^([、。？?！!])/;
-        // Kanji only (Simple range)
+        const punctuation = /^([、。？?！!])/; 
         const isAllKanji = /^[\u4e00-\u9faf]+$/;
-        // Starts with Hiragana
         const startsHiragana = /^[\u3040-\u309f]/;
-
         const specialWords = ['とても', 'たくさんの'];
-        
         const suffixes = [
             'さん', 'ちゃん', 'くん', 'さま', 'たち', '屋',
             'さ', 'み', 'さく', 'い', 'げ', 'らしい',
@@ -76,107 +84,143 @@ export const textService = {
             'でき', 'できな', 'できない',
             'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 
             'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので',
-            'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で' 
-            // Note: 'は' and 'を' are handled by specific rule below
+            'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'
         ];
 
         let processed = [...chunks];
         let changed = true;
 
-        // --- MAIN MERGE LOOP ---
+        // --- PHASE 1: GRAMMAR MERGING ---
         while (changed) {
             changed = false;
             const nextPass = [];
             
             if (processed.length > 0) {
                 nextPass.push(processed[0]);
-                
                 for (let i = 1; i < processed.length; i++) {
                     const prev = nextPass[nextPass.length - 1];
                     const curr = processed[i];
                     let merged = false;
 
-                    // 1. Small Kana (Highest Priority)
                     if (smallKana.test(curr)) {
                         nextPass[nextPass.length - 1] = prev + curr;
                         merged = true;
-                    }
-                    // 2. Special Words
-                    else if (specialWords.includes(prev + curr)) {
+                    } else if (specialWords.includes(prev + curr)) {
                         nextPass[nextPass.length - 1] = prev + curr;
                         merged = true;
-                    }
-                    // 3. Suffixes
-                    else {
+                    } else {
                         const isSuffix = suffixes.some(s => curr === s || curr.startsWith(s));
                         if (isSuffix) {
                             nextPass[nextPass.length - 1] = prev + curr;
                             merged = true;
-                        }
-                        // 4. Specific Characters (お / は / を)
-                        // 'お' merges with block BEHIND it (next) -> prev='お' merge with curr
-                        else if (prev === 'お') {
+                        } else if (prev === 'お') {
                             nextPass[nextPass.length - 1] = prev + curr;
                             merged = true;
-                        }
-                        // 'は' or 'を' merges with block BEFORE it -> merge with prev
-                        else if (curr === 'は' || curr === 'を') {
+                        } else if (curr === 'は' || curr === 'を') {
                             nextPass[nextPass.length - 1] = prev + curr;
                             merged = true;
-                        }
-                        // 5. Freestanding Kanji + Hiragana Start
-                        // e.g. "行" + "き" -> "行き"
-                        else if (isAllKanji.test(prev) && startsHiragana.test(curr)) {
-                            nextPass[nextPass.length - 1] = prev + curr;
-                            merged = true;
-                        }
-                        // 6. Punctuation (Lowest Priority)
-                        else if (punctuation.test(curr)) {
+                        } else if (isAllKanji.test(prev) && startsHiragana.test(curr)) {
                             nextPass[nextPass.length - 1] = prev + curr;
                             merged = true;
                         }
                     }
 
-                    if (merged) {
-                        changed = true;
-                    } else {
-                        nextPass.push(curr);
-                    }
+                    if (merged) changed = true;
+                    else nextPass.push(curr);
                 }
             }
             processed = nextPass;
         }
 
-        // --- FINAL PASS: VOCAB CONSISTENCY ---
-        // Checks if the target vocabulary word was chopped up and forces a merge if found.
-        if (vocab && vocab.length > 0) {
-            const finalPass = [];
-            let i = 0;
-            while (i < processed.length) {
-                let merged = false;
-                // Look ahead to see if processed[i]...processed[k] forms the vocab
-                let currentString = "";
-                for (let k = i; k < processed.length; k++) {
-                    currentString += processed[k];
-                    if (currentString === vocab) {
-                        // Found the vocab split across i to k!
-                        finalPass.push(currentString);
-                        i = k + 1; // Skip the consumed chunks
-                        merged = true;
-                        break;
-                    }
-                    // Optimization: stop if we exceed length
-                    if (currentString.length > vocab.length) break;
+        // --- PHASE 2: VOCAB CONSISTENCY (Multi-Variation) ---
+        // Ensure ANY variation of the vocab word stays intact
+        if (vocab && vocab.trim().length > 0) {
+            const variations = this.parseVocabVariations(vocab);
+
+            // Process each variation sequentially
+            for (const targetVocab of variations) {
+                const cleanVocab = targetVocab.replace(/\s+/g, ''); // Remove spaces from target
+                
+                // Build a "spaceless" map of the current chunks
+                let currentMapStr = "";
+                const chunkMap = processed.map((chunk, idx) => {
+                    const cleanChunk = chunk.replace(/\s+/g, '');
+                    const start = currentMapStr.length;
+                    currentMapStr += cleanChunk;
+                    const end = currentMapStr.length;
+                    return { idx, start, end, original: chunk };
+                });
+
+                // Find vocab ranges
+                const vocabRanges = [];
+                let searchPos = 0;
+                let foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
+                
+                while (foundIdx !== -1) {
+                    vocabRanges.push({ start: foundIdx, end: foundIdx + cleanVocab.length });
+                    searchPos = foundIdx + 1;
+                    foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
                 }
 
-                if (!merged) {
-                    finalPass.push(processed[i]);
-                    i++;
+                if (vocabRanges.length > 0) {
+                    const groups = Array.from({ length: processed.length }, (_, i) => i);
+                    
+                    vocabRanges.forEach(vRange => {
+                        let startIndex = -1;
+                        let endIndex = -1;
+
+                        for(let i=0; i<chunkMap.length; i++) {
+                            const c = chunkMap[i];
+                            // Intersection Logic
+                            if (c.start < vRange.end && c.end > vRange.start) {
+                                if (startIndex === -1) startIndex = i;
+                                endIndex = i;
+                            }
+                        }
+
+                        if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
+                            const targetGroup = groups[startIndex];
+                            for(let k = startIndex + 1; k <= endIndex; k++) {
+                                groups[k] = targetGroup;
+                            }
+                        }
+                    });
+
+                    const mergedChunks = [];
+                    let currentChunk = "";
+                    let currentGroup = -1;
+
+                    for(let i=0; i<processed.length; i++) {
+                        if (groups[i] !== currentGroup) {
+                            if (currentChunk) mergedChunks.push(currentChunk);
+                            currentChunk = processed[i];
+                            currentGroup = groups[i];
+                        } else {
+                            currentChunk += processed[i];
+                        }
+                    }
+                    if (currentChunk) mergedChunks.push(currentChunk);
+                    processed = mergedChunks;
                 }
             }
-            processed = finalPass;
         }
 
-        return processed.filter(c => c.trim().length > 0);
+        // --- PHASE 3: PUNCTUATION MERGING (Final) ---
+        const punctPass = [];
+        if (processed.length > 0) {
+            punctPass.push(processed[0]);
+            for (let i = 1; i < processed.length; i++) {
+                const prev = punctPass[punctPass.length - 1];
+                const curr = processed[i];
+                if (punctuation.test(curr)) {
+                    punctPass[punctPass.length - 1] = prev + curr;
+                } else {
+                    punctPass.push(curr);
+                }
+            }
+            processed = punctPass;
+        }
+
+        return processed;
     }
 };
