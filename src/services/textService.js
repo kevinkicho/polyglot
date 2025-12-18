@@ -26,33 +26,39 @@ export const textService = {
         element.style.fontSize = `${optimal}px`;
     },
 
-    // 2. SMART WRAPPING (Cleaned up)
+    // 2. SMART WRAPPING
     formatSentence(text, lang) {
         if (!text) return '';
         
-        // Visual Breaks
+        let formatted = text;
         if (lang === 'ja') {
-            return text.replace(/([、。！？])/g, '$1<wbr>')
-                       .replace(/(は|が|を|に|で|へ|と|も|から|より)(?![、。])/g, '$1<wbr>');
-        } 
-        if (lang === 'zh') {
-            return `<span style="word-break: break-all;">${text}</span>`;
+            formatted = text.replace(/([、。！？])/g, '$1<wbr>')
+                            .replace(/(は|が|を|に|で|へ|と|も|から|より)(?![、。])/g, '$1<wbr>');
+        } else if (lang === 'zh') {
+            formatted = `<span style="word-break: break-all;">${text}</span>`;
         }
-
-        return text;
+        return formatted;
     },
 
-    // 3. JAPANESE TOKENIZER (Unchanged)
+    // 3. JAPANESE TOKENIZER (Safe Mode)
     tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
+        // [FIX] Safety check for Segmenter support
+        if (typeof Intl.Segmenter !== 'function') {
+            console.warn("Intl.Segmenter not supported, falling back to simple split.");
+            return text.split('');
+        }
+
         const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
         let chunks = Array.from(segmenter.segment(text)).map(s => s.segment).filter(s => s.trim().length > 0);
+        
         if (!applyPostProcessing) return chunks;
+
         return this.postProcessJapanese(chunks, vocab);
     },
 
     postProcessJapanese(chunks, vocab = '') {
         if (chunks.length === 0) return [];
-        // ... (Your existing logic for merging logic, keeping it intact) ...
+        // ... (Logic identical to previous versions) ...
         const smallKana = /^([っゃゅょャュョん])/;
         const punctuation = /^([、。？?！!])/; 
         const isAllKanji = /^[\u4e00-\u9faf]+$/;
@@ -62,7 +68,7 @@ export const textService = {
             'さん', 'ちゃん', 'くん', 'さま', 'たち', '屋', 'さ', 'み', 'さく', 'い', 'げ', 'らしい',
             'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'でした', 'だ', 'だろう', 'ろう',
             'ます', 'ました', 'ませ', 'ません', 'ない', 'たい', 'て', 'いる', 'ある', 'れる', 'られる',
-            'でき', 'できな', 'できない', 'の', '에는', 'では', 'がら', 'から', 'より', 'にして', 
+            'でき', 'できな', 'できない', 'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 
             'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので', 'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'
         ];
 
@@ -93,9 +99,9 @@ export const textService = {
             processed = nextPass;
         }
 
-        // Vocab Consistency & Punctuation Logic (Keeping your working version)
         if (vocab && vocab.trim().length > 0) {
-            const variations = [vocab]; // Or use your variations logic
+            // Simple single vocab check for robustness
+            const variations = [vocab];
             for(const targetVocab of variations) {
                 const cleanVocab = targetVocab.replace(/\s+/g, '');
                 let currentMapStr = "";
