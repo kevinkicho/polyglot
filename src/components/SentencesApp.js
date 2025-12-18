@@ -4,7 +4,18 @@ import { audioService } from '../services/audioService';
 import { textService } from '../services/textService';
 
 export class SentencesApp {
-    constructor() { this.container = null; this.currentIndex = 0; this.currentData = null; this.userSentence = []; this.shuffledWords = []; this.wordBankStatus = []; }
+    constructor() {
+        this.container = null;
+        this.currentIndex = 0;
+        this.currentData = null;
+        this.userSentence = []; 
+        this.shuffledWords = [];
+        this.wordBankStatus = []; 
+        
+        // [NEW] Toggle state for Japanese Post Processing (Starts OFF)
+        this.usePostProcessing = false;
+    }
+
     mount(elementId) { this.container = document.getElementById(elementId); this.next(); }
 
     next(specificId = null) {
@@ -36,9 +47,14 @@ export class SentencesApp {
         const cleanSentence = targetSentence.replace(/<[^>]*>?/gm, '');
         
         let words = [];
-        if (settings.targetLang === 'ja') words = textService.tokenizeJapanese(cleanSentence);
-        else if (settings.targetLang === 'zh') words = cleanSentence.split('');
-        else words = cleanSentence.split(' ').filter(w => w.length > 0);
+        if (settings.targetLang === 'ja') {
+            // [UPDATE] Pass the toggle state as 3rd arg
+            words = textService.tokenizeJapanese(cleanSentence, item.front.main, this.usePostProcessing);
+        } else if (settings.targetLang === 'zh') {
+            words = cleanSentence.split('');
+        } else {
+            words = cleanSentence.split(' ').filter(w => w.length > 0);
+        }
 
         this.currentData = { ...item, originalWords: [...words], cleanSentence };
         this.shuffledWords = [...words].map((word, id) => ({ word, id })).sort(() => Math.random() - 0.5);
@@ -67,6 +83,7 @@ export class SentencesApp {
         const item = this.userSentence[userIndex];
         this.wordBankStatus[item.bankIndex] = false;
         this.userSentence.splice(userIndex, 1);
+        audioService.speak(item.word, settingsService.get().targetLang);
         this.render();
     }
 
@@ -98,24 +115,45 @@ export class SentencesApp {
         }
     }
 
+    togglePostProcessing() {
+        this.usePostProcessing = !this.usePostProcessing;
+        this.loadGame(); // Reload current sentence with new chunking
+    }
+
     render() {
         if (!this.container || !this.currentData) return;
         const item = this.currentData;
         const settings = settingsService.get();
         const fontClass = settings.targetLang === 'ja' ? 'font-jp' : '';
 
+        // Dynamic Color for the PP Button
+        const ppBtnClass = this.usePostProcessing 
+            ? "bg-indigo-100 text-indigo-600 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-700" 
+            : "bg-white text-gray-400 border-gray-200 dark:bg-dark-card dark:text-gray-500 dark:border-dark-border";
+
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
                 <div class="flex items-center"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-mono font-bold text-gray-700 dark:text-white focus:ring-0 outline-none text-sm p-0" value="${item.id}"></div></div>
-                <div class="flex items-center gap-3"><button id="sent-random-btn" class="w-10 h-10 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl flex items-center justify-center text-indigo-500 dark:text-dark-primary shadow-sm active:scale-90 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg></button><button id="sent-close-btn" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                <div class="flex items-center gap-3">
+                    
+                    <button id="sent-pp-btn" class="w-10 h-10 ${ppBtnClass} border rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-all" title="Toggle Japanese Smart Splitting">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                    </button>
+
+                    <button id="sent-random-btn" class="w-10 h-10 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl flex items-center justify-center text-indigo-500 dark:text-dark-primary shadow-sm active:scale-90 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg></button>
+                    <button id="sent-close-btn" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
             </div>
+            
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_1fr] md:grid-rows-1 gap-4">
-                <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl dark:shadow-none border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col relative overflow-hidden cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 active:scale-[0.99] transition-all">
+                <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl dark:shadow-none border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col relative overflow-hidden transition-all">
                     <span class="absolute top-6 left-0 w-full text-center text-[10px] font-black uppercase tracking-widest opacity-30 dark:text-gray-400">Construct Sentence</span>
-                    <div class="mt-8 text-center"><h2 class="text-2xl font-bold text-gray-800 dark:text-white leading-snug">${item.back.sentenceOrigin}</h2></div>
-                    <div id="sentence-drop-zone" class="flex-grow mt-6 bg-gray-50 dark:bg-black/40 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-4 flex flex-wrap content-start gap-2 overflow-y-auto transition-all duration-300">
+                    <div class="mt-8 text-center flex-none"><h2 class="text-xl font-bold text-gray-800 dark:text-white leading-snug cursor-pointer hover:text-indigo-500 transition-colors">${item.back.sentenceOrigin}</h2></div>
+                    <div id="sentence-drop-zone" class="flex-grow mt-4 bg-gray-50 dark:bg-black/40 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-4 flex flex-wrap content-start gap-2 overflow-y-auto transition-all duration-300 min-h-[200px]">
                         ${this.userSentence.length === 0 ? '<span class="w-full text-center text-gray-400 italic self-center">Tap words to build</span>' : ''}
-                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl shadow-md active:scale-95 transition-transform font-bold text-xl ${fontClass}" data-index="${i}">${obj.word}</button>`).join('')}
+                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-3 bg-indigo-600 text-white rounded-xl shadow-md active:scale-95 transition-transform font-bold text-xl ${fontClass}" data-index="${i}">${obj.word}</button>`).join('')}
                     </div>
                 </div>
                 <div class="w-full h-full bg-gray-100 dark:bg-dark-bg/50 rounded-[2rem] border-2 border-transparent p-2 overflow-y-auto">
@@ -124,6 +162,7 @@ export class SentencesApp {
                     </div>
                 </div>
             </div>
+
             <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg dark:via-dark-bg">
                 <div class="max-w-md mx-auto flex gap-4">
                     <button id="sent-prev-btn" class="flex-1 h-16 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-400 dark:text-gray-500 rounded-3xl shadow-sm active:scale-95 transition-all flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg></button>
@@ -131,11 +170,16 @@ export class SentencesApp {
                 </div>
             </div>
         `;
+
         this.container.querySelectorAll('.bank-word').forEach(btn => btn.addEventListener('click', () => this.handleBankClick(parseInt(btn.dataset.index))));
         this.container.querySelectorAll('.user-word').forEach(btn => btn.addEventListener('click', () => this.handleUserClick(parseInt(btn.dataset.index))));
+        
+        // [NEW] Listener for Post-Processing Toggle
+        document.getElementById('sent-pp-btn').addEventListener('click', () => this.togglePostProcessing());
+        
         document.getElementById('sent-close-btn').addEventListener('click', () => { audioService.stop(); window.dispatchEvent(new CustomEvent('router:home')); });
         document.getElementById('sent-random-btn').addEventListener('click', () => { this.currentIndex = vocabService.getRandomIndex(); this.loadGame(); });
-        document.getElementById('sent-hint-box').addEventListener('click', () => this.playTargetAudio());
+        document.getElementById('sent-hint-box').addEventListener('click', (e) => { if(!e.target.closest('#sentence-drop-zone')) this.playTargetAudio(); });
         const idInput = document.getElementById('sent-id-input');
         idInput.addEventListener('change', (e) => this.next(parseInt(e.target.value)));
     }
