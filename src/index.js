@@ -33,12 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconIn = document.getElementById('icon-user-in');
     let currentUser = null;
 
-    // --- AUTH ---
+    // --- AUTH LOGIC ---
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
         if (user && !user.isAnonymous) {
             if(iconOut) iconOut.classList.add('hidden');
-            if(iconIn) { iconIn.classList.remove('hidden'); iconIn.src = user.photoURL; }
+            if(iconIn) {
+                iconIn.classList.remove('hidden');
+                iconIn.src = user.photoURL;
+            }
         } else {
             if(iconOut) iconOut.classList.remove('hidden');
             if(iconIn) iconIn.classList.add('hidden');
@@ -47,14 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const loginBtn = document.getElementById('user-login-btn');
-    if(loginBtn) loginBtn.addEventListener('click', async () => {
-        if (currentUser && !currentUser.isAnonymous) { if(confirm("Log out?")) await signOut(auth); }
-        else { try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); } }
-    });
+    if(loginBtn) {
+        loginBtn.addEventListener('click', async () => {
+            if (currentUser && !currentUser.isAnonymous) {
+                if(confirm("Log out?")) await signOut(auth);
+            } else {
+                try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); }
+            }
+        });
+    }
 
     function updateEditPermissions() {
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com';
-        document.querySelectorAll('#btn-save-vocab, .btn-save-dict, #btn-add-dict').forEach(btn => {
+        const saveBtns = document.querySelectorAll('#btn-save-vocab, .btn-save-dict, #btn-add-dict');
+        saveBtns.forEach(btn => {
             if(btn.id === 'btn-add-dict') btn.style.display = isAdmin ? 'block' : 'none';
             else btn.disabled = !isAdmin;
         });
@@ -63,14 +72,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ROUTER ---
     function renderView(viewName) {
         audioService.stop();
+        
         if (viewName === 'home') document.body.classList.remove('game-mode');
         else document.body.classList.add('game-mode');
 
-        Object.values(views).forEach(el => el.classList.add('hidden'));
+        Object.values(views).forEach(el => { if(el) el.classList.add('hidden'); });
         const target = views[viewName];
+        
         if (target) {
             target.classList.remove('hidden');
             const lastId = savedHistory[viewName];
+            
             if (viewName === 'flashcard') { flashcardApp.mount('flashcard-view'); if(lastId) flashcardApp.goto(lastId); }
             if (viewName === 'quiz') { quizApp.mount('quiz-view'); if(lastId) quizApp.next(lastId); }
             if (viewName === 'sentences') { sentencesApp.mount('sentences-view'); if(lastId) sentencesApp.next(lastId); }
@@ -78,10 +90,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const bindNav = (id, view) => { const btn = document.getElementById(id); if(btn) btn.addEventListener('click', () => { history.pushState({view}, '', `#${view}`); renderView(view); }); };
-    bindNav('menu-flashcard-btn', 'flashcard'); bindNav('menu-quiz-btn', 'quiz'); bindNav('menu-sentences-btn', 'sentences'); bindNav('menu-blanks-btn', 'blanks');
+    function navigateTo(viewName) { 
+        history.pushState({ view: viewName }, '', `#${viewName}`); 
+        renderView(viewName); 
+    }
+    
     window.addEventListener('popstate', (e) => renderView(e.state ? e.state.view : 'home'));
     window.addEventListener('router:home', () => history.back());
+
+    const bindNav = (id, view) => { 
+        const btn = document.getElementById(id); 
+        if(btn) btn.addEventListener('click', () => navigateTo(view)); 
+    };
+    bindNav('menu-flashcard-btn', 'flashcard');
+    bindNav('menu-quiz-btn', 'quiz');
+    bindNav('menu-sentences-btn', 'sentences');
+    bindNav('menu-blanks-btn', 'blanks');
 
     // --- DICTIONARY POPUP (Viewer) ---
     const popup = document.getElementById('dictionary-popup');
@@ -107,13 +131,17 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => popup.classList.remove('opacity-0'), 10);
         }
     }
-    if(popupClose) popupClose.addEventListener('click', () => { popup.classList.add('opacity-0'); setTimeout(() => popup.classList.add('hidden'), 200); });
+    if(popupClose) popupClose.addEventListener('click', () => { 
+        popup.classList.add('opacity-0'); 
+        setTimeout(() => popup.classList.add('hidden'), 200); 
+    });
 
     const handleStart = (e) => {
         if (!settingsService.get().dictEnabled) return;
         const target = e.target.closest('.quiz-option, #flashcard-text, #quiz-question-box, #blanks-question-box, .user-word, .bank-word');
         if (!target) return;
-        if (e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } else { startX = e.clientX; startY = e.clientY; }
+        if (e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } 
+        else { startX = e.clientX; startY = e.clientY; }
         longPressTimer = setTimeout(() => { showDictionary(target.textContent.trim()); }, 600);
     };
     const handleMove = (e) => {
@@ -140,50 +168,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function switchEditTab(tab) {
         if (tab === 'vocab') {
-            tabVocab.classList.remove('hidden'); tabDict.classList.add('hidden');
-            tabVocabBtn.classList.replace('bg-gray-200', 'bg-indigo-600'); tabVocabBtn.classList.replace('text-gray-600', 'text-white');
-            tabDictBtn.classList.replace('bg-indigo-600', 'bg-gray-200'); tabDictBtn.classList.replace('text-white', 'text-gray-600');
+            if(tabVocab) tabVocab.classList.remove('hidden'); 
+            if(tabDict) tabDict.classList.add('hidden');
+            if(tabVocabBtn) { tabVocabBtn.classList.replace('bg-gray-200', 'bg-indigo-600'); tabVocabBtn.classList.replace('text-gray-600', 'text-white'); }
+            if(tabDictBtn) { tabDictBtn.classList.replace('bg-indigo-600', 'bg-gray-200'); tabDictBtn.classList.replace('text-white', 'text-gray-600'); }
         } else {
-            tabVocab.classList.add('hidden'); tabDict.classList.remove('hidden');
-            tabDictBtn.classList.replace('bg-gray-200', 'bg-indigo-600'); tabDictBtn.classList.replace('text-gray-600', 'text-white');
-            tabVocabBtn.classList.replace('bg-indigo-600', 'bg-gray-200'); tabVocabBtn.classList.replace('text-white', 'text-gray-600');
+            if(tabVocab) tabVocab.classList.add('hidden'); 
+            if(tabDict) tabDict.classList.remove('hidden');
+            if(tabDictBtn) { tabDictBtn.classList.replace('bg-gray-200', 'bg-indigo-600'); tabDictBtn.classList.replace('text-gray-600', 'text-white'); }
+            if(tabVocabBtn) { tabVocabBtn.classList.replace('bg-indigo-600', 'bg-gray-200'); tabVocabBtn.classList.replace('text-white', 'text-gray-600'); }
         }
     }
+    
     if(tabVocabBtn) tabVocabBtn.addEventListener('click', () => switchEditTab('vocab'));
     if(tabDictBtn) tabDictBtn.addEventListener('click', () => switchEditTab('dict'));
-    document.getElementById('edit-close-btn').addEventListener('click', () => { editModal.classList.add('opacity-0'); setTimeout(()=>editModal.classList.add('hidden'), 200); });
+    if(document.getElementById('edit-close-btn')) document.getElementById('edit-close-btn').addEventListener('click', () => { editModal.classList.add('opacity-0'); setTimeout(()=>editModal.classList.add('hidden'), 200); });
 
     // --- POPULATE DICTIONARY EDIT LIST ---
-    function populateDictionaryEdit(item) {
+    function populateDictionaryEdit(textToScan) {
         const listContainer = document.getElementById('edit-dict-list');
-        listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">Scanning text...</div>';
+        listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">Scanning...</div>';
         
-        // Collect text from all fields
-        const combinedText = (item.front.main || "") + (item.back.sentenceTarget || "") + (item.front.sub || "") + (item.back.definition || "");
-        
-        // Use service to find chars
-        const entries = dictionaryService.lookupText(combinedText);
+        // Scan full text
+        const entries = dictionaryService.lookupText(textToScan);
         
         listContainer.innerHTML = '';
         if (entries.length === 0) {
-            listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">No dictionary entries found in this card.</div>';
+            listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">No dictionary entries found.</div>';
             return;
         }
 
         entries.forEach(entry => {
-            // Find key in dictionary index to save back to
-            // Since we need the ID/Key to update Firebase, we need to find it. 
-            // In the optimized service, we stored the whole object. Let's assume 'id' is part of it, 
-            // or we need to find the key by character if ID is missing.
-            // For now, let's assume entry has an ID or we use the char as key if structured that way.
-            // Based on previous JSON, dictionary has numeric IDs.
-            
             const div = document.createElement('div');
             div.className = "bg-gray-100 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-gray-700";
             div.innerHTML = `
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-2xl font-black text-indigo-600 dark:text-indigo-400">${entry.simp}</span>
-                    <span class="text-xs font-mono text-gray-400">ID: ${entry.id || '?'}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-mono text-gray-400">ID: ${entry.id || '?'}</span>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 gap-2 text-sm">
                     <input class="p-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 dark:text-white" value="${entry.pinyin || ''}" placeholder="Pinyin" id="dict-p-${entry.id}">
@@ -195,25 +218,21 @@ document.addEventListener('DOMContentLoaded', () => {
             listContainer.appendChild(div);
         });
 
-        // Attach Listeners to new buttons
+        // Attach Listeners
         document.querySelectorAll('.btn-save-dict').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = e.target.dataset.id;
                 if(!id) return;
-                
                 const p = document.getElementById(`dict-p-${id}`).value;
                 const en = document.getElementById(`dict-e-${id}`).value;
                 const ko = document.getElementById(`dict-k-${id}`).value;
-                
                 try {
                     await update(ref(db, `dictionary/${id}`), { p, e, k: ko });
-                    alert('Dictionary Entry Saved!');
-                    // Reload dict data silently
+                    alert('Saved!');
                     dictionaryService.fetchData();
                 } catch(err) { console.error(err); alert('Save failed'); }
             });
         });
-        
         updateEditPermissions();
     }
 
@@ -227,9 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!views.blanks.classList.contains('hidden')) app = blanksApp;
 
             if (app) {
-                // Determine item safely
-                let item = app.currentData;
-                if (item && item.target) item = item.target; // Quiz/Blanks structure
+                // Get Main Item
+                let item = app.currentData && app.currentData.target ? app.currentData.target : (app.currentData || (app.currentIndex !== undefined ? vocabService.getAll()[app.currentIndex] : null));
                 
                 if (item) {
                     currentEditId = item.id;
@@ -243,7 +261,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('inp-vocab-sentence-t').value = item.back.sentenceTarget || '';
                     document.getElementById('inp-vocab-sentence-o').value = item.back.sentenceOrigin || '';
                     
-                    populateDictionaryEdit(item);
+                    // --- GATHER TEXT FROM ENTIRE VIEW ---
+                    let combinedText = (item.front.main || "") + (item.back.sentenceTarget || "") + (item.front.sub || "") + (item.back.definition || "");
+                    
+                    // Add Choices/Bank text if available
+                    if (app.currentData && app.currentData.choices) {
+                        app.currentData.choices.forEach(c => {
+                            combinedText += (c.front.main || "") + (c.back.definition || "");
+                        });
+                    }
+                    if (app.shuffledWords) { // Sentences App
+                        app.shuffledWords.forEach(w => combinedText += w.word);
+                    }
+
+                    populateDictionaryEdit(combinedText);
                     updateEditPermissions();
                 }
             }
@@ -263,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 await update(ref(db, `vocab/${currentEditId}`), updates);
-                alert('Vocab Saved!');
+                alert('Saved!');
                 await vocabService.fetchData();
                 if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
             } catch(e) { console.error(e); alert('Error saving.'); }
@@ -283,6 +314,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('toggle-vocab')) document.getElementById('toggle-vocab').addEventListener('change', updateAllApps);
     if(document.getElementById('target-select')) document.getElementById('target-select').addEventListener('change', (e) => { settingsService.setTarget(e.target.value); updateAllApps(); });
 
+    // --- SETTINGS INIT (Apply saved state to inputs) ---
+    function loadSettingsToUI() {
+        const s = settingsService.get();
+        const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+        const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
+
+        setVal('target-select', s.targetLang);
+        setVal('origin-select', s.originLang);
+        setChk('toggle-dark', s.darkMode);
+        setChk('toggle-audio', s.autoPlay);
+        
+        setChk('toggle-vocab', s.showVocab);
+        setChk('toggle-sentence', s.showSentence);
+        setChk('toggle-english', s.showEnglish);
+        
+        setChk('toggle-dict-enable', s.dictEnabled);
+        setChk('toggle-dict-audio', s.dictAudio);
+        
+        setChk('toggle-quiz-audio', s.quizAnswerAudio);
+        setChk('toggle-quiz-autoplay-correct', s.quizAutoPlayCorrect);
+        
+        setChk('toggle-sent-audio', s.sentencesWordAudio);
+        setChk('toggle-blanks-audio', s.blanksAnswerAudio);
+    }
+
     const accordions = [
         { btn: 'dict-accordion-btn', content: 'dict-options', arrow: 'accordion-arrow-dict' },
         { btn: 'display-accordion-btn', content: 'display-options', arrow: 'accordion-arrow-1' },
@@ -292,16 +348,21 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     accordions.forEach(acc => {
         const btn = document.getElementById(acc.btn); const content = document.getElementById(acc.content); const arrow = document.getElementById(acc.arrow);
-        if(btn) btn.addEventListener('click', () => { content.classList.toggle('open'); arrow.classList.toggle('rotate'); });
+        if(btn && content && arrow) {
+            btn.addEventListener('click', () => { content.classList.toggle('open'); arrow.classList.toggle('rotate'); });
+        }
     });
 
     // --- INIT ---
     async function initApp() {
         try {
             const saved = settingsService.get();
+            loadSettingsToUI(); // Apply settings to UI
+            
             if(saved.darkMode) document.documentElement.classList.add('dark');
             await signInAnonymously(auth);
             await Promise.all([vocabService.fetchData(), dictionaryService.fetchData()]);
+            
             const startBtn = document.getElementById('start-app-btn');
             if(startBtn) {
                 startBtn.disabled = false;

@@ -5,7 +5,12 @@ import { settingsService } from '../services/settingsService';
 import { Card } from './Card';
 
 export class FlashcardApp {
-    constructor() { this.container = null; this.currentIndex = 0; this.isFlipped = false; this.isMounted = false; }
+    constructor() {
+        this.container = null;
+        this.currentIndex = 0;
+        this.isFlipped = false;
+        this.isMounted = false;
+    }
 
     get currentData() {
         const list = vocabService.getFlashcardData();
@@ -45,16 +50,18 @@ export class FlashcardApp {
         if(!item) return;
         
         container.innerHTML = Card(item, this.isFlipped);
-        document.getElementById('fc-id-display').textContent = item.id;
         
-        // PERSISTENCE SAVE
-        if(window.saveGameHistory) window.saveGameHistory('flashcard', item.id);
+        // Update ID input safely
+        const idInput = document.getElementById('fc-id-input');
+        if(idInput) idInput.value = item.id;
         
         requestAnimationFrame(() => {
             const fitElements = container.querySelectorAll('[data-fit="true"]');
             fitElements.forEach(el => textService.fitText(el));
         });
 
+        if(window.saveGameHistory) window.saveGameHistory('flashcard', item.id);
+        
         const settings = settingsService.get();
         if(settings.autoPlay && !this.isFlipped && document.body.classList.contains('game-mode')) {
             setTimeout(()=>audioService.speak(item.front.main, settings.targetLang), 300);
@@ -66,13 +73,16 @@ export class FlashcardApp {
     render() {
         if(!this.container) return;
         const list = vocabService.getFlashcardData();
-        const item = (list && list.length > 0) ? list[this.currentIndex] : { id: '-' };
+        const item = (list && list.length > 0) ? list[this.currentIndex] : { id: 0 };
         const content = (list && list.length > 0) ? `<div id="card-container" class="w-full max-w-md aspect-[3/4] relative">${Card(item, this.isFlipped)}</div>` : `<div class="p-10 text-center text-white pt-24">No Data</div>`;
 
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
                 <div class="flex items-center gap-2">
-                    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-indigo-100 text-indigo-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><span id="fc-id-display" class="font-mono font-bold dark:text-white text-sm">${item.id}</span></div>
+                    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm">
+                        <span class="bg-indigo-100 text-indigo-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span>
+                        <input type="number" id="fc-id-input" class="w-12 bg-transparent border-none text-center font-mono font-bold dark:text-white text-sm p-0" value="${item.id}">
+                    </div>
                     <button class="game-edit-btn w-8 h-8 flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
                 </div>
                 <div class="flex items-center gap-3">
@@ -85,9 +95,18 @@ export class FlashcardApp {
             <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg"><div class="max-w-md mx-auto flex gap-4"><button id="fc-prev-btn" class="flex-1 h-16 bg-white dark:bg-dark-card border border-gray-200 rounded-3xl shadow-sm active:scale-95 transition-all flex items-center justify-center"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button><button id="fc-next-btn" class="flex-1 h-16 bg-indigo-600 text-white rounded-3xl shadow-xl active:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button></div></div>
         `;
 
+        // Bind new ID input
+        const idInput = document.getElementById('fc-id-input');
+        if(idInput) idInput.addEventListener('change', (e) => this.goto(parseInt(e.target.value)));
+
         if(list.length) {
             document.getElementById('card-container').addEventListener('click', () => this.toggleFlip());
-            requestAnimationFrame(() => this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)));
+            requestAnimationFrame(() => {
+                if(document.getElementById('card-container')) {
+                    const fitElements = this.container.querySelectorAll('[data-fit="true"]');
+                    fitElements.forEach(el => textService.fitText(el));
+                }
+            });
         }
         document.getElementById('fc-next-btn').addEventListener('click', () => this.next());
         document.getElementById('fc-prev-btn').addEventListener('click', () => this.prev());

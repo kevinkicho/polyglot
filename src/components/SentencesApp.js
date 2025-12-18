@@ -58,32 +58,23 @@ export class SentencesApp {
         if (window.saveGameHistory) window.saveGameHistory('sentences', item.id);
         
         this.render();
-        if (settings.autoPlay) setTimeout(() => this.playTargetAudio(), 300);
+        if (settings.autoPlay) setTimeout(() => audioService.speak(clean, settings.targetLang), 300);
     }
 
-    playTargetAudio() { 
-        if (this.currentData) audioService.speak(this.currentData.cleanSentence, settingsService.get().targetLang); 
-    }
-    
     handleBankClick(idx) { 
         if (this.wordBankStatus[idx]) return; 
         const w = this.shuffledWords[idx]; 
-        this.userSentence.push({ ...w, bankIndex: idx }); 
+        this.userSentence.push({...w, bankIndex: idx}); 
         this.wordBankStatus[idx] = true; 
-        
-        if (settingsService.get().sentencesWordAudio) audioService.speak(w.word, settingsService.get().targetLang);
-        
-        this.render(); 
-        this.checkWin(); 
+        if(settingsService.get().sentencesWordAudio) audioService.speak(w.word, settingsService.get().targetLang);
+        this.render(); this.checkWin(); 
     }
     
     handleUserClick(idx) { 
         const item = this.userSentence[idx]; 
         this.wordBankStatus[item.bankIndex] = false; 
         this.userSentence.splice(idx, 1); 
-        
-        if (settingsService.get().sentencesWordAudio) audioService.speak(item.word, settingsService.get().targetLang);
-        
+        if(settingsService.get().sentencesWordAudio) audioService.speak(item.word, settingsService.get().targetLang);
         this.render(); 
     }
     
@@ -94,33 +85,27 @@ export class SentencesApp {
             if (u.replace(/\s/g, '') === t.replace(/\s/g, '')) {
                 const zone = this.container.querySelector('#sentence-drop-zone');
                 if (zone) zone.classList.add('bg-green-100', 'border-green-500');
-                if (settingsService.get().sentAutoPlayCorrect) this.playTargetAudio();
-                setTimeout(() => this.next(), 1500);
+                if (settingsService.get().sentAutoPlayCorrect) audioService.speak(this.currentData.cleanSentence, settingsService.get().targetLang);
+                setTimeout(()=>this.next(), 1500);
             }
         }
     }
 
     renderError() {
         if (this.container) {
-            this.container.innerHTML = `
-                <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
-                    <div></div>
-                    <button id="sent-close-err" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                </div>
-                <div class="p-10 text-center text-white pt-24">No Data.</div>
-            `;
+            this.container.innerHTML = `<div class="p-10 text-center text-white pt-24">No Data.</div>`;
             this.bind('#sent-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
         }
     }
 
     render() {
-        if (!this.container) return;
+        if(!this.container) return;
         const item = this.currentData;
         if (!item) { this.renderError(); return; }
         
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
-                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><span class="font-bold dark:text-white">${item.id}</span></div>
+                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${item.id}"></div>
                 <button class="game-edit-btn w-8 h-8 flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
                 <div class="flex items-center gap-3">
                     <button class="game-settings-btn w-10 h-10 bg-white dark:bg-dark-card border border-gray-200 rounded-xl flex items-center justify-center text-gray-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
@@ -139,7 +124,7 @@ export class SentencesApp {
         this.bind('#sent-prev-btn', 'click', () => this.prev());
         this.bind('#sent-random-btn', 'click', () => this.random());
         this.bind('#sent-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.bind('#sent-hint-box', 'click', () => this.playTargetAudio());
+        this.bind('#sent-hint-box', 'click', (e) => { if(e.target.id==='sent-hint-box') this.playTargetAudio(); });
         this.bind('#sent-id-input', 'change', (e) => this.next(parseInt(e.target.value)));
 
         this.container.querySelectorAll('.bank-word').forEach(btn => btn.addEventListener('click', () => this.handleBankClick(parseInt(btn.dataset.index))));

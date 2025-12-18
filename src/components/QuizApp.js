@@ -6,12 +6,7 @@ import { vocabService } from '../services/vocabService';
 
 export class QuizApp {
     constructor() { this.container = null; this.currentData = null; this.isAnswered = false; }
-    
-    mount(elementId) { 
-        this.container = document.getElementById(elementId); 
-        if (!this.currentData) this.random(); 
-        else this.render(); 
-    }
+    mount(elementId) { this.container = document.getElementById(elementId); if(!this.currentData) this.random(); else this.render(); }
 
     bind(selector, event, handler) {
         if (!this.container) return;
@@ -20,80 +15,50 @@ export class QuizApp {
     }
 
     random() { 
-        this.isAnswered = false; 
-        audioService.stop(); 
         const list = vocabService.getAll();
         if(!list || list.length < 4) { this.renderError(); return; }
-        
-        this.currentData = quizService.generateQuestion(null); 
+        this.isAnswered=false; audioService.stop(); 
+        this.currentData=quizService.generateQuestion(null); 
         this.render(); 
     }
     
     next(id = null) { 
-        this.isAnswered = false; 
-        audioService.stop();
-        if (id === null && this.currentData) {
-            const list = vocabService.getAll();
-            const idx = vocabService.findIndexById(this.currentData.target.id);
-            id = list[(idx + 1) % list.length].id;
+        this.isAnswered=false; audioService.stop();
+        if(id===null && this.currentData) {
+            const l=vocabService.getAll(); const i=vocabService.findIndexById(this.currentData.target.id);
+            id=l[(i+1)%l.length].id;
         }
-        this.currentData = quizService.generateQuestion(id);
-        
-        if (this.currentData && window.saveGameHistory) window.saveGameHistory('quiz', this.currentData.target.id);
-        
+        this.currentData=quizService.generateQuestion(id);
+        if(this.currentData && window.saveGameHistory) window.saveGameHistory('quiz', this.currentData.target.id);
         this.render();
     }
     
-    prev() { 
-        if (this.currentData) { 
-            const list = vocabService.getAll(); 
-            const idx = vocabService.findIndexById(this.currentData.target.id); 
-            this.next(list[(idx - 1 + list.length) % list.length].id); 
-        } 
-    }
+    prev() { if(this.currentData) { const l=vocabService.getAll(); const i=vocabService.findIndexById(this.currentData.target.id); this.next(l[(i-1+l.length)%l.length].id); } }
 
-    renderError() { 
-        if (this.container) {
-            this.container.innerHTML = `
-                <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
-                    <div></div>
-                    <button id="quiz-close-err" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                </div>
-                <div class="p-10 text-center text-white pt-24">Not enough vocabulary.</div>
-            `;
-            this.bind('#quiz-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        }
-    }
-
-    playQuestionAudio() { 
-        if (this.currentData) audioService.speak(this.currentData.target.front.main, settingsService.get().targetLang); 
-    }
+    renderError() { if(this.container) this.container.innerHTML="<div class='p-10 text-white text-center pt-24'>Not enough vocabulary.</div>"; }
 
     submitAnswer(id, el) {
-        this.isAnswered = true; 
-        const correct = this.currentData.target.id === id;
-        el.className = `quiz-option relative w-full h-full p-2 rounded-2xl shadow-lg flex items-center justify-center transition-all border-2 ${correct ? 'bg-green-500 border-green-600 text-white' : 'bg-red-500 border-red-600 text-white'}`;
-        
-        if (correct) {
-            if (settingsService.get().quizAutoPlayCorrect) this.playQuestionAudio();
-            setTimeout(() => this.next(), 1000);
+        this.isAnswered=true; const correct=this.currentData.target.id===id;
+        el.className = `quiz-option relative w-full h-full p-2 rounded-2xl shadow-lg flex items-center justify-center transition-all border-2 ${correct?'bg-green-500 border-green-600 text-white':'bg-red-500 border-red-600 text-white'}`;
+        if(correct) {
+            if(settingsService.get().quizAutoPlayCorrect) audioService.speak(this.currentData.target.front.main, settingsService.get().targetLang);
+            setTimeout(()=>this.next(), 1000);
         }
     }
 
     render() {
-        if (!this.container) return;
-        if (!this.currentData) { this.renderError(); return; }
-        
+        if(!this.container) return;
+        if(!this.currentData) { this.renderError(); return; }
         const { target, choices } = this.currentData;
         
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm">
-                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-purple-100 text-purple-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><span class="font-bold dark:text-white">${target.id}</span></div>
+                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-purple-100 text-purple-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="quiz-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${target.id}"></div>
                 <button class="game-edit-btn w-8 h-8 flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
                 <div class="flex items-center gap-3">
                     <button class="game-settings-btn w-10 h-10 bg-white dark:bg-dark-card border border-gray-200 rounded-xl flex items-center justify-center text-gray-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
                     <button id="quiz-random-btn" class="w-10 h-10 bg-white dark:bg-dark-card border border-gray-200 rounded-xl flex items-center justify-center text-indigo-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
-                    <button id="quiz-close-btn" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <button id="quiz-close-btn" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -107,23 +72,18 @@ export class QuizApp {
         this.bind('#quiz-prev-btn', 'click', () => this.prev());
         this.bind('#quiz-random-btn', 'click', () => this.random());
         this.bind('#quiz-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.bind('#quiz-question-box', 'click', () => this.playQuestionAudio());
-        this.bind('#quiz-id-input', 'change', (e) => { 
-            const newId = parseInt(e.target.value); 
-            if (vocabService.findIndexById(newId) !== -1) this.next(newId); 
-            else alert('ID not found'); 
-        });
+        this.bind('#quiz-question-box', 'click', () => audioService.speak(target.front.main, settingsService.get().targetLang));
+        this.bind('#quiz-id-input', 'change', (e) => { const newId = parseInt(e.target.value); vocabService.findIndexById(newId) !== -1 ? this.next(newId) : alert('ID not found'); });
         
         this.container.querySelectorAll('.quiz-option').forEach(btn => {
             btn.addEventListener('click', (e) => this.submitAnswer(parseInt(e.currentTarget.dataset.id), e.currentTarget));
         });
         
         requestAnimationFrame(() => {
-            const fitElements = this.container.querySelectorAll('[data-fit="true"]');
-            fitElements.forEach(el => textService.fitText(el));
+            this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el));
         });
         
-        if (settingsService.get().autoPlay) setTimeout(() => this.playQuestionAudio(), 300);
+        if (settingsService.get().autoPlay) setTimeout(() => audioService.speak(target.front.main, settingsService.get().targetLang), 300);
     }
 }
 export const quizApp = new QuizApp();
