@@ -1,61 +1,94 @@
-/* @use must be first in Dart Sass */
-@use "flashcard";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Base Styles */
 body {
+    font-family: 'Noto Sans JP', sans-serif;
+    overscroll-behavior: none;
+    user-select: none;
     -webkit-tap-highlight-color: transparent;
-    overflow: hidden; /* Prevent pull-to-refresh on mobile */
 }
 
-/* Icon Button Fix 
-   Forces the SVG to center perfectly and respect padding 
-*/
-.header-icon-btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0.375rem !important; /* p-1.5 equivalent */
-    width: 2.5rem;  /* w-10 */
-    height: 2.5rem; /* h-10 */
-    border-radius: 0.75rem;
-    transition: background-color 0.2s, transform 0.1s;
-    
-    /* Ensure the SVG inside scales correctly */
-    svg {
-        width: 1.5rem; /* h-6 */
-        height: 1.5rem; /* w-6 */
-        flex-shrink: 0;
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
+/* --- FUNKY ANIMATIONS --- */
+@keyframes slideDownBounce {
+    0% { transform: translate(-50%, -150%) scale(0.5); opacity: 0; }
+    60% { transform: translate(-50%, 20%) scale(1.1); opacity: 1; }
+    80% { transform: translate(-50%, -10%) scale(0.95); }
+    100% { transform: translate(-50%, 0) scale(1); }
 }
 
-/* Animations */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes glowPulse {
+    0% { box-shadow: 0 0 10px #fbbf24; }
+    50% { box-shadow: 0 0 30px #f59e0b, 0 0 10px #fbbf24 inset; }
+    100% { box-shadow: 0 0 10px #fbbf24; }
 }
 
-.animate-fade-in-up {
-    animation: fadeInUp 0.5s ease-out forwards;
+@keyframes shimmer {
+    0% { transform: translateX(-100%) skewX(-15deg); }
+    100% { transform: translateX(200%) skewX(-15deg); }
 }
 
-/* Scrollbar Styling */
-.custom-scrollbar {
-    &::-webkit-scrollbar {
-        width: 6px;
-    }
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-        background-color: rgba(156, 163, 175, 0.5);
-        border-radius: 20px;
-    }
+#achievement-popup {
+    animation: slideDownBounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+.achievement-icon-glow {
+    animation: glowPulse 2s infinite;
+}
+
+.animate-shimmer {
+    animation: shimmer 2s infinite linear;
+}
+
+/* --- CHART STYLES --- */
+.chart-bar-container {
+    cursor: pointer;
+    transition: transform 0.1s;
+    position: relative;
+}
+.chart-bar-container:active {
+    transform: scale(0.95);
+}
+
+.chart-breakdown {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+}
+.chart-breakdown.visible {
+    display: flex;
+}
+.chart-breakdown::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(0,0,0,0.9) transparent transparent transparent;
+}
+
+/* Text Colors for Chart Breakdown */
+.text-fc { color: #6366f1; font-weight: 900; } /* Indigo */
+.text-qz { color: #a855f7; font-weight: 900; } /* Purple */
+.text-st { color: #ec4899; font-weight: 900; } /* Pink */
+.text-bl { color: #14b8a6; font-weight: 900; } /* Teal */
+
+/* Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #4b5563; }
