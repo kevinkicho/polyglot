@@ -15,9 +15,7 @@ class TextService {
 
     smartWrap(text) {
         if (!text) return "";
-        const settings = settingsService.get();
-        // Insert <wbr> after punctuation to allow breaking there
-        // Also handling CJK punctuation specifically
+        // Basic punctuation wrapping help
         return text
             .replace(/([、。，．！？])/g, '$1<wbr>') 
             .replace(/(failed|error)/gi, '$1')      
@@ -25,36 +23,17 @@ class TextService {
     }
 
     /**
-     * Advanced Tokenizer for Japanese.
-     * Uses Intl.Segmenter and then combines particles with previous words.
+     * BASIC TOKENIZER (Restored to simple logic)
+     * Removes all complex chunking/gluing. 
+     * Waits for new specs from user.
      */
     tokenizeJapanese(text) {
         if (!text) return [];
+        
+        // If text already has spaces, respect them
         if (text.includes(' ')) return text.split(' ').filter(t => t.trim().length > 0);
 
-        if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-            const segmenter = new Intl.Segmenter('ja', { granularity: 'word' });
-            const segments = [...segmenter.segment(text)].map(s => s.segment);
-            
-            // Post-Processing: Combine particles (ha, ga, no, wo, ni, etc.) with previous word
-            // This prevents single hiragana blocks which are annoying in games.
-            const combined = [];
-            const particles = ['は', 'が', 'の', 'を', 'に', 'へ', 'と', 'で', 'や', 'も', 'か'];
-            
-            for (let i = 0; i < segments.length; i++) {
-                const current = segments[i];
-                const prev = combined.length > 0 ? combined[combined.length - 1] : null;
-
-                // If current is a particle and prev exists, merge
-                if (prev && particles.includes(current) && current.length === 1) {
-                    combined[combined.length - 1] = prev + current;
-                } else if (current.trim().length > 0) {
-                    combined.push(current);
-                }
-            }
-            return combined;
-        }
-
+        // Fallback: Simple character split
         return Array.from(text);
     }
 
@@ -70,35 +49,35 @@ class TextService {
         const parent = el.parentElement;
         if (!parent) return;
 
-        // 1. Apply Styles
         el.style.fontFamily = this.getFontFamily(settings.fontFamily);
         el.style.fontWeight = this.getFontWeight(settings.fontWeight);
         el.style.lineHeight = '1.3';
         
-        // 2. Determine Mode
         const allowWrap = el.getAttribute('data-wrap') === 'true';
 
         if (allowWrap) {
             el.style.whiteSpace = 'normal';
-            el.style.wordBreak = 'break-word';
+            // Use keep-all for CJK to prevent mid-word breaks if possible
+            el.style.wordBreak = (settings.targetLang === 'ja' || settings.targetLang === 'zh') ? 'keep-all' : 'break-word';
+            el.style.overflowWrap = 'break-word';
         } else {
             el.style.whiteSpace = 'nowrap';
         }
 
-        // 3. Size Limits (Distinct Steps)
         let min = 10;
-        let max = 90; // Default max (for large)
+        let max = 90; 
         
-        if (settings.fontSize === 'small') max = 24;       // Clearly small
-        else if (settings.fontSize === 'medium') max = 48; // Clearly medium
-        else if (settings.fontSize === 'large') max = 120; // Huge
+        if (el.getAttribute('data-type') === 'hint') max = 32; 
 
-        // 4. Binary Search
+        if (settings.fontSize === 'small') max = Math.min(max, 24);
+        else if (settings.fontSize === 'medium') max = Math.min(max, 48);
+        else if (settings.fontSize === 'large') max = 120; 
+
         let low = min;
         let high = max;
         let best = min;
 
-        el.style.fontSize = `${high}px`; // Reset to max to start
+        el.style.fontSize = `${high}px`; 
 
         while (low <= high) {
             const mid = Math.floor((low + high) / 2);
@@ -112,7 +91,6 @@ class TextService {
             let fits = false;
 
             if (allowWrap) {
-                // Tolerance of 2px
                 fits = (scrollH <= clientH + 2);
             } else {
                 fits = (scrollW <= clientW + 2);
@@ -130,7 +108,6 @@ class TextService {
     }
 
     getFontFamily(key) {
-        // CJK-Friendly Font Stacks
         const fonts = {
             'notosans': "'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', sans-serif",
             'notoserif': "'Noto Serif JP', 'Noto Serif SC', 'Noto Serif KR', serif",
@@ -139,7 +116,7 @@ class TextService {
             'nanumgothic': "'Nanum Gothic', sans-serif",
             'nanummyeongjo': "'Nanum Myeongjo', serif",
             'zcool': "'ZCOOL XiaoWei', serif",
-            'merriweather': "'Merriweather', 'Noto Serif JP', serif", // Fallback for CJK
+            'merriweather': "'Merriweather', 'Noto Serif JP', serif",
             'roboto': "'Roboto', 'Noto Sans JP', sans-serif",
             'system': "system-ui, -apple-system, sans-serif"
         };

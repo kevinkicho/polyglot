@@ -72,8 +72,8 @@ export class SentencesApp {
         
         let words = [];
         if (settings.targetLang === 'ja') {
-            // Updated tokenizer is now in textService
-            words = textService.tokenizeJapanese(clean);
+            // Updated tokenizer is now in textService (simple split/char split)
+            words = textService.tokenizeJapanese(clean, item.front.main);
         } else {
             words = clean.split(' ').filter(w => w.length);
         }
@@ -170,15 +170,15 @@ export class SentencesApp {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col relative">
                     <div class="mt-2 text-center flex-none h-16 flex items-center justify-center">
-                        <h2 class="text-xl font-bold text-gray-500 dark:text-gray-400 w-full" data-fit="true" data-wrap="true">${hintText}</h2>
+                        <h2 class="text-xl font-bold text-gray-500 dark:text-gray-400 w-full" data-fit="true" data-wrap="true" data-type="hint">${hintText}</h2>
                     </div>
                     <div id="sentence-drop-zone" class="flex-grow mt-4 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 flex flex-wrap content-start gap-3 overflow-y-auto">
-                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform" data-index="${i}">${obj.word}</button>`).join('')}
+                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform border-2 border-transparent" data-index="${i}">${obj.word}</button>`).join('')}
                     </div>
                 </div>
                 <div class="w-full h-full bg-gray-100 dark:bg-dark-bg/50 rounded-[2rem] p-4 overflow-y-auto">
                     <div class="flex flex-wrap gap-3 justify-center content-start h-full">
-                        ${this.shuffledWords.map((obj, i) => `<button class="bank-word flex-grow min-w-[80px] px-4 py-3 bg-white dark:bg-dark-card border-b-4 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white rounded-xl text-lg font-bold ${this.wordBankStatus[i]?'opacity-0 pointer-events-none':''}" data-index="${i}">${obj.word}</button>`).join('')}
+                        ${this.shuffledWords.map((obj, i) => `<button class="bank-word flex-grow min-w-[80px] px-4 py-3 bg-white dark:bg-dark-card border-b-4 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white rounded-xl text-lg font-bold border-2 border-transparent ${this.wordBankStatus[i]?'opacity-0 pointer-events-none':''}" data-index="${i}">${obj.word}</button>`).join('')}
                     </div>
                 </div>
             </div>

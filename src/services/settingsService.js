@@ -5,9 +5,9 @@ const defaultSettings = {
     autoPlay: true,
     
     // Fonts
-    fontFamily: 'notosans', // CJK Safe Default
+    fontFamily: 'notosans',
     fontWeight: 'bold',
-    fontSize: 'medium', // small, medium, large
+    fontSize: 'medium',
     
     // Visuals
     showVocab: true,
@@ -17,25 +17,25 @@ const defaultSettings = {
     
     // Quiz
     quizChoices: 4,
-    quizAnswerAudio: false,
+    quizAnswerAudio: true, // Default ON
     quizClickMode: 'single',
     quizAutoPlayCorrect: true,
-    quizDoubleClick: true,
+    quizDoubleClick: true, // Default ON
     
     // Sentences
-    sentencesWordAudio: true,
+    sentencesWordAudio: true, // Default ON
     sentAutoPlayCorrect: true,
     
     // Blanks
     blanksChoices: 4,
-    blanksAnswerAudio: true,
+    blanksAnswerAudio: true, // Default ON
     blanksAutoPlayCorrect: true,
-    blanksDoubleClick: true,
+    blanksDoubleClick: true, // Default ON
     
     // Dictionary
     dictEnabled: true,
-    dictClickAudio: false, 
-    waitForAudio: false
+    dictClickAudio: true, // Default ON
+    waitForAudio: false 
 };
 
 class SettingsService {

@@ -1,4 +1,3 @@
-// ... existing imports ...
 import { vocabService } from '../services/vocabService';
 import { blanksService } from '../services/blanksService';
 import { textService } from '../services/textService';
@@ -61,10 +60,7 @@ export class BlanksApp {
 
     renderError() {
         if (this.container) {
-            this.container.innerHTML = `
-                <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm"><div></div><button id="blanks-close-err" class="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-                <div class="p-10 text-center text-white pt-24">Not enough vocabulary or sentences.</div>
-            `;
+            this.container.innerHTML = `<div class="p-10 text-center text-white pt-24">No Data.</div>`;
             this.bind('#blanks-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
         }
     }
@@ -77,7 +73,7 @@ export class BlanksApp {
         const lang = settingsService.get().targetLang;
         
         if (!sentence) return;
-        const parts = sentence.split('_______');
+        const parts = sentence.split(/_+/);
 
         if (parts.length > 1) {
             if (parts[0].trim()) await audioService.speak(parts[0], lang);
@@ -136,13 +132,15 @@ export class BlanksApp {
 
             const qBox = document.getElementById('blanks-question-box');
             if(qBox) {
-                const textEl = qBox.querySelector('[data-fit="true"]');
-                if (textEl) {
-                    const currentHTML = textEl.innerHTML;
-                    textEl.innerHTML = currentHTML.replace(
-                        '_______', 
-                        `<span class="text-indigo-600 dark:text-indigo-400 font-bold border-b-2 border-indigo-500 px-1 inline-block transform scale-110">${answerWord}</span>`
-                    );
+                // Reveal Logic: Make the invisible text visible, remove border
+                const pillText = qBox.querySelector('.pill-text');
+                const pillSpan = qBox.querySelector('.blank-pill');
+                if (pillText && pillSpan) {
+                    pillText.classList.remove('text-transparent');
+                    pillText.classList.add('text-indigo-600', 'dark:text-indigo-400');
+                    pillSpan.classList.remove('border-b-2', 'border-gray-400', 'dark:border-gray-600');
+                    // Add a highlight effect
+                    pillSpan.classList.add('scale-110', 'transition-transform');
                 }
             }
 
@@ -168,8 +166,17 @@ export class BlanksApp {
         if(!this.container) return;
         if(!this.currentData || !this.currentData.target) { this.renderError(); return; }
         
-        const { target, choices, sentence, blankedSentence } = this.currentData;
-        const displaySentence = sentence || blankedSentence || "Error: Missing Sentence";
+        const { target, choices, sentence, blankedSentence, answerWord } = this.currentData;
+        const rawSentence = sentence || blankedSentence || "";
+        
+        // SEAMLESS PILL LOGIC:
+        // 1. Put the ANSWER word inside the span.
+        // 2. Make it transparent (invisible).
+        // 3. Add border-bottom to simulate blank.
+        // This reserves exactly the right width/height.
+        const pillHtml = `<span class="blank-pill inline-block border-b-2 border-gray-400 dark:border-gray-600 mx-1"><span class="pill-text text-transparent font-bold">${answerWord}</span></span>`;
+        
+        const displayHtml = rawSentence.replace(/_+/g, pillHtml);
         
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
@@ -184,7 +191,7 @@ export class BlanksApp {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <div class="absolute top-0 left-0 right-0 bg-gray-50 dark:bg-black/20 py-2 px-4 text-center border-b border-gray-100 dark:border-white/5"><span class="text-sm font-bold text-gray-400 uppercase tracking-widest">Fill in the blank</span></div>
-                    <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full" data-fit="true" data-wrap="true">${displaySentence}</div>
+                    <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full" data-fit="true" data-wrap="true">${displayHtml}</div>
                 </div>
                 <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-3">
                     ${choices.map(c => `<button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center" data-id="${c.id}"><div class="text-lg font-bold text-gray-700 dark:text-white text-center" data-fit="true">${c.front.main}</div></button>`).join('')}

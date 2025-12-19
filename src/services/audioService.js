@@ -14,35 +14,26 @@ class AudioService {
         }
     }
 
-    /**
-     * Removes punctuation and visual blanks.
-     * NEW: If lang is Japanese ('ja'), it splits by '・' and keeps only the first part.
-     */
     cleanText(text, lang) {
         if (!text) return "";
-        
         let cleaned = text;
 
-        // Japanese Special Handling: Remove content after middle dot
+        // Japanese Special Handling: Remove content after middle dot (full or half width)
         if (lang && (lang === 'ja' || lang === 'ja-JP')) {
-            if (cleaned.includes('・')) {
-                cleaned = cleaned.split('・')[0];
+            // Split by full-width (・) or half-width (･) middle dot and take the first part
+            const parts = cleaned.split(/[・･]/);
+            if (parts.length > 0) {
+                cleaned = parts[0];
             }
         }
 
         return cleaned
-            // Remove Japanese punctuation (Maru, Ten, brackets)
             .replace(/[。、，．！？?.,!「」『』()（）]/g, ' ') 
-            // Remove underscores (blanks) so it doesn't say "underscore"
             .replace(/_+/g, ' ')
-            // Remove extra spaces created by replacements
             .replace(/\s+/g, ' ')
             .trim();
     }
 
-    /**
-     * Plays audio and returns a Promise that resolves when audio finishes.
-     */
     speak(text, lang = 'en') {
         return new Promise((resolve) => {
             if (!this.synth || !text) {
@@ -50,23 +41,17 @@ class AudioService {
                 return;
             }
 
-            // 1. Sanitize text (Strip punctuation/blanks, fix Japanese compounds)
-            // PASS lang to cleanText now
             const safeText = this.cleanText(text, lang);
-            
             if (!safeText) {
                 resolve();
                 return;
             }
 
-            // 2. Cancel previous audio
             this.stop();
 
-            // 3. Create utterance
             const utterance = new SpeechSynthesisUtterance(safeText);
             utterance.lang = this.formatLang(lang);
             
-            // 4. Handle Events
             let hasResolved = false;
             const finish = () => {
                 if (!hasResolved) {
@@ -80,37 +65,32 @@ class AudioService {
             utterance.onend = finish;
             utterance.onerror = finish;
 
-            // 5. Garbage Collection Fix
             this.currentUtterance = utterance;
 
-            // 6. Safety Timeout
+            // Safety Timeout
             const safeTimeout = (safeText.length * 200) + 2000; 
             setTimeout(finish, safeTimeout);
 
-            // 7. Polling Fix
-            this.checkTimer = setInterval(() => {
-                if (!this.synth.speaking && !this.synth.pending) {
-                    finish();
-                }
-            }, 500);
-
-            // 8. Speak
             this.synth.speak(utterance);
+
+            // Delay the polling start by 100ms to allow 'speaking' to become true
+            setTimeout(() => {
+                if (!hasResolved) {
+                    this.checkTimer = setInterval(() => {
+                        if (!this.synth.speaking && !this.synth.pending) {
+                            finish();
+                        }
+                    }, 500);
+                }
+            }, 100);
         });
     }
 
     formatLang(lang) {
         const map = {
-            'en': 'en-US',
-            'ja': 'ja-JP',
-            'zh': 'zh-CN',
-            'ko': 'ko-KR',
-            'es': 'es-ES',
-            'fr': 'fr-FR',
-            'de': 'de-DE',
-            'it': 'it-IT',
-            'ru': 'ru-RU',
-            'pt': 'pt-BR'
+            'en': 'en-US', 'ja': 'ja-JP', 'zh': 'zh-CN', 'ko': 'ko-KR',
+            'es': 'es-ES', 'fr': 'fr-FR', 'de': 'de-DE', 'it': 'it-IT',
+            'ru': 'ru-RU', 'pt': 'pt-BR'
         };
         return map[lang] || lang;
     }
