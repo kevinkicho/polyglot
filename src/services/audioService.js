@@ -15,8 +15,22 @@ class AudioService {
     }
 
     /**
+     * Removes punctuation and visual blanks so TTS reads smoothly.
+     */
+    cleanText(text) {
+        if (!text) return "";
+        return text
+            // Remove Japanese punctuation (Maru, Ten, brackets)
+            .replace(/[。、，．！？?.,!「」『』()（）]/g, ' ') 
+            // Remove underscores (blanks) so it doesn't say "underscore"
+            .replace(/_+/g, ' ')
+            // Remove extra spaces created by replacements
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    /**
      * Plays audio and returns a Promise that resolves when audio finishes.
-     * This is crucial for the "Wait for Audio" setting.
      */
     speak(text, lang = 'en') {
         return new Promise((resolve) => {
@@ -25,18 +39,21 @@ class AudioService {
                 return;
             }
 
-            // 1. Cancel previous audio
+            // 1. Sanitize text (Strip punctuation/blanks)
+            const safeText = this.cleanText(text);
+            if (!safeText) {
+                resolve();
+                return;
+            }
+
+            // 2. Cancel previous audio
             this.stop();
 
-            // 2. Create utterance
-            const utterance = new SpeechSynthesisUtterance(text);
+            // 3. Create utterance
+            const utterance = new SpeechSynthesisUtterance(safeText);
             utterance.lang = this.formatLang(lang);
             
-            // Apply settings
-            const settings = settingsService.get();
-            // You can add rate/pitch settings here if you have them in the future
-            
-            // 3. Handle Events (Resolve promise on end or error)
+            // 4. Handle Events
             let hasResolved = false;
             const finish = () => {
                 if (!hasResolved) {
@@ -50,30 +67,26 @@ class AudioService {
             utterance.onend = finish;
             utterance.onerror = finish;
 
-            // 4. Garbage Collection Fix for Android/Chrome
-            // If we don't store this in 'this', the browser might delete the object 
-            // before it finishes speaking, causing onend to never fire.
+            // 5. Garbage Collection Fix
             this.currentUtterance = utterance;
 
-            // 5. Safety Timeout (Fallback if onend never fires)
-            // Estimate duration: ~200ms per character + 1s buffer
-            const safeTimeout = (text.length * 200) + 2000; 
+            // 6. Safety Timeout
+            const safeTimeout = (safeText.length * 200) + 2000; 
             setTimeout(finish, safeTimeout);
 
-            // 6. Polling Fix for some Android versions that get stuck
+            // 7. Polling Fix
             this.checkTimer = setInterval(() => {
                 if (!this.synth.speaking && !this.synth.pending) {
                     finish();
                 }
             }, 500);
 
-            // 7. Speak
+            // 8. Speak
             this.synth.speak(utterance);
         });
     }
 
     formatLang(lang) {
-        // Map short codes to full locale codes for better TTS support
         const map = {
             'en': 'en-US',
             'ja': 'ja-JP',

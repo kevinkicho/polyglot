@@ -79,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target) {
             target.classList.remove('hidden');
             const lastId = savedHistory[viewName];
+            
+            // Only mount/init. Data refresh is now handled by the subscription below.
             if (viewName === 'flashcard') { flashcardApp.mount('flashcard-view'); if(lastId) flashcardApp.goto(lastId); }
             if (viewName === 'quiz') { quizApp.mount('quiz-view'); if(lastId) quizApp.next(lastId); }
             if (viewName === 'sentences') { sentencesApp.mount('sentences-view'); if(lastId) sentencesApp.next(lastId); }
@@ -91,6 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('popstate', (e) => renderView(e.state ? e.state.view : 'home'));
     window.addEventListener('router:home', () => history.back());
 
+    // --- REALTIME DATA SUBSCRIPTION ---
+    // This connects the Service to the UI. Whenever DB changes, UI updates.
+    vocabService.subscribe(() => {
+        if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
+        // Quiz, Sentences, and Blanks usually auto-generate on next question, 
+        // but we can force refresh if needed. For now, Flashcards benefit most from live edits.
+    });
+
     // --- DICTIONARY ---
     const popup = document.getElementById('dictionary-popup');
     const popupContent = document.getElementById('dict-content');
@@ -101,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDictionary(text) {
         const results = dictionaryService.lookupText(text);
         if (results.length > 0 && popup) {
-            // FIX: Added (|| '') to fallbacks to prevent "undefined"
             popupContent.innerHTML = results.map(data => `
                 <div class="dict-entry-row flex flex-col gap-2 mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
                     <div class="flex items-end gap-3">
@@ -220,13 +229,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('edit-vocab-fields');
         container.innerHTML = '';
         
-        // FIX: Using exact keys from your JSON (furi, roma, pin, tr)
         const languages = [
             { code: 'en', label: 'English', extra: [] },
-            { code: 'ja', label: 'Japanese', extra: ['furi', 'roma'] }, // ja_furi, ja_roma
-            { code: 'zh', label: 'Chinese', extra: ['pin'] },           // zh_pin
-            { code: 'ko', label: 'Korean', extra: ['roma'] },           // ko_roma
-            { code: 'ru', label: 'Russian', extra: ['tr'] },            // ru_tr
+            { code: 'ja', label: 'Japanese', extra: ['furi', 'roma'] },
+            { code: 'zh', label: 'Chinese', extra: ['pin'] },
+            { code: 'ko', label: 'Korean', extra: ['roma'] },
+            { code: 'ru', label: 'Russian', extra: ['tr'] },
             { code: 'de', label: 'German', extra: [] },
             { code: 'fr', label: 'French', extra: [] },
             { code: 'es', label: 'Spanish', extra: [] },
@@ -238,12 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const vocabVal = vocabData[lang.code] || '';
             const sentenceVal = vocabData[`${lang.code}_ex`] || '';
             
-            // Build extra fields inputs
             let extrasHtml = '';
             if (lang.extra && lang.extra.length > 0) {
                 extrasHtml = `<div class="grid grid-cols-2 gap-2 mt-2">`;
                 lang.extra.forEach(field => {
-                    const key = `${lang.code}_${field}`; // e.g., ja_furi
+                    const key = `${lang.code}_${field}`;
                     const val = vocabData[key] || '';
                     extrasHtml += `
                         <div>
@@ -316,10 +323,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updates[input.dataset.field] = input.value;
             });
             try {
+                // We just update Firebase. The onValue listener in vocabService will 
+                // automatically catch this change, update local data, and refresh the UI.
                 await update(ref(db, `vocab/${currentEditId}`), updates);
                 alert('Vocab Saved!');
-                await vocabService.fetchData();
-                if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh();
+                // No need to manually fetch or refresh here anymore!
             } catch(e) { console.error(e); alert('Error'); }
         });
     }
@@ -394,7 +402,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const saved = settingsService.get();
             loadSettingsToUI();
             if(saved.darkMode) document.documentElement.classList.add('dark');
-            await Promise.all([vocabService.fetchData(), dictionaryService.fetchData()]);
+            
+            // 1. Init Realtime Vocab
+            vocabService.init(); 
+            // 2. Fetch Dictionary (still static fetch for now as it's large)
+            await dictionaryService.fetchData();
             
             const startBtn = document.getElementById('start-app-btn');
             if(startBtn) {

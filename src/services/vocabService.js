@@ -1,92 +1,106 @@
-import { db } from './firebase'; 
-import { ref, get, child } from 'firebase/database';
+import { db } from './firebase';
+import { ref, onValue } from 'firebase/database';
 
 class VocabService {
     constructor() {
-        this.vocabList = [];
-        this.isLoaded = false;
+        this.vocabData = [];
+        this.categoryMap = {};
+        this.subscribers = [];
+        this.isInitialized = false;
     }
 
-    async fetchData() {
-        if (this.isLoaded) return;
+    /**
+     * Initialize the service:
+     * 1. Load from LocalStorage (Instant / Offline support)
+     * 2. Listen to Firebase (Realtime / Online support)
+     */
+    init() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
 
-        try {
-            console.log("[Vocab] Fetching...");
-            // Guard against Firebase not loading
-            if (!db) throw new Error("Firebase DB not initialized");
-
-            const dbRef = ref(db);
-            const snapshot = await get(child(dbRef, 'vocab'));
-
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                const rawList = Array.isArray(data) ? data : Object.values(data);
-                
-                // Sanitize and Sort
-                this.vocabList = rawList.map(item => ({
-                    ...item,
-                    id: item.id !== undefined ? parseInt(item.id, 10) : 0
-                }));
-
-                this.vocabList.sort((a, b) => a.id - b.id);
-                console.log(`[Vocab] Loaded ${this.vocabList.length} items.`);
-            } else {
-                console.warn("[Vocab] No data found.");
-                this.vocabList = [];
+        // 1. Load Local Cached Data (Offline Support)
+        const cached = localStorage.getItem('polyglot_vocab_cache');
+        if (cached) {
+            try {
+                this.processData(JSON.parse(cached));
+                console.log("[Vocab] Loaded from cache (Offline ready)");
+            } catch (e) {
+                console.error("Cache parse error", e);
             }
-            this.isLoaded = true;
-        } catch (error) {
-            console.error("[Vocab] Error:", error);
-            this.vocabList = [];
-            this.isLoaded = true;
         }
+
+        // 2. Subscribe to Realtime Updates
+        console.log("[Vocab] Subscribing to realtime updates...");
+        const vocabRef = ref(db, 'vocab');
+        
+        onValue(vocabRef, (snapshot) => {
+            const val = snapshot.val();
+            if (val) {
+                // Convert object {0: {..}, 1: {..}} or array to array
+                const data = Array.isArray(val) ? val : Object.values(val);
+                
+                // Save to cache for next time (Persistence)
+                localStorage.setItem('polyglot_vocab_cache', JSON.stringify(data));
+                
+                this.processData(data);
+                console.log(`[Vocab] Realtime update: ${this.vocabData.length} items.`);
+            } else {
+                console.warn("[Vocab] No data in DB.");
+            }
+        }, (error) => {
+            console.error("[Vocab] Permission denied or network error:", error);
+        });
     }
 
-    getAll() { return this.vocabList || []; }
+    processData(data) {
+        this.vocabData = data.map(item => ({
+            ...item,
+            // Ensure essential fields exist
+            id: item.id,
+            category: item.category || 'General',
+            front: {
+                main: item.ja || item.zh || item.ko || item.en || '?',
+                sub: item.zh_pin || item.ja_furi || item.ja_roma || ''
+            },
+            back: {
+                definition: item.en || '?',
+                sentenceTarget: item.ja_ex || item.zh_ex || item.ko_ex || '',
+                sentenceOrigin: item.en_ex || ''
+            }
+        }));
+
+        this.categoryMap = {};
+        this.vocabData.forEach(item => {
+            const cat = item.category || 'General';
+            if (!this.categoryMap[cat]) this.categoryMap[cat] = [];
+            this.categoryMap[cat].push(item);
+        });
+
+        // Notify all UI components that data has changed
+        this.notifySubscribers();
+    }
+
+    // --- Subscription System ---
+    subscribe(callback) {
+        this.subscribers.push(callback);
+        // If we already have data, trigger immediately
+        if (this.vocabData.length > 0) callback();
+    }
+
+    notifySubscribers() {
+        this.subscribers.forEach(cb => cb());
+    }
+
+    // --- Data Accessors ---
+    getAll() { return this.vocabData; }
+    getFlashcardData() { return this.vocabData; } // Filter logic can go here later
     
-    findIndexById(id) { 
-        if(!this.vocabList) return -1;
-        return this.vocabList.findIndex(item => item.id == id); 
+    findIndexById(id) {
+        return this.vocabData.findIndex(item => item.id == id); // Loose equality for string/int safety
     }
 
     getRandomIndex() {
-        if (!this.vocabList || this.vocabList.length === 0) return -1;
-        return Math.floor(Math.random() * this.vocabList.length);
-    }
-
-    // UPDATED: Settings must be passed in. No internal dependency.
-    getFlashcardData(settings) {
-        if (!this.vocabList) return [];
-        
-        // Defaults if settings are missing
-        const targetLang = settings ? settings.targetLang : 'ja';
-        const originLang = settings ? settings.originLang : 'en';
-        
-        return this.vocabList.map(item => {
-            const mainText = item[targetLang] || '...';
-            let subText = '', extraText = '';
-
-            if (targetLang === 'ja') {
-                extraText = item.ja_furi || ''; 
-                subText = item.ja_roma || '';
-            } else if (['zh', 'ko', 'ru'].includes(targetLang)) {
-                if(targetLang === 'zh') subText = item.zh_pin || '';
-                if(targetLang === 'ko') subText = item.ko_roma || '';
-                if(targetLang === 'ru') subText = item.ru_tr || '';
-            }
-            
-            const type = (targetLang === 'ja') ? 'JAPANESE' : (['zh', 'ko', 'ru'].includes(targetLang)) ? 'NON_LATIN' : 'WESTERN';
-            const definition = item[originLang] || item['en'] || 'Definition unavailable';
-            const sentenceTarget = item[targetLang + '_ex'] || '';
-            const sentenceOrigin = item[originLang + '_ex'] || '';
-
-            return {
-                id: item.id,
-                type: type,
-                front: { main: mainText, sub: subText, extra: extraText },
-                back: { definition: definition, sentenceTarget: sentenceTarget, sentenceOrigin: sentenceOrigin }
-            };
-        });
+        return this.vocabData.length > 0 ? Math.floor(Math.random() * this.vocabData.length) : 0;
     }
 }
 

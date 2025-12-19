@@ -34,17 +34,22 @@ export class BlanksApp {
         this.isProcessing = false;
         audioService.stop();
         if(id===null && this.currentData) {
-            const l=vocabService.getAll(); const i=vocabService.findIndexById(this.currentData.target.id);
+            const l=vocabService.getAll(); 
+            const currentId = this.currentData.target ? this.currentData.target.id : 0;
+            const i=vocabService.findIndexById(currentId);
             id=l[(i+1)%l.length].id;
         }
         this.currentData=blanksService.generateQuestion(id);
-        if(this.currentData && window.saveGameHistory) window.saveGameHistory('blanks', this.currentData.target.id);
+        if(this.currentData && this.currentData.target && window.saveGameHistory) {
+            window.saveGameHistory('blanks', this.currentData.target.id);
+        }
         this.render();
     }
     
     prev() { 
-        if(this.currentData) { 
-            const l=vocabService.getAll(); const i=vocabService.findIndexById(this.currentData.target.id); 
+        if(this.currentData && this.currentData.target) { 
+            const l=vocabService.getAll(); 
+            const i=vocabService.findIndexById(this.currentData.target.id); 
             this.next(l[(i-1+l.length)%l.length].id); 
         } 
     }
@@ -56,6 +61,33 @@ export class BlanksApp {
                 <div class="p-10 text-center text-white pt-24">Not enough vocabulary or sentences.</div>
             `;
             this.bind('#blanks-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
+        }
+    }
+
+    /**
+     * Plays the blanked sentence with a pause where the blank is.
+     */
+    async playBlankedSentence() {
+        const { sentence } = this.currentData;
+        const lang = settingsService.get().targetLang;
+        
+        if (!sentence) return;
+
+        // Split by the blank placeholder
+        const parts = sentence.split('_______');
+
+        if (parts.length > 1) {
+            // Speak Part 1
+            if (parts[0].trim()) await audioService.speak(parts[0], lang);
+            
+            // Artificial Pause (800ms) for the blank
+            await new Promise(r => setTimeout(r, 800));
+            
+            // Speak Part 2
+            if (parts[1].trim()) await audioService.speak(parts[1], lang);
+        } else {
+            // Fallback if no blank found (rare)
+            await audioService.speak(sentence, lang);
         }
     }
 
@@ -76,17 +108,30 @@ export class BlanksApp {
 
         if(correct) {
             const s = settingsService.get();
-            // Reveal the full sentence
+            const answerWord = this.currentData.answerWord;
+            const fullSentence = this.currentData.target.back.sentenceTarget;
+
+            // FIX: Reveal logic - Insert formatted word into the blank
             const qBox = document.getElementById('blanks-question-box');
-            if(qBox) qBox.innerHTML = `<span class="font-medium text-2xl text-center text-gray-800 dark:text-white">${this.currentData.target.back.sentenceTarget}</span>`;
+            if(qBox) {
+                // Find the text container (second child usually)
+                const textEl = qBox.querySelector('[data-fit="true"]');
+                if (textEl) {
+                    const currentHTML = textEl.innerHTML;
+                    // Replace the blank with styled answer
+                    textEl.innerHTML = currentHTML.replace(
+                        '_______', 
+                        `<span class="text-indigo-600 dark:text-indigo-400 font-bold border-b-2 border-indigo-500 px-1 inline-block transform scale-110">${answerWord}</span>`
+                    );
+                }
+            }
 
             if (s.blanksAutoPlayCorrect) {
-                // If "Wait for Audio" is ON, we await the promise
                 if (s.waitForAudio) {
-                    await audioService.speak(this.currentData.target.back.sentenceTarget, s.targetLang);
+                    await audioService.speak(fullSentence, s.targetLang);
                     this.next();
                 } else {
-                    audioService.speak(this.currentData.target.back.sentenceTarget, s.targetLang);
+                    audioService.speak(fullSentence, s.targetLang);
                     setTimeout(() => this.next(), 1500);
                 }
             } else {
@@ -99,8 +144,11 @@ export class BlanksApp {
 
     render() {
         if(!this.container) return;
-        if(!this.currentData) { this.renderError(); return; }
-        const { target, choices, blankedSentence } = this.currentData;
+        if(!this.currentData || !this.currentData.target) { this.renderError(); return; }
+        
+        // Robust variable access
+        const { target, choices, sentence, blankedSentence } = this.currentData;
+        const displaySentence = sentence || blankedSentence || "Error: Missing Sentence";
         
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
@@ -113,9 +161,9 @@ export class BlanksApp {
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <div class="absolute top-0 left-0 right-0 bg-gray-50 dark:bg-black/20 py-2 px-4 text-center border-b border-gray-100 dark:border-white/5"><span class="text-sm font-bold text-gray-400 uppercase tracking-widest">Fill in the blank</span></div>
-                    <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed" data-fit="true">${blankedSentence}</div>
+                    <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed" data-fit="true">${displaySentence}</div>
                 </div>
                 <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-3">
                     ${choices.map(c => `<button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center" data-id="${c.id}"><div class="text-lg font-bold text-gray-700 dark:text-white text-center" data-fit="true">${c.front.main}</div></button>`).join('')}
@@ -130,8 +178,18 @@ export class BlanksApp {
         this.bind('#blanks-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
         this.bind('#blanks-id-input', 'change', (e) => { const newId = parseInt(e.target.value); vocabService.findIndexById(newId) !== -1 ? this.next(newId) : alert('ID not found'); });
         
+        // Manual Audio Replay on box click
+        this.bind('#blanks-question-box', 'click', () => {
+            if (!this.isProcessing) this.playBlankedSentence();
+        });
+
         this.container.querySelectorAll('.quiz-option').forEach(btn => btn.addEventListener('click', (e) => this.submitAnswer(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         requestAnimationFrame(() => this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)));
+
+        // FIX: Auto-play the blanked sentence with pause
+        if (settingsService.get().autoPlay) {
+            setTimeout(() => this.playBlankedSentence(), 300);
+        }
     }
 }
 export const blanksApp = new BlanksApp();
