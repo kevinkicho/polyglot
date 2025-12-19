@@ -5,46 +5,45 @@ const defaultSettings = {
     autoPlay: true,
     fontFamily: 'font-inter',
     fontWeight: 'font-bold',
-    
-    // Visuals
+    fontSize: 'medium',
     showVocab: true,
     showReading: true,
     showSentence: true,
     showEnglish: true,
-    
-    // Dictionary
-    dictEnabled: true,
-    dictAudio: false,
-    
-    // Games
+    quizChoices: 4,
     quizAnswerAudio: false,
+    quizClickMode: 'single',
     quizAutoPlayCorrect: true,
-    quizWaitAudio: false,
-    
     sentencesWordAudio: true,
     sentAutoPlayCorrect: true,
-    sentWaitAudio: false,
-    
+    blanksChoices: 4,
     blanksAnswerAudio: true,
     blanksAutoPlayCorrect: true,
-    blanksWaitAudio: false
+    dictEnabled: true,
+    dictClickAudio: false, // Changed from dictAudio
+    waitForAudio: false    // New global setting
 };
 
 class SettingsService {
-    constructor() { this.settings = this.load(); }
+    constructor() {
+        this.settings = this.load();
+    }
 
     load() {
         try {
             const saved = localStorage.getItem('polyglot_settings');
             if (saved) {
-                // Merge saved settings ON TOP of defaults to ensure new keys exist
                 return { ...defaultSettings, ...JSON.parse(saved) };
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error("Error loading settings:", e);
+        }
         return { ...defaultSettings };
     }
 
-    get() { return this.settings; }
+    get() {
+        return this.settings;
+    }
 
     set(key, value) {
         this.settings[key] = value;
@@ -55,7 +54,12 @@ class SettingsService {
     setOrigin(lang) { this.set('originLang', lang); }
 
     save() {
-        try { localStorage.setItem('polyglot_settings', JSON.stringify(this.settings)); } catch (e) {}
+        try {
+            localStorage.setItem('polyglot_settings', JSON.stringify(this.settings));
+        } catch (e) {
+            console.error("Error saving settings:", e);
+        }
     }
 }
+
 export const settingsService = new SettingsService();
