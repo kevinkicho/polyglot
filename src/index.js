@@ -3,7 +3,8 @@ import './styles/main.scss';
 import { settingsService } from './services/settingsService';
 import { vocabService } from './services/vocabService';
 import { dictionaryService } from './services/dictionaryService';
-import { auth, onAuthStateChanged, googleProvider, signInWithPopup, signOut, update, ref, db, signInAnonymously } from './services/firebase';
+import { scoreService } from './services/scoreService'; // New Import
+import { auth, onAuthStateChanged, googleProvider, signInWithPopup, signOut, update, ref, db, signInAnonymously, get } from './services/firebase';
 import { flashcardApp } from './components/FlashcardApp';
 import { quizApp } from './components/QuizApp';
 import { sentencesApp } from './components/SentencesApp';
@@ -98,6 +99,120 @@ document.addEventListener('DOMContentLoaded', () => {
 
     vocabService.subscribe(() => { if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh(); });
 
+    // --- SCORE CHART LOGIC ---
+    const scoreModal = document.getElementById('score-modal');
+    const scoreClose = document.getElementById('score-close-btn');
+    
+    scoreService.subscribe((score) => {
+        document.querySelectorAll('.global-score-display').forEach(el => el.textContent = score);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#score-pill')) {
+            showScoreChart();
+        }
+        if (e.target.closest('#home-settings-btn')) openSettings();
+        if (e.target.closest('#modal-done-btn')) closeSettings();
+        
+        // Game Edit Logic
+        if (e.target.closest('.game-edit-btn')) {
+            let app = null;
+            if (!views.flashcard.classList.contains('hidden')) app = flashcardApp;
+            if (!views.quiz.classList.contains('hidden')) app = quizApp;
+            if (!views.sentences.classList.contains('hidden')) app = sentencesApp;
+            if (!views.blanks.classList.contains('hidden')) app = blanksApp;
+            if (app) {
+                let item = app.currentData && app.currentData.target ? app.currentData.target : (app.currentData || (app.currentIndex!==undefined ? vocabService.getAll()[app.currentIndex] : null));
+                if (item) {
+                    currentEditId = item.id;
+                    const fullData = vocabService.getAll().find(v => v.id == item.id);
+                    editModal.classList.remove('hidden'); setTimeout(()=>editModal.classList.remove('opacity-0'), 10);
+                    
+                    const scrollContainer = editModal.querySelector('.flex-1.overflow-y-auto');
+                    if(scrollContainer) scrollContainer.scrollTop = 0;
+
+                    switchEditTab('vocab');
+                    document.getElementById('edit-vocab-id').textContent = `ID: ${item.id}`;
+                    renderVocabEditFields(fullData);
+                    const scanText = (fullData.ja||'') + (fullData.ja_ex||'') + (fullData.zh||'') + (fullData.ko||'');
+                    populateDictionaryEdit(scanText);
+                    updateEditPermissions();
+                }
+            }
+        }
+    });
+
+    if(scoreClose) scoreClose.addEventListener('click', () => {
+        scoreModal.classList.remove('opacity-100');
+        scoreModal.classList.add('opacity-0');
+        setTimeout(() => scoreModal.classList.add('hidden'), 200);
+    });
+
+    async function showScoreChart() {
+        scoreModal.classList.remove('hidden');
+        setTimeout(() => scoreModal.classList.remove('opacity-0', 'opacity-100'), 10);
+        setTimeout(() => scoreModal.classList.add('opacity-100'), 10);
+
+        const container = document.getElementById('score-chart-container');
+        container.innerHTML = '<div class="w-full text-center text-gray-400">Loading...</div>';
+
+        // Get current week (Mon-Sun)
+        const curr = new Date();
+        const day = curr.getDay() || 7; // Get current day number, converting Sun(0) to 7
+        if(day !== 1) curr.setHours(-24 * (day - 1)); // Go back to Monday
+        
+        const weekDates = [];
+        for (let i = 0; i < 7; i++) {
+            // Create new date object for each day of week
+            const d = new Date(curr); 
+            d.setDate(curr.getDate() + i);
+            weekDates.push(scoreService.getDateStr(d));
+        }
+        
+        const todayStr = scoreService.getDateStr(new Date());
+
+        try {
+            const statsRef = scoreService.getUserStatsRef();
+            let data = {};
+            if (statsRef) {
+                const snap = await get(statsRef);
+                if (snap.exists()) data = snap.val();
+            }
+
+            const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            const scores = weekDates.map(date => {
+                const d = data[date];
+                if (!d) return 0;
+                return (d.flashcard || 0) + (d.quiz || 0) + (d.sentences || 0) + (d.blanks || 0);
+            });
+
+            const maxScore = Math.max(...scores, 50); // Minimum scale of 50
+            
+            let html = '';
+            scores.forEach((score, idx) => {
+                const heightPct = Math.round((score / maxScore) * 100);
+                const isToday = weekDates[idx] === todayStr;
+                const barColor = isToday ? 'active' : '';
+                const labelColor = isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400';
+                
+                html += `
+                    <div class="chart-bar-container">
+                        <div class="chart-bar ${barColor}" style="height: ${heightPct}%">
+                            <span class="chart-val">${score}</span>
+                        </div>
+                        <span class="chart-label ${labelColor}">${dayLabels[idx]}</span>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<div class="text-red-500 text-sm">Error loading data</div>';
+        }
+    }
+
+    // --- DICTIONARY ---
     const popup = document.getElementById('dictionary-popup');
     const popupContent = document.getElementById('dict-content');
     const popupClose = document.getElementById('dict-close-btn');
@@ -155,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('touchmove', handleMove);
 
+    // --- EDIT MODAL LOGIC (Already defined in event listener above, but variables needed) ---
     const editModal = document.getElementById('edit-modal');
     const tabVocabBtn = document.getElementById('tab-vocab-btn');
     const tabDictBtn = document.getElementById('tab-dict-btn');
@@ -232,35 +348,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('.game-edit-btn')) {
-            let app = null;
-            if (!views.flashcard.classList.contains('hidden')) app = flashcardApp;
-            if (!views.quiz.classList.contains('hidden')) app = quizApp;
-            if (!views.sentences.classList.contains('hidden')) app = sentencesApp;
-            if (!views.blanks.classList.contains('hidden')) app = blanksApp;
-            if (app) {
-                let item = app.currentData && app.currentData.target ? app.currentData.target : (app.currentData || (app.currentIndex!==undefined ? vocabService.getAll()[app.currentIndex] : null));
-                if (item) {
-                    currentEditId = item.id;
-                    const fullData = vocabService.getAll().find(v => v.id == item.id);
-                    editModal.classList.remove('hidden'); setTimeout(()=>editModal.classList.remove('opacity-0'), 10);
-                    
-                    // Reset Scroll Position
-                    const scrollContainer = editModal.querySelector('.flex-1.overflow-y-auto');
-                    if(scrollContainer) scrollContainer.scrollTop = 0;
-
-                    switchEditTab('vocab');
-                    document.getElementById('edit-vocab-id').textContent = `ID: ${item.id}`;
-                    renderVocabEditFields(fullData);
-                    const scanText = (fullData.ja||'') + (fullData.ja_ex||'') + (fullData.zh||'') + (fullData.ko||'');
-                    populateDictionaryEdit(scanText);
-                    updateEditPermissions();
-                }
-            }
-        }
-    });
-
     const btnSaveVocab = document.getElementById('btn-save-vocab');
     if(btnSaveVocab) {
         btnSaveVocab.addEventListener('click', async () => {
@@ -275,11 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const openSettings = () => { loadSettingsToUI(); settingsModal.classList.remove('hidden'); setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); };
     const closeSettings = () => { settingsModal.classList.add('opacity-0'); setTimeout(()=>settingsModal.classList.add('hidden'), 200); };
     
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('#home-settings-btn') || e.target.closest('.game-settings-btn')) openSettings();
-        if (e.target.closest('#modal-done-btn')) closeSettings();
-    });
-
+    // Bind settings fields...
     function loadSettingsToUI() {
         const s = settingsService.get();
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };

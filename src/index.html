@@ -26,6 +26,16 @@
         .settings-content.open { max-height: 600px; }
         .arrow { transition: transform 0.3s; }
         .arrow.rotate { transform: rotate(180deg); }
+        
+        /* Chart Styles */
+        .chart-bar-container { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; height: 100%; gap: 8px; }
+        .chart-bar { width: 100%; background: #E5E7EB; border-radius: 6px; transition: height 0.5s ease; min-height: 4px; position: relative; }
+        .dark .chart-bar { background: #374151; }
+        .chart-bar.active { background: #4F46E5; } /* Indigo */
+        .chart-bar:hover { opacity: 0.8; }
+        .chart-label { font-size: 10px; font-weight: bold; color: #9CA3AF; }
+        .chart-val { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: #6B7280; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+        .chart-bar:hover .chart-val { opacity: 1; }
     </style>
 </head>
 <body class="is-loading transition-colors duration-300 bg-gray-50 text-gray-900 dark:bg-dark-bg dark:text-dark-text">
@@ -36,6 +46,24 @@
             <button id="dict-close-btn" class="text-gray-400 hover:text-gray-600 bg-gray-100 dark:bg-gray-800 rounded-full p-1"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
         <div id="dict-content" class="flex-grow overflow-y-auto space-y-6 pr-1 custom-scrollbar"></div>
+    </div>
+
+    <div id="score-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity duration-200 opacity-0">
+        <div class="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black text-indigo-600 dark:text-indigo-400">Weekly Progress</h3>
+                <button id="score-close-btn" class="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            
+            <div class="flex justify-between items-end h-48 w-full gap-3" id="score-chart-container">
+                <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">Loading...</div>
+            </div>
+            
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-400 uppercase font-bold tracking-widest mb-1">Today's Score</p>
+                <p class="text-4xl font-black text-gray-800 dark:text-white global-score-display">0</p>
+            </div>
+        </div>
     </div>
 
     <div id="edit-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity duration-200">
