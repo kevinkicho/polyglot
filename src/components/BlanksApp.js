@@ -93,7 +93,11 @@ export class BlanksApp {
 
         const settings = settingsService.get();
 
-        if (settings.blanksAnswerAudio || settings.blanksDoubleClick) {
+        // Check if this is the SECOND click of a double-click action
+        const isConfirmationClick = (settings.blanksDoubleClick && this.selectedAnswerId === id);
+
+        // Only play audio if enabled AND it's NOT the immediate confirmation click
+        if (!isConfirmationClick && (settings.blanksAnswerAudio || settings.blanksDoubleClick)) {
             audioService.speak(choiceText, settings.targetLang);
         }
 

@@ -20,7 +20,6 @@ class AudioService {
 
         // Japanese Special Handling: Remove content after middle dot (full or half width)
         if (lang && (lang === 'ja' || lang === 'ja-JP')) {
-            // Split by full-width (・) or half-width (･) middle dot and take the first part
             const parts = cleaned.split(/[・･]/);
             if (parts.length > 0) {
                 cleaned = parts[0];
@@ -52,6 +51,10 @@ class AudioService {
             const utterance = new SpeechSynthesisUtterance(safeText);
             utterance.lang = this.formatLang(lang);
             
+            // Apply Global Volume
+            const volume = settingsService.get().volume;
+            utterance.volume = (volume !== undefined) ? Number(volume) : 1.0;
+            
             let hasResolved = false;
             const finish = () => {
                 if (!hasResolved) {
@@ -73,7 +76,6 @@ class AudioService {
 
             this.synth.speak(utterance);
 
-            // Delay the polling start by 100ms to allow 'speaking' to become true
             setTimeout(() => {
                 if (!hasResolved) {
                     this.checkTimer = setInterval(() => {

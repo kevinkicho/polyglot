@@ -111,6 +111,11 @@
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Auto Play Audio</span><input type="checkbox" id="toggle-audio" class="w-5 h-5"></div>
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Wait for Audio</span><input type="checkbox" id="toggle-wait-audio" class="w-5 h-5"></div>
                 
+                <div class="flex justify-between items-center">
+                    <span class="font-bold dark:text-white">Volume</span>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" class="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                </div>
+                
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
                     <button id="fonts-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Fonts</span><span id="accordion-arrow-fonts" class="arrow">▼</span></button>
                     <div id="fonts-options" class="settings-content space-y-4 px-2 pt-2">

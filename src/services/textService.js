@@ -21,186 +21,158 @@ class TextService {
             .replace(/_/g, '_<wbr>');               
     }
 
-    /**
-     * Advanced Japanese Tokenizer
-     * Implements specific grammar/chunking rules:
-     * 1. Preserves target vocab (handling middle dots).
-     * 2. Merges particles (wa, ga, no, etc.) into preceding chunks.
-     * 3. Merges Kanji runs, pronouns, honorifics, etc.
-     */
-    tokenizeJapanese(text, targetVocab, useExperimentalFilter = false) {
-        if (!text) return [];
-
-        // 0. Pre-process Vocab: Handle variations like "·" in dictionary forms
-        // e.g. "スミス·さん" -> "スミスさん"
-        const cleanVocab = targetVocab ? targetVocab.replace(/[·・]/g, '') : '';
-        const vocabVariants = [targetVocab, cleanVocab].filter(v => v);
-
-        // --- STEP 1: INITIAL SPLIT BY VOCAB ---
-        // We identify the vocab in the sentence first to keep it as a "locked" chunk.
-        // We split the rest into individual characters for granular processing.
-        
-        let chunks = [];
-        let remaining = text;
-        
-        // Find the vocab in the text (simple implementation, picks first occurrence)
-        let foundVocab = false;
-        for (let v of vocabVariants) {
-            const idx = remaining.indexOf(v);
-            if (idx !== -1) {
-                const pre = remaining.substring(0, idx);
-                const match = remaining.substring(idx, idx + v.length);
-                const post = remaining.substring(idx + v.length);
-                
-                // Split pre and post into single chars
-                chunks = [...Array.from(pre), match, ...Array.from(post)];
-                foundVocab = true;
-                break;
-            }
-        }
-        
-        if (!foundVocab) {
-            chunks = Array.from(text);
+    // 3. JAPANESE TOKENIZER (Restored Full Logic)
+    tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
+        // Safety check for Segmenter support
+        if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
+            return text.split(''); // Fallback
         }
 
-        // If experiment mode is OFF, just return this simple split (plus spaces check)
-        if (!useExperimentalFilter) {
-             if (text.includes(' ')) return text.split(' ').filter(t => t.trim().length > 0);
-             return chunks;
-        }
-
-        // --- STEP 2: APPLY GRAMMAR RULES (The "Experiment") ---
-        // We iterate and merge chunks. Since we need to merge left-to-right based on conditions,
-        // we'll use a pass-based approach.
-
-        // Helper regexes
-        const isKanji = (c) => /^[\u4E00-\u9FAF]+$/.test(c);
-        const isHiragana = (c) => /^[\u3040-\u309F]+$/.test(c);
-        const isKatakana = (c) => /^[\u30A0-\u30FF]+$/.test(c);
-
-        // RULE DATA
-        const particlesSet1 = new Set(['が', 'の', 'を', 'に', 'へ', 'と', 'で', 'から', 'より']);
-        const particlesSet2 = new Set(['の', 'に', 'と', 'や', 'やら', 'か', 'なり', 'だの']);
-        const particlesSet3 = new Set(['ばかり','まで','だけ','ほど','くらい','など','なり','やら','は','って','も','こそ','でも','しか','さえ','だに']);
-        const particlesSet4 = new Set(['ば','や','が','て','のに','ので','から','ところが','けれども']);
+        const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
+        let chunks = Array.from(segmenter.segment(text)).map(s => s.segment).filter(s => s.trim().length > 0);
         
-        const allParticles = new Set([
-            ...particlesSet1, ...particlesSet2, ...particlesSet3, ...particlesSet4
-        ]);
+        if (!applyPostProcessing) return chunks;
 
-        const pronouns = new Set(['私', 'わたし', '我々', 'われわれ', '私達', '私たち', 'わたしたち', '君', 'きみ', '彼', 'かれ', '彼ら', 'かれら', '彼女', 'かのじょ', '皆', 'みんな']);
-        const honorifics = new Set(['さん', 'ちゃん', '様', 'さま', '氏', '殿', 'どの']);
-        const smallKana = new Set(['ゃ','ゅ','ょ']);
+        return this.postProcessJapanese(chunks, vocab);
+    }
 
-        // Wrapper for chunk merging
-        // We use a linked list approach or repeatedly modify the array. 
-        // Array modification is easier to reason about for these specific sequential rules.
+    postProcessJapanese(chunks, vocab = '') {
+        if (chunks.length === 0) return [];
         
-        const mergeNextIf = (conditionFn) => {
-            let i = 0;
-            while (i < chunks.length - 1) {
-                const curr = chunks[i];
-                const next = chunks[i+1];
-                if (conditionFn(curr, next, i)) {
-                    chunks[i] = curr + next;
-                    chunks.splice(i+1, 1);
-                    // Don't increment i, check this new chunk against the *next* one again?
-                    // Usually Japanese agglutinates forward.
-                    // But for safety in these specific rules (absorbing ONE element), we usually move on.
-                    // However, particles can stack (e.g. て + い + た). 
-                    // Based on "absorb adjacent", we'll retry the same index to see if it absorbs the *new* next one.
-                    continue; 
+        const smallKana = /^([っゃゅょャュョん])/;
+        const punctuation = /^([、。？?！!])/; 
+        const isAllKanji = /^[\u4e00-\u9faf]+$/;
+        const startsHiragana = /^[\u3040-\u309f]/;
+        const specialWords = ['とても', 'たくさんの'];
+        const suffixes = [
+            'さん', 'ちゃん', 'くん', 'さま', 'たち', '屋', 'さ', 'み', 'さく', 'い', 'げ', 'らしい',
+            'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'でした', 'だ', 'だろう', 'ろう',
+            'ます', 'ました', 'ませ', 'ません', 'ない', 'たい', 'て', 'いる', 'ある', 'れる', 'られる',
+            'でき', 'できな', 'できない', 'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 
+            'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので', 'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'
+        ];
+
+        let processed = [...chunks];
+        let changed = true;
+
+        // Pass 1: Agglutination / Suffix merging
+        while (changed) {
+            changed = false;
+            const nextPass = [];
+            if (processed.length > 0) {
+                nextPass.push(processed[0]);
+                for (let i = 1; i < processed.length; i++) {
+                    const prev = nextPass[nextPass.length - 1];
+                    const curr = processed[i];
+                    let merged = false;
+
+                    if (smallKana.test(curr)) { 
+                        nextPass[nextPass.length - 1] = prev + curr; merged = true; 
+                    } else if (specialWords.includes(prev + curr)) { 
+                        nextPass[nextPass.length - 1] = prev + curr; merged = true; 
+                    } else {
+                        const isSuffix = suffixes.some(s => curr === s || curr.startsWith(s));
+                        if (isSuffix) { nextPass[nextPass.length - 1] = prev + curr; merged = true; }
+                        else if (prev === 'お') { nextPass[nextPass.length - 1] = prev + curr; merged = true; }
+                        else if (curr === 'は' || curr === 'を') { nextPass[nextPass.length - 1] = prev + curr; merged = true; }
+                        else if (isAllKanji.test(prev) && startsHiragana.test(curr)) { nextPass[nextPass.length - 1] = prev + curr; merged = true; }
+                    }
+                    
+                    if (merged) changed = true; 
+                    else nextPass.push(curr);
                 }
-                i++;
             }
-        };
+            processed = nextPass;
+        }
 
-        const mergePrevIf = (conditionFn) => {
-             let i = 1;
-             while (i < chunks.length) {
-                 const prev = chunks[i-1];
-                 const curr = chunks[i];
-                 if (conditionFn(prev, curr)) {
-                     chunks[i-1] = prev + curr;
-                     chunks.splice(i, 1);
-                     // Stay at current index (which is now the next element) to check against the merged block?
-                     // No, we merged into prev.
-                     continue; 
-                 }
-                 i++;
-             }
-        };
+        // Pass 2: Vocab Protection (Ensure specific vocab word isn't split)
+        if (vocab && vocab.trim().length > 0) {
+            const cleanVocab = vocab.replace(/\s+/g, '');
+            let currentMapStr = "";
+            
+            const chunkMap = processed.map((chunk, idx) => {
+                const cleanChunk = chunk.replace(/\s+/g, '');
+                const start = currentMapStr.length;
+                currentMapStr += cleanChunk;
+                const end = currentMapStr.length;
+                return { idx, start, end };
+            });
 
-        // RULE 3-1: Vocab absorbs particles immediately after
-        // AND RULE 3-3: Pronouns absorb particles immediately after
-        // Logic: specific chunks + specific particles -> merge.
-        // Also generalized: "if there is Japanese articles... happening immediately after that chunk"
-        mergeNextIf((curr, next) => {
-            // Check if curr is the Target Vocab OR one of the Pronouns
-            const isTarget = vocabVariants.includes(curr) || pronouns.has(curr);
-            // Check if next is a particle
-            const isPart = allParticles.has(next);
-            return isTarget && isPart;
-        });
-
-        // RULE 3-2: Kanji blocks merge until hiragana is met
-        // "kanjis that still remain as single chunk... should absorb adjacent ones... until hiragana"
-        // This implies grouping strictly consecutive Kanji.
-        mergeNextIf((curr, next) => {
-            // If both are Kanij blocks, merge them.
-            // If curr is Kanji and next is NOT Hiragana (and not the end?), merge?
-            // "until hiragana is met" usually means Kanji+Kanji=Merge. Kanji+Katakana=Merge?
-            // Let's stick to strict Kanji merging for "Kanji compounds".
-            return isKanji(curr) && isKanji(next);
-        });
-
-        // RULE 3-4: Honorifics (San/Chan/etc)
-        // "from the remaining chunks, these form single chunk... if they have block that has kanji blocks before, merge"
-        // This is a "Merge Prev" rule.
-        mergePrevIf((prev, curr) => {
-            if (honorifics.has(curr)) {
-                // Merge if it exists alone (implied "form single chunk")
-                // AND merge with previous if previous is Kanji.
-                if (isKanji(prev)) return true;
-                // Even if prev isn't Kanji, honorifics attach to names (Kana names too).
-                // But prompt specific: "if they have... kanji blocks... merge".
-                // Let's assume they attach to whatever name precedes them.
-                return true; 
+            const vocabRanges = [];
+            let searchPos = 0;
+            let foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
+            while (foundIdx !== -1) {
+                vocabRanges.push({ start: foundIdx, end: foundIdx + cleanVocab.length });
+                searchPos = foundIdx + 1;
+                foundIdx = currentMapStr.indexOf(cleanVocab, searchPos);
             }
-            return false;
-        });
 
-        // RULE 3-5: Kanji + Single Hiragana
-        // "any remaining single character kanji blocks: if they have a single character hiragana block immediately after"
-        mergeNextIf((curr, next) => {
-            // Must be Single char Kanji and Single char Hiragana? 
-            // Or just blocks? "single character kanji blocks" implies length 1.
-            const isSingleKanji = isKanji(curr) && [...curr].length === 1;
-            const isSingleHira = isHiragana(next) && [...next].length === 1;
-            return isSingleKanji && isSingleHira;
-        });
+            if (vocabRanges.length > 0) {
+                const groups = Array.from({ length: processed.length }, (_, i) => i);
+                
+                vocabRanges.forEach(vRange => {
+                    let startIndex = -1; 
+                    let endIndex = -1;
+                    for(let i=0; i<chunkMap.length; i++) {
+                        const c = chunkMap[i];
+                        if (c.start < vRange.end && c.end > vRange.start) { 
+                            if (startIndex === -1) startIndex = i; 
+                            endIndex = i; 
+                        }
+                    }
+                    if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
+                        const targetGroup = groups[startIndex]; 
+                        for(let k = startIndex + 1; k <= endIndex; k++) { 
+                            groups[k] = targetGroup; 
+                        }
+                    }
+                });
 
-        // RULE 3-7: Small Kana (ya, yu, yo) form blocks with before and after.
-        // This effectively glues the small kana to the preceding char (kyu, sha, etc).
-        // Merge Prev first
-        mergePrevIf((prev, curr) => smallKana.has(curr));
-        // Then Merge Next (if the rule implies wrapping? Usually small kana attaches to previous).
-        // "form blocks with block before it and after it" -> Pre + Small + Post?
-        // Let's do Prev first, then if the merged block ends in small kana, merge next?
-        // Usually small kana is part of the previous syllable. Merging "after" might be too aggressive (e.g. Shya + A).
-        // But following instructions:
-        mergeNextIf((curr, next) => {
-            const lastChar = curr.slice(-1);
-            return smallKana.has(lastChar);
-        });
+                const mergedChunks = []; 
+                let currentChunk = ""; 
+                let currentGroup = -1;
+                
+                for(let i=0; i<processed.length; i++) {
+                    if (groups[i] !== currentGroup) { 
+                        if (currentChunk) mergedChunks.push(currentChunk); 
+                        currentChunk = processed[i]; 
+                        currentGroup = groups[i]; 
+                    } else { 
+                        currentChunk += processed[i]; 
+                    }
+                }
+                if (currentChunk) mergedChunks.push(currentChunk); 
+                processed = mergedChunks;
+            }
+        }
 
-        // Punctuation absorption (Prompt mentions 、and 。)
-        // "、and 。gets absorbed to the word chunk prior to it."
-        mergePrevIf((prev, curr) => {
-            return (curr === '、' || curr === '。');
-        });
+        // Pass 2.5: Final check for broken vocab chunks before punctuation
+        if (vocab && vocab.length > 1) {
+            const repairPass = [];
+            for (let i = 0; i < processed.length; i++) {
+                if (i < processed.length - 1 && (processed[i] + processed[i+1]).includes(vocab)) {
+                    repairPass.push(processed[i] + processed[i+1]);
+                    i++;
+                } else {
+                    repairPass.push(processed[i]);
+                }
+            }
+            processed = repairPass;
+        }
 
-        return chunks;
+        // Pass 3: Punctuation Merging
+        const punctPass = [];
+        if (processed.length > 0) {
+            punctPass.push(processed[0]);
+            for (let i = 1; i < processed.length; i++) {
+                const prev = punctPass[punctPass.length - 1];
+                const curr = processed[i];
+                if (punctuation.test(curr)) punctPass[punctPass.length - 1] = prev + curr; 
+                else punctPass.push(curr);
+            }
+            processed = punctPass;
+        }
+        return processed;
     }
 
     fitText(el) {
@@ -223,7 +195,6 @@ class TextService {
 
         if (allowWrap) {
             el.style.whiteSpace = 'normal';
-            // Use keep-all for CJK to prevent mid-word breaks if possible
             el.style.wordBreak = (settings.targetLang === 'ja' || settings.targetLang === 'zh') ? 'keep-all' : 'break-word';
             el.style.overflowWrap = 'break-word';
         } else {

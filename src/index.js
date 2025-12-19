@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconIn = document.getElementById('icon-user-in');
     let currentUser = null;
 
-    // Handle Auth State
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         if (user) {
@@ -47,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("User is anonymous");
             }
         } else {
-            // Auto-login anonymously if no user, to ensure DB access works
             console.log("No user, signing in anonymously for DB access...");
             try { await signInAnonymously(auth); } catch(e) { console.error("Anon auth failed", e); }
             
@@ -82,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
             target.classList.remove('hidden');
             const lastId = savedHistory[viewName];
             
-            // Safety check: ensure we have data before rendering
             if (vocabService.getAll().length === 0) {
                 console.warn("Render view called but no data available yet.");
             }
@@ -101,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     vocabService.subscribe(() => { if (!views.flashcard.classList.contains('hidden')) flashcardApp.refresh(); });
 
-    // --- DICTIONARY POPUP LOGIC ---
     const popup = document.getElementById('dictionary-popup');
     const popupContent = document.getElementById('dict-content');
     const popupClose = document.getElementById('dict-close-btn');
@@ -159,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('touchmove', handleMove);
 
-    // --- EDIT MODAL LOGIC (Reduced for brevity, functionality kept) ---
     const editModal = document.getElementById('edit-modal');
     const tabVocabBtn = document.getElementById('tab-vocab-btn');
     const tabDictBtn = document.getElementById('tab-dict-btn');
@@ -271,7 +266,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- SETTINGS LOGIC ---
     const settingsModal = document.getElementById('settings-modal');
     const openSettings = () => { loadSettingsToUI(); settingsModal.classList.remove('hidden'); setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); };
     const closeSettings = () => { settingsModal.classList.add('opacity-0'); setTimeout(()=>settingsModal.classList.add('hidden'), 200); };
@@ -285,8 +279,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = settingsService.get();
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
         const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
-        setVal('target-select', s.targetLang); setVal('origin-select', s.originLang);
-        setChk('toggle-dark', s.darkMode); setChk('toggle-audio', s.autoPlay); setChk('toggle-wait-audio', s.waitForAudio);
+        
+        setVal('target-select', s.targetLang); 
+        setVal('origin-select', s.originLang);
+        setChk('toggle-dark', s.darkMode); 
+        setChk('toggle-audio', s.autoPlay); 
+        setChk('toggle-wait-audio', s.waitForAudio);
+        
+        // Volume Slider
+        setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0);
+
         setVal('font-size-select', s.fontSize);
         setVal('font-family-select', s.fontFamily);
         setVal('font-weight-select', s.fontWeight);
@@ -307,6 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindSetting('target-select', 'targetLang', updateAllApps); bindSetting('origin-select', 'originLang', updateAllApps);
     bindSetting('toggle-dark', 'darkMode', () => document.documentElement.classList.toggle('dark'));
     bindSetting('toggle-audio', 'autoPlay'); bindSetting('toggle-wait-audio', 'waitForAudio');
+    
+    // Bind Volume
+    bindSetting('volume-slider', 'volume');
     
     // Bind Fonts
     bindSetting('font-size-select', 'fontSize', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)));
@@ -330,10 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const saved = settingsService.get(); loadSettingsToUI();
             if(saved.darkMode) document.documentElement.classList.add('dark');
             
-            // NOTE: We now WAIT for vocabService to report "ready"
             await vocabService.init(); 
-            
-            // Dictionary is less critical, can load in background
             dictionaryService.fetchData();
 
             const startBtn = document.getElementById('start-app-btn');

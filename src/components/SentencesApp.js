@@ -12,9 +12,6 @@ export class SentencesApp {
         this.shuffledWords = []; 
         this.wordBankStatus = [];
         this.isProcessing = false; 
-        
-        // Experiment Mode State
-        this.useExperimentalFilter = false;
     }
     
     mount(elementId) { 
@@ -63,14 +60,7 @@ export class SentencesApp {
         return Promise.resolve();
     }
 
-    // Toggle the experimental tokenizer
-    toggleExperiment() {
-        this.useExperimentalFilter = !this.useExperimentalFilter;
-        // Reload current game to apply new tokenization
-        this.loadGame(true);
-    }
-
-    loadGame(keepUserProgress = false) {
+    loadGame() {
         this.isProcessing = false;
         const list = vocabService.getFlashcardData();
         if (!list || !list.length) { this.renderError(); return; }
@@ -82,16 +72,13 @@ export class SentencesApp {
         
         let words = [];
         if (settings.targetLang === 'ja') {
-            // Apply new tokenizer logic based on experiment flag
-            words = textService.tokenizeJapanese(clean, item.front.main, this.useExperimentalFilter);
+            // Updated tokenizer call
+            words = textService.tokenizeJapanese(clean, item.front.main);
         } else {
             words = clean.split(' ').filter(w => w.length);
         }
 
         this.currentData = { ...item, originalWords: words, cleanSentence: clean };
-        
-        // If simply toggling filter, try to preserve order if possible, or just reset.
-        // Resetting is safer to avoid bank mismatch.
         this.shuffledWords = [...words].map((word, id) => ({ word, id })).sort(() => Math.random() - 0.5);
         this.wordBankStatus = new Array(this.shuffledWords.length).fill(false);
         this.userSentence = []; 
@@ -99,7 +86,7 @@ export class SentencesApp {
         if (window.saveGameHistory) window.saveGameHistory('sentences', item.id);
         
         this.render();
-        if (!keepUserProgress && settings.autoPlay) setTimeout(() => this.playTargetAudio(), 300);
+        if (settings.autoPlay) setTimeout(() => this.playTargetAudio(), 300);
     }
 
     handleBankClick(idx) { 
@@ -169,19 +156,11 @@ export class SentencesApp {
         if (!item) { this.renderError(); return; }
         
         const hintText = textService.smartWrap(item.back.sentenceOrigin);
-        
-        // Experiment button style
-        const flaskColor = this.useExperimentalFilter ? 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-gray-400 bg-gray-100 dark:bg-gray-800';
 
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
-                <div class="flex items-center gap-2">
-                    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${item.id}"></div>
-                    <button class="game-edit-btn header-icon-btn bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
-                    <button id="sent-flask-btn" class="header-icon-btn rounded-full ${flaskColor} transition-colors" title="Toggle Experimental Tokenizer">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                    </button>
-                </div>
+                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${item.id}"></div>
+                <button class="game-edit-btn header-icon-btn bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
                 <div class="flex items-center gap-2">
                     <button class="game-settings-btn header-icon-btn bg-white dark:bg-dark-card border border-gray-200 rounded-xl text-gray-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
                     <button id="sent-random-btn" class="header-icon-btn bg-white dark:bg-dark-card border border-gray-200 rounded-xl text-indigo-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
@@ -194,12 +173,12 @@ export class SentencesApp {
                         <h2 class="text-xl font-bold text-gray-500 dark:text-gray-400 w-full" data-fit="true" data-wrap="true" data-type="hint">${hintText}</h2>
                     </div>
                     <div id="sentence-drop-zone" class="flex-grow mt-4 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 flex flex-wrap content-start gap-3 overflow-y-auto">
-                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform border-2 border-transparent" data-index="${i}">${obj.word}</button>`).join('')}
+                        ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform border-2 border-transparent" data-index="${i}" data-fit="true">${obj.word}</button>`).join('')}
                     </div>
                 </div>
                 <div class="w-full h-full bg-gray-100 dark:bg-dark-bg/50 rounded-[2rem] p-4 overflow-y-auto">
                     <div class="flex flex-wrap gap-3 justify-center content-start h-full">
-                        ${this.shuffledWords.map((obj, i) => `<button class="bank-word flex-grow min-w-[80px] px-4 py-3 bg-white dark:bg-dark-card border-b-4 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white rounded-xl text-lg font-bold border-2 border-transparent ${this.wordBankStatus[i]?'opacity-0 pointer-events-none':''}" data-index="${i}">${obj.word}</button>`).join('')}
+                        ${this.shuffledWords.map((obj, i) => `<button class="bank-word flex-grow min-w-[80px] px-4 py-3 bg-white dark:bg-dark-card border-b-4 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white rounded-xl text-lg font-bold border-2 border-transparent ${this.wordBankStatus[i]?'opacity-0 pointer-events-none':''}" data-index="${i}" data-fit="true">${obj.word}</button>`).join('')}
                     </div>
                 </div>
             </div>
@@ -210,7 +189,6 @@ export class SentencesApp {
         this.bind('#sent-prev-btn', 'click', () => this.prev());
         this.bind('#sent-random-btn', 'click', () => this.random());
         this.bind('#sent-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.bind('#sent-flask-btn', 'click', () => this.toggleExperiment());
         this.bind('#sent-hint-box', 'click', (e) => { 
             if(!e.target.closest('.user-word')) this.playTargetAudio(); 
         });
