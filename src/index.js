@@ -21,20 +21,10 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// --- PERSISTENCE (Safe Load) ---
+// --- PERSISTENCE ---
 let savedHistory = {};
-try {
-    savedHistory = JSON.parse(localStorage.getItem('polyglot_history') || '{}');
-} catch (e) {
-    console.error("History load error, resetting.", e);
-    savedHistory = {};
-}
-
-window.saveGameHistory = (game, id) => {
-    if (!id) return;
-    savedHistory[game] = id;
-    localStorage.setItem('polyglot_history', JSON.stringify(savedHistory));
-};
+try { savedHistory = JSON.parse(localStorage.getItem('polyglot_history') || '{}'); } catch (e) { savedHistory = {}; }
+window.saveGameHistory = (game, id) => { if (id) { savedHistory[game] = id; localStorage.setItem('polyglot_history', JSON.stringify(savedHistory)); } };
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -66,27 +56,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loginBtn = document.getElementById('user-login-btn');
     if(loginBtn) loginBtn.addEventListener('click', async () => {
-        if (currentUser && !currentUser.isAnonymous) {
-            if(confirm("Log out?")) await signOut(auth);
-        } else {
-            try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); }
-        }
+        if (currentUser && !currentUser.isAnonymous) { if(confirm("Log out?")) await signOut(auth); } 
+        else { try { await signInWithPopup(auth, googleProvider); } catch(e) { console.error(e); } }
     });
 
     function updateEditPermissions() {
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com';
         document.querySelectorAll('#btn-save-vocab, .btn-save-dict, #btn-add-dict').forEach(btn => {
             if(btn.id === 'btn-add-dict') btn.style.display = isAdmin ? 'block' : 'none';
-            else {
-                btn.disabled = !isAdmin;
-                btn.style.display = isAdmin ? 'block' : 'none';
-            }
+            else { btn.disabled = !isAdmin; btn.style.display = isAdmin ? 'block' : 'none'; }
         });
     }
 
     // --- ROUTER ---
     function renderView(viewName) {
-        audioService.stop(); // Stop audio when navigating away
+        audioService.stop(); 
         if (viewName === 'home') document.body.classList.remove('game-mode');
         else document.body.classList.add('game-mode');
 
@@ -95,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target) {
             target.classList.remove('hidden');
             const lastId = savedHistory[viewName];
-            
             if (viewName === 'flashcard') { flashcardApp.mount('flashcard-view'); if(lastId) flashcardApp.goto(lastId); }
             if (viewName === 'quiz') { quizApp.mount('quiz-view'); if(lastId) quizApp.next(lastId); }
             if (viewName === 'sentences') { sentencesApp.mount('sentences-view'); if(lastId) sentencesApp.next(lastId); }
@@ -118,27 +101,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDictionary(text) {
         const results = dictionaryService.lookupText(text);
         if (results.length > 0 && popup) {
+            // FIX: Added (|| '') to fallbacks to prevent "undefined"
             popupContent.innerHTML = results.map(data => `
                 <div class="dict-entry-row flex flex-col gap-2 mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
                     <div class="flex items-end gap-3">
-                        <div class="dict-headword text-4xl font-black text-indigo-600 dark:text-indigo-400 cursor-pointer hover:opacity-80">${data.s}</div>
-                        ${data.t!==data.s?`<div class="text-xl text-gray-500 font-serif">${data.t}</div>`:''}
+                        <div class="dict-headword text-4xl font-black text-indigo-600 dark:text-indigo-400 cursor-pointer hover:opacity-80">${data.s || '?'}</div>
+                        ${(data.t && data.t !== data.s) ? `<div class="text-xl text-gray-500 font-serif">${data.t}</div>` : ''}
                     </div>
                     <div class="pl-1 space-y-1">
-                        <div class="flex items-center gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12">Pinyin</span><span class="text-lg font-medium text-gray-800 dark:text-white">${data.p||'-'}</span></div>
-                        <div class="flex items-start gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12 mt-1">English</span><span class="text-sm text-gray-600 dark:text-gray-300 flex-1">${data.e||'-'}</span></div>
-                        <div class="flex items-start gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12 mt-1">Korean</span><span class="text-sm text-gray-600 dark:text-gray-300 flex-1">${data.ko||'-'}</span></div>
+                        <div class="flex items-center gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12">Pinyin</span><span class="text-lg font-medium text-gray-800 dark:text-white">${data.p || '-'}</span></div>
+                        <div class="flex items-start gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12 mt-1">English</span><span class="text-sm text-gray-600 dark:text-gray-300 flex-1">${data.e || '-'}</span></div>
+                        <div class="flex items-start gap-2"><span class="text-[10px] text-gray-400 uppercase font-bold w-12 mt-1">Korean</span><span class="text-sm text-gray-600 dark:text-gray-300 flex-1">${data.ko || '-'}</span></div>
                     </div>
                 </div>
             `).join('');
             
-            // Attach Click-to-Read handlers
             if (settingsService.get().dictClickAudio) {
                 popupContent.querySelectorAll('.dict-headword').forEach(el => {
-                    el.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        audioService.speak(el.textContent.trim(), 'zh');
-                    });
+                    el.addEventListener('click', (e) => { e.stopPropagation(); audioService.speak(el.textContent.trim(), 'zh'); });
                 });
             }
 
@@ -192,16 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if(tabDictBtn) tabDictBtn.addEventListener('click', () => switchEditTab('dict'));
     document.getElementById('edit-close-btn').addEventListener('click', () => { editModal.classList.add('opacity-0'); setTimeout(()=>editModal.classList.add('hidden'), 200); });
 
+    // --- DICT EDIT ---
     function populateDictionaryEdit(textToScan) {
         const listContainer = document.getElementById('edit-dict-list');
         listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">Scanning...</div>';
-        
         const entries = dictionaryService.lookupText(textToScan);
         listContainer.innerHTML = '';
-        if (entries.length === 0) {
-            listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">No dictionary entries found.</div>';
-            return;
-        }
+        if (entries.length === 0) { listContainer.innerHTML = '<div class="text-center text-gray-400 py-4">No entries found.</div>'; return; }
 
         entries.forEach(entry => {
             const div = document.createElement('div');
@@ -238,35 +215,60 @@ document.addEventListener('DOMContentLoaded', () => {
         updateEditPermissions();
     }
 
-    // --- DYNAMIC EDIT MODAL POPULATION ---
+    // --- EXPANDED VOCAB EDIT ---
     function renderVocabEditFields(vocabData) {
         const container = document.getElementById('edit-vocab-fields');
         container.innerHTML = '';
         
+        // FIX: Using exact keys from your JSON (furi, roma, pin, tr)
         const languages = [
-            { code: 'en', label: 'English' },
-            { code: 'zh', label: 'Chinese (中文)' },
-            { code: 'ja', label: 'Japanese (日本語)' },
-            { code: 'ko', label: 'Korean (한국어)' },
-            { code: 'de', label: 'German (Deutsch)' },
-            { code: 'fr', label: 'French (Français)' }
+            { code: 'en', label: 'English', extra: [] },
+            { code: 'ja', label: 'Japanese', extra: ['furi', 'roma'] }, // ja_furi, ja_roma
+            { code: 'zh', label: 'Chinese', extra: ['pin'] },           // zh_pin
+            { code: 'ko', label: 'Korean', extra: ['roma'] },           // ko_roma
+            { code: 'ru', label: 'Russian', extra: ['tr'] },            // ru_tr
+            { code: 'de', label: 'German', extra: [] },
+            { code: 'fr', label: 'French', extra: [] },
+            { code: 'es', label: 'Spanish', extra: [] },
+            { code: 'it', label: 'Italian', extra: [] },
+            { code: 'pt', label: 'Portuguese', extra: [] }
         ];
 
         languages.forEach(lang => {
             const vocabVal = vocabData[lang.code] || '';
             const sentenceVal = vocabData[`${lang.code}_ex`] || '';
             
+            // Build extra fields inputs
+            let extrasHtml = '';
+            if (lang.extra && lang.extra.length > 0) {
+                extrasHtml = `<div class="grid grid-cols-2 gap-2 mt-2">`;
+                lang.extra.forEach(field => {
+                    const key = `${lang.code}_${field}`; // e.g., ja_furi
+                    const val = vocabData[key] || '';
+                    extrasHtml += `
+                        <div>
+                            <label class="text-[9px] font-bold uppercase text-gray-500 dark:text-gray-500">${field}</label>
+                            <input type="text" data-field="${key}" value="${val}" class="inp-vocab-field w-full p-1.5 bg-white dark:bg-black/40 rounded border border-gray-200 dark:border-gray-600 text-xs dark:text-white focus:border-indigo-500 outline-none">
+                        </div>
+                    `;
+                });
+                extrasHtml += `</div>`;
+            }
+
             const html = `
-                <div class="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <h4 class="text-sm font-black text-indigo-500 uppercase mb-3 border-b border-gray-200 dark:border-gray-700 pb-1">${lang.label}</h4>
+                <div class="bg-gray-50 dark:bg-black/20 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <h4 class="text-xs font-black text-indigo-500 uppercase mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 flex justify-between">
+                        ${lang.label} <span class="text-[9px] text-gray-400 font-mono">${lang.code}</span>
+                    </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="text-[10px] font-bold uppercase text-gray-400">Word</label>
-                            <input type="text" data-field="${lang.code}" value="${vocabVal}" class="inp-vocab-field w-full mt-1 p-2 bg-white dark:bg-black rounded-lg border border-transparent focus:border-indigo-500 outline-none text-sm dark:text-white">
+                            <input type="text" data-field="${lang.code}" value="${vocabVal}" class="inp-vocab-field w-full mt-1 p-2 bg-white dark:bg-black rounded-lg border border-transparent focus:border-indigo-500 outline-none text-sm dark:text-white shadow-sm">
+                            ${extrasHtml}
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Example Sentence</label>
-                            <textarea data-field="${lang.code}_ex" rows="1" class="inp-vocab-field w-full mt-1 p-2 bg-white dark:bg-black rounded-lg border border-transparent focus:border-indigo-500 outline-none text-sm dark:text-white">${sentenceVal}</textarea>
+                            <label class="text-[10px] font-bold uppercase text-gray-400">Example</label>
+                            <textarea data-field="${lang.code}_ex" rows="3" class="inp-vocab-field w-full mt-1 p-2 bg-white dark:bg-black rounded-lg border border-transparent focus:border-indigo-500 outline-none text-sm dark:text-white shadow-sm">${sentenceVal}</textarea>
                         </div>
                     </div>
                 </div>
@@ -322,42 +324,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- SETTINGS (UI Updates) ---
+    // --- SETTINGS ---
     const settingsModal = document.getElementById('settings-modal');
-    const openSettings = () => { 
-        loadSettingsToUI(); 
-        settingsModal.classList.remove('hidden'); 
-        setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); 
-    };
+    const openSettings = () => { loadSettingsToUI(); settingsModal.classList.remove('hidden'); setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); };
     const closeSettings = () => { settingsModal.classList.add('opacity-0'); setTimeout(()=>settingsModal.classList.add('hidden'), 200); };
-    if(document.getElementById('home-settings-btn')) document.getElementById('home-settings-btn').addEventListener('click', openSettings);
-    if(document.getElementById('modal-done-btn')) document.getElementById('modal-done-btn').addEventListener('click', closeSettings);
-    document.addEventListener('click', (e) => { if(e.target.closest('.game-settings-btn')) openSettings(); });
+    
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#home-settings-btn') || e.target.closest('.game-settings-btn')) openSettings();
+        if (e.target.closest('#modal-done-btn')) closeSettings();
+    });
 
     function loadSettingsToUI() {
         const s = settingsService.get();
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
         const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
 
-        setVal('target-select', s.targetLang);
-        setVal('origin-select', s.originLang);
-        setChk('toggle-dark', s.darkMode);
-        setChk('toggle-audio', s.autoPlay);
-        setChk('toggle-wait-audio', s.waitForAudio);
+        setVal('target-select', s.targetLang); setVal('origin-select', s.originLang);
+        setChk('toggle-dark', s.darkMode); setChk('toggle-audio', s.autoPlay); setChk('toggle-wait-audio', s.waitForAudio);
         setVal('font-size-select', s.fontSize);
-        
-        setChk('toggle-vocab', s.showVocab);
-        setChk('toggle-sentence', s.showSentence);
-        setChk('toggle-english', s.showEnglish);
-        
-        setChk('toggle-dict-enable', s.dictEnabled);
-        setChk('toggle-dict-click-audio', s.dictClickAudio);
-        
-        setChk('toggle-quiz-audio', s.quizAnswerAudio);
-        setChk('toggle-quiz-autoplay-correct', s.quizAutoPlayCorrect);
-        
-        setChk('toggle-sent-audio', s.sentencesWordAudio);
-        setChk('toggle-blanks-audio', s.blanksAnswerAudio);
+        setChk('toggle-vocab', s.showVocab); setChk('toggle-sentence', s.showSentence); setChk('toggle-english', s.showEnglish);
+        setChk('toggle-dict-enable', s.dictEnabled); setChk('toggle-dict-click-audio', s.dictClickAudio);
+        setChk('toggle-quiz-audio', s.quizAnswerAudio); setChk('toggle-quiz-autoplay-correct', s.quizAutoPlayCorrect);
+        setChk('toggle-sent-audio', s.sentencesWordAudio); setChk('toggle-blanks-audio', s.blanksAnswerAudio);
     }
 
     function bindSetting(id, key, callback) {
@@ -377,7 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindSetting('toggle-audio', 'autoPlay');
     bindSetting('toggle-wait-audio', 'waitForAudio');
     bindSetting('font-size-select', 'fontSize', () => document.body.setAttribute('data-font-size', settingsService.get().fontSize));
-    
     bindSetting('toggle-vocab', 'showVocab', updateAllApps);
     bindSetting('toggle-sentence', 'showSentence', updateAllApps);
     bindSetting('toggle-english', 'showEnglish', updateAllApps);
@@ -407,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const saved = settingsService.get();
             loadSettingsToUI();
             if(saved.darkMode) document.documentElement.classList.add('dark');
-            
             await Promise.all([vocabService.fetchData(), dictionaryService.fetchData()]);
             
             const startBtn = document.getElementById('start-app-btn');

@@ -20,14 +20,27 @@ class DictionaryService {
 
                 list.forEach(item => {
                     if (!item) return;
-                    // Map Simplified
-                    if (item.s) this.index[item.s] = { ...item, ko: item.k };
-                    // Map Traditional
-                    if (item.t && item.t !== item.s) this.index[item.t] = { ...item, ko: item.k };
+                    // Robust mapping: handle potential missing keys gracefully
+                    const entry = { 
+                        id: item.id || '',
+                        s: item.s || item.simplified || '', 
+                        t: item.t || item.traditional || (item.s || ''), 
+                        p: item.p || item.pinyin || '', 
+                        e: item.e || item.english || '', 
+                        ko: item.k || item.ko || item.korean || '' 
+                    };
+                    
+                    // Only index if we have a headword
+                    if (entry.s) {
+                        this.index[entry.s] = entry;
+                        if (entry.t && entry.t !== entry.s) this.index[entry.t] = entry;
+                    }
                 });
                 
                 this.isInitialized = true;
                 console.log(`[Dictionary] Loaded ${Object.keys(this.index).length} entries.`);
+            } else {
+                console.warn("[Dictionary] No data.");
             }
         } catch (error) {
             console.error("[Dictionary] Error:", error);
@@ -38,6 +51,7 @@ class DictionaryService {
         if (!text || !this.isInitialized) return [];
         const results = [];
         const seen = new Set();
+        // Match Chinese characters (adjust regex if you need to match Kana/Hangul too)
         const regex = /[\u4E00-\u9FFF]/g;
         const matches = text.match(regex);
 
@@ -46,15 +60,7 @@ class DictionaryService {
                 if (!seen.has(char)) {
                     const data = this.index[char];
                     if (data) {
-                        // Return standardized object
-                        results.push({ 
-                            id: data.id,
-                            simp: data.s, 
-                            trad: data.t, 
-                            pinyin: data.p, 
-                            en: data.e, 
-                            ko: data.k // Ensure 'k' is mapped to 'ko'
-                        });
+                        results.push(data);
                         seen.add(char);
                     }
                 }

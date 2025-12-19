@@ -4,7 +4,15 @@ import { audioService } from '../services/audioService';
 import { textService } from '../services/textService';
 
 export class SentencesApp {
-    constructor() { this.container = null; this.currentIndex = 0; this.currentData = null; this.userSentence = []; this.shuffledWords = []; this.wordBankStatus = []; }
+    constructor() { 
+        this.container = null; 
+        this.currentIndex = 0; 
+        this.currentData = null; 
+        this.userSentence = []; 
+        this.shuffledWords = []; 
+        this.wordBankStatus = [];
+        this.isProcessing = false; // Prevents breaking the game by clicking during animations
+    }
     
     mount(elementId) { 
         this.container = document.getElementById(elementId); 
@@ -24,6 +32,8 @@ export class SentencesApp {
     }
 
     next(id = null) { 
+        this.isProcessing = false;
+        audioService.stop();
         if (id !== null) { 
             const idx = vocabService.findIndexById(id); 
             if (idx !== -1) this.currentIndex = idx; 
@@ -35,6 +45,8 @@ export class SentencesApp {
     }
     
     prev() { 
+        this.isProcessing = false;
+        audioService.stop();
         const list = vocabService.getAll(); 
         this.currentIndex = (this.currentIndex - 1 + list.length) % list.length; 
         this.loadGame(); 
@@ -42,11 +54,13 @@ export class SentencesApp {
 
     playTargetAudio() {
         if (this.currentData) {
-            audioService.speak(this.currentData.cleanSentence, settingsService.get().targetLang);
+            return audioService.speak(this.currentData.cleanSentence, settingsService.get().targetLang);
         }
+        return Promise.resolve();
     }
 
     loadGame() {
+        this.isProcessing = false;
         const list = vocabService.getFlashcardData();
         if (!list || !list.length) { this.renderError(); return; }
         const item = list[this.currentIndex];
@@ -68,31 +82,57 @@ export class SentencesApp {
     }
 
     handleBankClick(idx) { 
+        if (this.isProcessing) return; // Guard against clicks during processing
         if (this.wordBankStatus[idx]) return; 
         const w = this.shuffledWords[idx]; 
         this.userSentence.push({...w, bankIndex: idx}); 
         this.wordBankStatus[idx] = true; 
-        if(settingsService.get().sentencesWordAudio) audioService.speak(w.word, settingsService.get().targetLang);
-        this.render(); this.checkWin(); 
+        
+        if(settingsService.get().sentencesWordAudio) {
+            audioService.speak(w.word, settingsService.get().targetLang);
+        }
+        
+        this.render(); 
+        this.checkWin(); 
     }
     
     handleUserClick(idx) { 
+        if (this.isProcessing) return; // Guard against clicks during processing
         const item = this.userSentence[idx]; 
         this.wordBankStatus[item.bankIndex] = false; 
         this.userSentence.splice(idx, 1); 
-        if(settingsService.get().sentencesWordAudio) audioService.speak(item.word, settingsService.get().targetLang);
+        
+        if(settingsService.get().sentencesWordAudio) {
+            audioService.speak(item.word, settingsService.get().targetLang);
+        }
+        
         this.render(); 
     }
     
-    checkWin() { 
+    async checkWin() { 
         if (this.userSentence.length === this.shuffledWords.length) {
             const u = this.userSentence.map(o => o.word).join(''); 
             const t = this.currentData.originalWords.join('');
+            
             if (u.replace(/\s/g, '') === t.replace(/\s/g, '')) {
+                this.isProcessing = true; // Lock the game
                 const zone = this.container.querySelector('#sentence-drop-zone');
                 if (zone) zone.classList.add('bg-green-100', 'border-green-500');
-                if (settingsService.get().sentAutoPlayCorrect) this.playTargetAudio();
-                setTimeout(()=>this.next(), 1500);
+                
+                const s = settingsService.get();
+                if (s.sentAutoPlayCorrect) {
+                    if (s.waitForAudio) {
+                        // Wait for audio to finish before moving on
+                        await this.playTargetAudio();
+                        this.next();
+                    } else {
+                        // Original behavior: play and move on after fixed delay
+                        this.playTargetAudio();
+                        setTimeout(() => this.next(), 1500);
+                    }
+                } else {
+                    setTimeout(() => this.next(), 1500);
+                }
             }
         }
     }
@@ -112,11 +152,11 @@ export class SentencesApp {
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${item.id}"></div>
-                <button class="game-edit-btn w-8 h-8 flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
+                <button class="game-edit-btn header-icon-btn bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
                 <div class="flex items-center gap-2">
-                    <button class="game-settings-btn p-1.5 bg-white dark:bg-dark-card border border-gray-200 rounded-xl flex items-center justify-center text-gray-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
-                    <button id="sent-random-btn" class="p-1.5 bg-white dark:bg-dark-card border border-gray-200 rounded-xl flex items-center justify-center text-indigo-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
-                    <button id="sent-close-btn" class="p-1.5 bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <button class="game-settings-btn header-icon-btn bg-white dark:bg-dark-card border border-gray-200 rounded-xl text-gray-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+                    <button id="sent-random-btn" class="header-icon-btn bg-white dark:bg-dark-card border border-gray-200 rounded-xl text-indigo-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
+                    <button id="sent-close-btn" class="header-icon-btn bg-red-50 text-red-500 rounded-full shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
