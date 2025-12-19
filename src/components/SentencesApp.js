@@ -72,7 +72,6 @@ export class SentencesApp {
         
         let words = [];
         if (settings.targetLang === 'ja') {
-            // Updated tokenizer call
             words = textService.tokenizeJapanese(clean, item.front.main);
         } else {
             words = clean.split(' ').filter(w => w.length);
@@ -157,6 +156,7 @@ export class SentencesApp {
         
         const hintText = textService.smartWrap(item.back.sentenceOrigin);
 
+        // Styling Updates: Reduced padding (p-4, p-3) and margins (mt-2) to maximize space
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="sent-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${item.id}"></div>
@@ -168,11 +168,11 @@ export class SentencesApp {
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col relative">
-                    <div class="mt-2 text-center flex-none h-16 flex items-center justify-center">
+                <div id="sent-hint-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative">
+                    <div class="mt-1 text-center flex-none h-14 flex items-center justify-center">
                         <h2 class="text-xl font-bold text-gray-500 dark:text-gray-400 w-full" data-fit="true" data-wrap="true" data-type="hint">${hintText}</h2>
                     </div>
-                    <div id="sentence-drop-zone" class="flex-grow mt-4 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 flex flex-wrap content-start gap-3 overflow-y-auto">
+                    <div id="sentence-drop-zone" class="flex-grow mt-2 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-3 flex flex-wrap content-start gap-2 overflow-y-auto">
                         ${this.userSentence.map((obj, i) => `<button class="user-word px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform border-2 border-transparent" data-index="${i}" data-fit="true">${obj.word}</button>`).join('')}
                     </div>
                 </div>

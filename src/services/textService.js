@@ -21,7 +21,7 @@ class TextService {
             .replace(/_/g, '_<wbr>');               
     }
 
-    // 3. JAPANESE TOKENIZER (Restored Full Logic)
+    // 3. JAPANESE TOKENIZER
     tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
         // Safety check for Segmenter support
         if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
@@ -46,7 +46,7 @@ class TextService {
         const specialWords = ['とても', 'たくさんの'];
         const suffixes = [
             'さん', 'ちゃん', 'くん', 'さま', 'たち', '屋', 'さ', 'み', 'さく', 'い', 'げ', 'らしい',
-            'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'でした', 'だ', 'だろう', 'ろう',
+            'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'ですか', 'でした', 'だ', 'だろう', 'ろう',
             'ます', 'ました', 'ませ', 'ません', 'ない', 'たい', 'て', 'いる', 'ある', 'れる', 'られる',
             'でき', 'できな', 'できない', 'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 
             'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので', 'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'
@@ -55,7 +55,7 @@ class TextService {
         let processed = [...chunks];
         let changed = true;
 
-        // Pass 1: Agglutination / Suffix merging
+        // --- STEP 1: Agglutination / Suffix Merging (Previous Phase 1) ---
         while (changed) {
             changed = false;
             const nextPass = [];
@@ -85,7 +85,8 @@ class TextService {
             processed = nextPass;
         }
 
-        // Pass 2: Vocab Protection (Ensure specific vocab word isn't split)
+        // --- STEP 2: Vocab Protection (Previous Phase 2) ---
+        // We do this EARLY so that later rules can override it if necessary (like the comma split)
         if (vocab && vocab.trim().length > 0) {
             const cleanVocab = vocab.replace(/\s+/g, '');
             let currentMapStr = "";
@@ -146,7 +147,7 @@ class TextService {
             }
         }
 
-        // Pass 2.5: Final check for broken vocab chunks before punctuation
+        // --- STEP 2.5: Cleanup broken vocab (Previous) ---
         if (vocab && vocab.length > 1) {
             const repairPass = [];
             for (let i = 0; i < processed.length; i++) {
@@ -160,7 +161,8 @@ class TextService {
             processed = repairPass;
         }
 
-        // Pass 3: Punctuation Merging
+        // --- STEP 3: Punctuation Merging (Previous Pass 3) ---
+        // We glue dangling punctuation first, so "Word" + "、" becomes "Word、"
         const punctPass = [];
         if (processed.length > 0) {
             punctPass.push(processed[0]);
@@ -172,6 +174,67 @@ class TextService {
             }
             processed = punctPass;
         }
+
+
+        // =========================================================
+        //  USER DEFINED POST-PROCESSING (PHASES 5, 6, 7)
+        //  These run LAST to ensure they override previous steps.
+        // =========================================================
+
+        // Phase 5: If a chunk ENDS with 'お', cut it and move it to the START of the NEXT chunk.
+        // e.g., "Mizuお" + "Kure" -> "Mizu" + "おKure"
+        for (let i = 0; i < processed.length - 1; i++) {
+            if (processed[i].length > 1 && processed[i].endsWith('お')) {
+                // Cut 'お' from end of current
+                processed[i] = processed[i].slice(0, -1);
+                // Glue 'お' to start of next
+                processed[i+1] = 'お' + processed[i+1];
+            }
+        }
+        processed = processed.filter(s => s.length > 0);
+
+        // Phase 6: If a chunk STARTS with 'は' or 'を', cut it and move it to the END of the PREVIOUS chunk.
+        // e.g., "Watashi" + "waTaberu" -> "Watashiwa" + "Taberu"
+        for (let i = 1; i < processed.length; i++) {
+            const firstChar = processed[i].charAt(0);
+            if (firstChar === 'は' || firstChar === 'を') {
+                if (processed[i].length > 1) { // Only if chunk has more than just the particle
+                    // Glue to end of previous
+                    processed[i-1] += firstChar;
+                    // Cut from start of current
+                    processed[i] = processed[i].slice(1);
+                } else {
+                    // If the chunk IS just "は" or "を", we just merge it wholly
+                    processed[i-1] += processed[i];
+                    processed[i] = ""; 
+                }
+            }
+        }
+        processed = processed.filter(s => s.length > 0);
+
+        // Phase 7: Comma Splitter
+        // Look for '、' anywhere in a chunk. If found, ensure the chunk ends immediately after it.
+        // e.g., "SentenceA、SentenceB" -> "SentenceA、" + "SentenceB"
+        let phase7Pass = [];
+        processed.forEach(chunk => {
+            if (chunk.includes('、') && !chunk.endsWith('、')) {
+                // Split by comma
+                const parts = chunk.split('、');
+                for(let k = 0; k < parts.length; k++) {
+                    // If it's not the last part, it means it had a comma after it originally
+                    if (k < parts.length - 1) {
+                        phase7Pass.push(parts[k] + '、');
+                    } else if (parts[k].length > 0) {
+                        // The last part did not have a comma after it
+                        phase7Pass.push(parts[k]);
+                    }
+                }
+            } else {
+                phase7Pass.push(chunk);
+            }
+        });
+        processed = phase7Pass;
+
         return processed;
     }
 
