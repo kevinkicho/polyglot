@@ -93,10 +93,8 @@ export class BlanksApp {
 
         const settings = settingsService.get();
 
-        // Check if this is the SECOND click of a double-click action
         const isConfirmationClick = (settings.blanksDoubleClick && this.selectedAnswerId === id);
 
-        // Only play audio if enabled AND it's NOT the immediate confirmation click
         if (!isConfirmationClick && (settings.blanksAnswerAudio || settings.blanksDoubleClick)) {
             audioService.speak(choiceText, settings.targetLang);
         }
@@ -136,14 +134,12 @@ export class BlanksApp {
 
             const qBox = document.getElementById('blanks-question-box');
             if(qBox) {
-                // Reveal Logic: Make the invisible text visible, remove border
                 const pillText = qBox.querySelector('.pill-text');
                 const pillSpan = qBox.querySelector('.blank-pill');
                 if (pillText && pillSpan) {
                     pillText.classList.remove('text-transparent');
                     pillText.classList.add('text-indigo-600', 'dark:text-indigo-400');
                     pillSpan.classList.remove('border-b-2', 'border-gray-400', 'dark:border-gray-600');
-                    // Add a highlight effect
                     pillSpan.classList.add('scale-110', 'transition-transform');
                 }
             }
@@ -172,13 +168,20 @@ export class BlanksApp {
         
         const { target, choices, sentence, blankedSentence, answerWord } = this.currentData;
         const rawSentence = sentence || blankedSentence || "";
-        const translationText = target.back.sentenceOrigin || "Fill in the blank";
         
-        // SEAMLESS PILL LOGIC
+        const s = settingsService.get();
+        const originLangKey = `${s.originLang}_ex`; 
+        
+        const translationText = target[originLangKey] 
+            || target.back.sentenceOrigin 
+            || target.back.definition 
+            || "Fill in the blank";
+        
         const pillHtml = `<span class="blank-pill inline-block border-b-2 border-gray-400 dark:border-gray-600 mx-1"><span class="pill-text text-transparent font-bold">${answerWord}</span></span>`;
         
         const displayHtml = rawSentence.replace(/_+/g, pillHtml);
         
+        // Updated Layout: Using Flexbox for the Hint (similar to SentencesApp) to allow wrapping
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-teal-100 text-teal-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="blanks-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${target.id}"></div>
@@ -190,11 +193,13 @@ export class BlanksApp {
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-6 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                    <div class="absolute top-0 left-0 right-0 bg-gray-50 dark:bg-black/20 py-2 px-4 text-center border-b border-gray-100 dark:border-white/5">
-                        <span class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest" data-fit="true" data-type="hint">${translationText}</span>
+                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <div class="w-full py-2 px-1 text-center border-b border-gray-100 dark:border-white/5 flex-none min-h-[3rem] flex items-center justify-center">
+                        <span class="text-sm font-bold text-gray-500 dark:text-gray-400" data-fit="true" data-wrap="true" data-type="hint">${translationText}</span>
                     </div>
-                    <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full pt-8" data-fit="true" data-wrap="true">${displayHtml}</div>
+                    <div class="flex-grow flex items-center justify-center p-4">
+                        <div class="text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full" data-fit="true" data-wrap="true">${displayHtml}</div>
+                    </div>
                 </div>
                 <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-3">
                     ${choices.map(c => `<button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center" data-id="${c.id}"><div class="text-lg font-bold text-gray-700 dark:text-white text-center" data-fit="true">${c.front.main}</div></button>`).join('')}
