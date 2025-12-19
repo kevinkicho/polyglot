@@ -1,137 +1,124 @@
-import { db, auth, onAuthStateChanged } from './firebase';
-import { ref, onValue } from 'firebase/database';
+import { db, ref, get, child } from './firebase';
+import { settingsService } from './settingsService';
 
 class VocabService {
     constructor() {
-        this.vocabData = [];
-        this.categoryMap = {};
+        this.vocabList = [];
         this.subscribers = [];
-        this.isInitialized = false;
-        
-        // A promise that resolves when data is actually ready
-        this.dataReadyPromise = new Promise((resolve) => {
-            this._resolveDataReady = resolve;
-        });
+        this.isLoaded = false;
     }
 
-    /**
-     * Initialize the service:
-     * 1. Load from LocalStorage (Instant / Offline support)
-     * 2. Wait for Auth
-     * 3. Listen to Firebase (Realtime / Online support)
-     */
     async init() {
-        if (this.isInitialized) return this.dataReadyPromise;
-        this.isInitialized = true;
+        if (this.isLoaded && this.vocabList.length > 0) return;
+        await this.reload();
+    }
 
-        // 1. Load Local Cached Data immediately (Fast render)
-        const cached = localStorage.getItem('polyglot_vocab_cache');
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                if (parsed && parsed.length > 0) {
-                    this.processData(parsed);
-                    console.log("[Vocab] Loaded from cache (Offline ready)");
-                    this._resolveDataReady(true);
-                }
-            } catch (e) {
-                console.error("Cache parse error", e);
+    async reload() {
+        try {
+            console.log("VocabService: Fetching data...");
+            const dbRef = ref(db);
+            const snapshot = await get(child(dbRef, 'vocab'));
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                let rawList = Array.isArray(data) ? data : Object.values(data);
+                
+                // DATA MAPPING FIX: Convert Flat DB to Game Structure
+                this.vocabList = rawList
+                    .filter(item => item && item.id !== undefined)
+                    .map(item => {
+                        const id = parseInt(item.id);
+                        
+                        // 1. Determine Front (Target)
+                        // If 'front' exists, use it. Otherwise, look for language keys.
+                        let frontObj = item.front;
+                        if (!frontObj) {
+                            // Heuristic: Try to find a non-English character string, or default to specific keys
+                            const mainText = item.ja || item.zh || item.ko || item.ru || item.fr || item.de || item.es || item.it || item.pt || item.word || "???";
+                            const subText = item.furi || item.pinyin || item.roma || "";
+                            frontObj = { main: mainText, sub: subText };
+                        }
+
+                        // 2. Determine Back (Origin/Definition)
+                        let backObj = item.back;
+                        if (!backObj) {
+                            const def = item.en || item.meaning || "???";
+                            // Map example sentences
+                            const sentT = item.ja_ex || item.zh_ex || item.ko_ex || "";
+                            const sentO = item.en_ex || "";
+                            backObj = { definition: def, sentenceTarget: sentT, sentenceOrigin: sentO };
+                        }
+
+                        return {
+                            ...item, // Keep original flat props (ja, en, etc) for editing
+                            id: id,
+                            front: frontObj,
+                            back: backObj
+                        };
+                    });
+
+                console.log(`VocabService: Loaded and Mapped ${this.vocabList.length} items.`);
+            } else {
+                console.warn("VocabService: No data found in Firebase.");
+                this.vocabList = [];
             }
+        } catch (error) {
+            console.error("VocabService Error:", error);
+            this.vocabList = [];
+        } finally {
+            this.isLoaded = true;
+            this.notify();
         }
-
-        // 2. Wait for Auth state to settle before connecting to DB
-        // This prevents "Permission Denied" errors on page refresh
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                this.connectToDb();
-            } else {
-                console.log("[Vocab] Waiting for user login/anon to connect to DB...");
-            }
-        });
-
-        return this.dataReadyPromise;
     }
 
-    connectToDb() {
-        console.log("[Vocab] Subscribing to realtime updates...");
-        const vocabRef = ref(db, 'vocab');
+    // Helper to refresh mapping if user changes Target Language settings
+    // (Optional: You can call this from settingsService if you want dynamic flipping)
+    remapForLanguage(targetLang, originLang) {
+        if(!this.vocabList.length) return;
         
-        onValue(vocabRef, (snapshot) => {
-            const val = snapshot.val();
-            if (val) {
-                // Convert object {0: {..}, 1: {..}} or array to array
-                const data = Array.isArray(val) ? val : Object.values(val);
-                
-                // Save to cache for next time (Persistence)
-                localStorage.setItem('polyglot_vocab_cache', JSON.stringify(data));
-                
-                this.processData(data);
-                console.log(`[Vocab] Realtime update: ${this.vocabData.length} items.`);
-                
-                // Resolve the promise so the app knows we are good to go
-                this._resolveDataReady(true);
-            } else {
-                console.warn("[Vocab] No data in DB.");
-                // Even if no data, we are "ready" (just empty)
-                this._resolveDataReady(true);
-            }
-        }, (error) => {
-            console.error("[Vocab] Permission denied or network error:", error);
-            // If permission denied, we likely have cache, so we don't block entirely,
-            // but we might want to trigger a re-auth if needed.
+        this.vocabList = this.vocabList.map(item => {
+            // If the item has the specific keys requested, use them
+            const main = item[targetLang] || item.front.main; 
+            const def = item[originLang] || item.back.definition;
+            const sentT = item[`${targetLang}_ex`] || item.back.sentenceTarget;
+            const sentO = item[`${originLang}_ex`] || item.back.sentenceOrigin;
+
+            return {
+                ...item,
+                front: { ...item.front, main: main },
+                back: { ...item.back, definition: def, sentenceTarget: sentT, sentenceOrigin: sentO }
+            };
         });
+        this.notify();
     }
 
-    processData(data) {
-        if (!data) return;
-        this.vocabData = data.map(item => ({
-            ...item,
-            // Ensure essential fields exist
-            id: item.id,
-            category: item.category || 'General',
-            front: {
-                main: item.ja || item.zh || item.ko || item.en || '?',
-                sub: item.zh_pin || item.ja_furi || item.ja_roma || ''
-            },
-            back: {
-                definition: item.en || '?',
-                sentenceTarget: item.ja_ex || item.zh_ex || item.ko_ex || '',
-                sentenceOrigin: item.en_ex || ''
-            }
-        }));
-
-        this.categoryMap = {};
-        this.vocabData.forEach(item => {
-            const cat = item.category || 'General';
-            if (!this.categoryMap[cat]) this.categoryMap[cat] = [];
-            this.categoryMap[cat].push(item);
-        });
-
-        // Notify all UI components that data has changed
-        this.notifySubscribers();
+    hasData() {
+        return this.isLoaded && this.vocabList.length > 0;
     }
 
-    // --- Subscription System ---
-    subscribe(callback) {
-        this.subscribers.push(callback);
-        // If we already have data, trigger immediately
-        if (this.vocabData.length > 0) callback();
+    getAll() {
+        return this.vocabList;
     }
 
-    notifySubscribers() {
-        this.subscribers.forEach(cb => cb());
+    getFlashcardData() {
+        return this.vocabList.filter(item => item.front && item.front.main && item.front.main !== "???");
     }
 
-    // --- Data Accessors ---
-    getAll() { return this.vocabData; }
-    getFlashcardData() { return this.vocabData; }
-    
     findIndexById(id) {
-        return this.vocabData.findIndex(item => item.id == id); // Loose equality for string/int safety
+        return this.vocabList.findIndex(item => item.id === id);
     }
 
     getRandomIndex() {
-        return this.vocabData.length > 0 ? Math.floor(Math.random() * this.vocabData.length) : 0;
+        if (this.vocabList.length === 0) return 0;
+        return Math.floor(Math.random() * this.vocabList.length);
+    }
+
+    subscribe(callback) {
+        this.subscribers.push(callback);
+    }
+
+    notify() {
+        this.subscribers.forEach(cb => cb(this.vocabList));
     }
 }
 

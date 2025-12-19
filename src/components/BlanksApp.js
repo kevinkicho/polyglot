@@ -3,7 +3,7 @@ import { blanksService } from '../services/blanksService';
 import { textService } from '../services/textService';
 import { audioService } from '../services/audioService';
 import { settingsService } from '../services/settingsService';
-import { scoreService } from '../services/scoreService'; // New Import
+import { scoreService } from '../services/scoreService';
 
 export class BlanksApp {
     constructor() { 
@@ -16,14 +16,7 @@ export class BlanksApp {
 
     mount(elementId) { 
         this.container = document.getElementById(elementId); 
-        if(!this.currentData) this.random(); 
-        else this.render(); 
-    }
-
-    bind(selector, event, handler) {
-        if (!this.container) return;
-        const el = this.container.querySelector(selector);
-        if (el) el.addEventListener(event, handler);
+        this.random();
     }
 
     random() { 
@@ -38,13 +31,17 @@ export class BlanksApp {
         this.isProcessing = false;
         this.selectedAnswerId = null;
         audioService.stop();
-        if(id===null && this.currentData) {
-            const l=vocabService.getAll(); 
-            const currentId = this.currentData.target ? this.currentData.target.id : 0;
-            const i=vocabService.findIndexById(currentId);
-            id=l[(i+1)%l.length].id;
+        
+        // SAFEGUARD: Check if service generates valid data
+        const nextData = blanksService.generateQuestion(id);
+        
+        if (!nextData) {
+            this.currentData = null;
+            this.render();
+            return;
         }
-        this.currentData=blanksService.generateQuestion(id);
+
+        this.currentData = nextData;
         if(this.currentData && this.currentData.target && window.saveGameHistory) {
             window.saveGameHistory('blanks', this.currentData.target.id);
         }
@@ -55,34 +52,48 @@ export class BlanksApp {
         if(this.currentData && this.currentData.target) { 
             const l=vocabService.getAll(); 
             const i=vocabService.findIndexById(this.currentData.target.id); 
-            this.next(l[(i-1+l.length)%l.length].id); 
+            // Wrap index
+            const prevId = l[(i-1+l.length)%l.length].id;
+            this.next(prevId); 
         } 
     }
 
     renderError() {
         if (this.container) {
-            this.container.innerHTML = `<div class="p-10 text-center text-white pt-24">No Data.</div>`;
-            this.bind('#blanks-close-err', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
+            // FIX: Graceful error message with a home button
+            this.container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full pt-20">
+                    <div class="text-xl font-bold text-gray-400 mb-4">No Data Available</div>
+                    <button id="blanks-close-err" class="px-6 py-2 bg-indigo-600 text-white rounded-full">Go Home</button>
+                </div>
+            `;
+            const btn = this.container.querySelector('#blanks-close-err');
+            if(btn) btn.addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
         }
     }
 
+    // ... (Keep existing methods: bind, playBlankedSentence, handleOptionClick, submitAnswer) ...
+    // These methods do not need changes if render() is safe.
+    
+    bind(selector, event, handler) {
+        if (!this.container) return;
+        const el = this.container.querySelector(selector);
+        if (el) el.addEventListener(event, handler);
+    }
+
     async playBlankedSentence() {
+        if (!this.currentData) return;
         this.playbackId++;
         const currentPid = this.playbackId;
-
         const { sentence } = this.currentData;
         const lang = settingsService.get().targetLang;
-        
         if (!sentence) return;
         const parts = sentence.split(/_+/);
-
         if (parts.length > 1) {
             if (parts[0].trim()) await audioService.speak(parts[0], lang);
             if (this.playbackId !== currentPid) return; 
-            
             await new Promise(r => setTimeout(r, 800));
             if (this.playbackId !== currentPid) return; 
-            
             if (parts[1].trim()) await audioService.speak(parts[1], lang);
         } else {
             await audioService.speak(sentence, lang);
@@ -91,15 +102,11 @@ export class BlanksApp {
 
     handleOptionClick(id, el, choiceText) {
         if (this.isProcessing || window.wasLongPress) return;
-
         const settings = settingsService.get();
-
         const isConfirmationClick = (settings.blanksDoubleClick && this.selectedAnswerId === id);
-
         if (!isConfirmationClick && (settings.blanksAnswerAudio || settings.blanksDoubleClick)) {
             audioService.speak(choiceText, settings.targetLang);
         }
-
         if (settings.blanksDoubleClick) {
             if (this.selectedAnswerId !== id) {
                 this.selectedAnswerId = id;
@@ -112,29 +119,24 @@ export class BlanksApp {
                 return;
             }
         }
-
         this.submitAnswer(id, el);
     }
 
     async submitAnswer(id, el) {
         this.isProcessing = true;
         const correct = this.currentData.target.id === id;
-        
         el.classList.remove('border-transparent', 'border-yellow-400', 'ring-2', 'ring-yellow-400');
         if (correct) {
             el.classList.add('bg-green-500', 'border-green-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
-            // SCORING: +10 on win
             scoreService.addScore('blanks', 10);
         } else {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
         }
-
         if(correct) {
             const answerWord = this.currentData.answerWord;
             const fullSentence = this.currentData.target.back.sentenceTarget;
-
             const qBox = document.getElementById('blanks-question-box');
             if(qBox) {
                 const pillText = qBox.querySelector('.pill-text');
@@ -146,19 +148,11 @@ export class BlanksApp {
                     pillSpan.classList.add('scale-110', 'transition-transform');
                 }
             }
-
             const s = settingsService.get();
             if (s.blanksAutoPlayCorrect) {
-                if (s.waitForAudio) {
-                    await audioService.speak(fullSentence, s.targetLang);
-                    this.next();
-                } else {
-                    audioService.speak(fullSentence, s.targetLang);
-                    setTimeout(() => this.next(), 1500);
-                }
-            } else {
-                setTimeout(() => this.next(), 1000);
-            }
+                if (s.waitForAudio) { await audioService.speak(fullSentence, s.targetLang); this.next(); } 
+                else { audioService.speak(fullSentence, s.targetLang); setTimeout(() => this.next(), 1500); }
+            } else { setTimeout(() => this.next(), 1000); }
         } else {
             this.isProcessing = false;
             this.selectedAnswerId = null;
@@ -167,7 +161,12 @@ export class BlanksApp {
 
     render() {
         if(!this.container) return;
-        if(!this.currentData || !this.currentData.target) { this.renderError(); return; }
+        
+        // FIX: Check currentData validity. If null, render error.
+        if(!this.currentData || !this.currentData.target) { 
+            this.renderError(); 
+            return; 
+        }
         
         const { target, choices, sentence, blankedSentence, answerWord } = this.currentData;
         const rawSentence = sentence || blankedSentence || "";
@@ -175,10 +174,11 @@ export class BlanksApp {
         const s = settingsService.get();
         const originLangKey = `${s.originLang}_ex`; 
         
+        // Updated translation text logic (previously added)
         const translationText = target[originLangKey] 
             || target.back.sentenceOrigin 
             || target.back.definition 
-            || "Fill in the blank";
+            || "";
         
         const pillHtml = `<span class="blank-pill inline-block border-b-2 border-gray-400 dark:border-gray-600 mx-1"><span class="pill-text text-transparent font-bold">${answerWord}</span></span>`;
         
@@ -193,14 +193,13 @@ export class BlanksApp {
                         <span class="text-base">🏆</span>
                         <span class="font-black text-gray-700 dark:text-white text-sm global-score-display">${scoreService.todayScore}</span>
                     </button>
-
                     <button id="blanks-random-btn" class="header-icon-btn bg-white dark:bg-dark-card border border-gray-200 rounded-xl text-indigo-500 shadow-sm"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></button>
                     <button id="blanks-close-btn" class="header-icon-btn bg-red-50 text-red-500 rounded-full shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             </div>
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                    <div class="w-full py-2 px-1 text-center border-b border-gray-100 dark:border-white/5 flex-none min-h-[3rem] flex items-center justify-center">
+                    <div class="w-full py-2 px-1 text-center flex-none min-h-[3rem] flex items-center justify-center">
                         <span class="text-sm font-bold text-gray-500 dark:text-gray-400" data-fit="true" data-wrap="true" data-type="hint">${translationText}</span>
                     </div>
                     <div class="flex-grow flex items-center justify-center p-4">

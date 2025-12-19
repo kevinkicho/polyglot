@@ -2,7 +2,7 @@ import { vocabService } from '../services/vocabService';
 import { audioService } from '../services/audioService';
 import { settingsService } from '../services/settingsService';
 import { textService } from '../services/textService';
-import { scoreService } from '../services/scoreService'; // New Import
+import { scoreService } from '../services/scoreService';
 import { Card } from './Card';
 
 export class FlashcardApp {
@@ -11,6 +11,7 @@ export class FlashcardApp {
         this.currentIndex = 0;
         this.isFlipped = false;
         this.isMounted = false;
+        this.touchStartX = 0;
     }
 
     get currentData() {
@@ -72,7 +73,6 @@ export class FlashcardApp {
         this.isFlipped = !this.isFlipped; 
         this.updateCard();
         
-        // SCORING: +5 points on first flip to back (simplified logic: flip is sufficient action)
         if (this.isFlipped) {
             scoreService.addScore('flashcard', 5);
         }
@@ -91,7 +91,11 @@ export class FlashcardApp {
         if(!this.container) return;
         const list = vocabService.getFlashcardData();
         const item = (list && list.length > 0) ? list[this.currentIndex] : { id: 0 };
-        const content = (list && list.length > 0) ? `<div id="card-container" class="w-full max-w-md aspect-[3/4] relative">${Card(item, this.isFlipped)}</div>` : `<div class="p-10 text-center text-white pt-24">No Data</div>`;
+        
+        // CSS CLASSES: 'select-none' 'outline-none' added to Card Container
+        const content = (list && list.length > 0) ? 
+            `<div id="card-container" class="w-full max-w-md aspect-[3/4] relative select-none outline-none" style="-webkit-tap-highlight-color: transparent;">${Card(item, this.isFlipped)}</div>` 
+            : `<div class="p-10 text-center text-white pt-24">No Data</div>`;
 
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">

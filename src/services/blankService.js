@@ -2,89 +2,74 @@ import { vocabService } from './vocabService';
 import { settingsService } from './settingsService';
 
 class BlanksService {
-    generateQuestion(specificId = null) {
-        const fullList = vocabService.getFlashcardData();
-        const settings = settingsService.get();
-        const numChoices = parseInt(settings.blanksChoices) || 4;
-        const targetLang = settings.targetLang;
-
-        if (!fullList || fullList.length === 0) return null;
-
-        let correctIndex, correctItem, sentence, obscuredSentence, answerWord;
-        let attempts = 0;
+    generateQuestion(currentId = null) {
+        const list = vocabService.getAll();
         
-        // Limit attempts to prevent freezing if few sentences exist
-        const maxAttempts = fullList.length * 2;
-
-        // Find a suitable question
-        do {
-            if (specificId !== null && attempts === 0) {
-                correctIndex = vocabService.findIndexById(specificId);
-                if (correctIndex === -1) correctIndex = vocabService.getRandomIndex();
-            } else {
-                correctIndex = vocabService.getRandomIndex();
-            }
-            
-            correctItem = fullList[correctIndex];
-            sentence = correctItem.back.sentenceTarget;
-            const vocab = correctItem.front.main; 
-
-            if (sentence) {
-                // STRATEGY 1: Exact Match
-                if (sentence.includes(vocab)) {
-                    const escaped = vocab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    obscuredSentence = sentence.replace(new RegExp(escaped, 'g'), '_______');
-                    answerWord = vocab;
-                } 
-                // STRATEGY 2: Japanese Conjugation Match (Stem Search)
-                else if (targetLang === 'ja' && vocab.length > 1) {
-                    const stem = vocab.slice(0, -1);
-                    if (sentence.includes(stem)) {
-                        obscuredSentence = sentence.replace(stem, '_______');
-                        answerWord = vocab; 
-                    }
-                }
-            }
-            
-            if (obscuredSentence) break;
-            
-            attempts++;
-            // If specific ID failed to have a sentence, switch to random mode for subsequent attempts
-            if (specificId !== null) specificId = null; 
-
-        } while (attempts < maxAttempts);
-
-        if (!obscuredSentence) return null;
-
-        // Select Distractors
-        const choices = [correctItem];
-        const usedIndices = new Set([correctIndex]);
-        let safetyCounter = 0;
-
-        while (choices.length < numChoices && safetyCounter < 100) {
-            const randIndex = vocabService.getRandomIndex();
-            if (!usedIndices.has(randIndex)) {
-                // Ensure distractor isn't same word
-                if (fullList[randIndex].front.main !== correctItem.front.main) {
-                    choices.push(fullList[randIndex]);
-                    usedIndices.add(randIndex);
-                }
-            }
-            safetyCounter++;
+        // GUARD: Stop if no data
+        if (!list || list.length < 4) {
+            console.warn("BlanksService: Not enough data.");
+            return null;
         }
 
-        // Shuffle
-        for (let i = choices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [choices[i], choices[j]] = [choices[j], choices[i]];
+        let targetIndex = -1;
+        if (currentId !== null) {
+            targetIndex = vocabService.findIndexById(currentId);
+        }
+        
+        if (targetIndex === -1) {
+            targetIndex = Math.floor(Math.random() * list.length);
+        }
+
+        const target = list[targetIndex];
+
+        // GUARD: Stop if target invalid
+        if (!target) {
+            return null;
+        }
+
+        // Generate choices safely
+        const choices = [target];
+        let attempts = 0;
+        while (choices.length < 4 && attempts < 50) {
+            const r = list[Math.floor(Math.random() * list.length)];
+            if (r && r.id !== target.id && !choices.find(c => c.id === r.id)) {
+                choices.push(r);
+            }
+            attempts++;
+        }
+
+        const settings = settingsService.get();
+        let sentence = "";
+        
+        // SAFE ACCESS to back properties
+        const tBack = target.back || {};
+        
+        if (settings.targetLang === 'ja') sentence = target.ja_ex || tBack.sentenceTarget || "";
+        else if (settings.targetLang === 'ko') sentence = target.ko_ex || tBack.sentenceTarget || "";
+        else if (settings.targetLang === 'zh') sentence = target.zh_ex || tBack.sentenceTarget || "";
+        else sentence = tBack.sentenceTarget || "";
+
+        // Fallback to Main Word
+        if (!sentence) {
+            sentence = target.front ? target.front.main : "???";
+        }
+
+        let cleanSentence = sentence.replace(/<[^>]*>?/gm, '');
+        const answerWord = target.front ? target.front.main : "???";
+        
+        let blankedSentence = cleanSentence;
+        if (cleanSentence.includes(answerWord)) {
+            blankedSentence = cleanSentence.replace(answerWord, '______');
+        } else {
+            blankedSentence = "______ " + cleanSentence; 
         }
 
         return {
-            target: correctItem,
-            blankedSentence: obscuredSentence, // FIX: Renamed from 'sentence' to match App expectation
-            cleanSentence: sentence,    
-            answerWord: answerWord,
-            choices: choices
+            target,
+            choices: choices.sort(() => Math.random() - 0.5),
+            sentence: cleanSentence,
+            blankedSentence: blankedSentence,
+            answerWord: answerWord
         };
     }
 }

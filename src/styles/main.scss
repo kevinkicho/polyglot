@@ -2,11 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- GLOBAL RESET FOR MOBILE --- */
+* {
+    /* Kills the "Blinding" Blue/Grey Flash on Android */
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    /* Prevents accidental text selection highlighting */
+    user-select: none;
+}
+
 body {
     font-family: 'Noto Sans JP', sans-serif;
     overscroll-behavior: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+    background-color: #111; /* Dark bg fallback */
+    touch-action: manipulation; /* Improves click response */
 }
 
 /* --- FUNKY ANIMATIONS --- */
@@ -45,28 +54,48 @@ body {
     cursor: pointer;
     transition: transform 0.1s;
     position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
 }
 .chart-bar-container:active {
     transform: scale(0.95);
+}
+
+.chart-bar {
+    width: 100%;
+    background: #F3F4F6;
+    border-radius: 6px;
+    min-height: 6px;
+    position: relative;
+    display: flex;
+    flex-direction: column-reverse;
+    overflow: hidden;
+}
+.dark .chart-bar {
+    background: #374151;
 }
 
 .chart-breakdown {
     position: absolute;
     bottom: 100%;
     left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.9);
-    padding: 6px 8px;
+    transform: translateX(-50%) translateY(-5px);
+    background: rgba(17, 24, 39, 0.95);
+    padding: 8px 10px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 700;
     white-space: nowrap;
-    z-index: 100;
+    z-index: 50;
     pointer-events: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
     flex-direction: column;
-    gap: 2px;
-    margin-bottom: 8px;
+    gap: 3px;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 .chart-breakdown.visible {
     display: flex;
@@ -76,19 +105,23 @@ body {
     position: absolute;
     top: 100%;
     left: 50%;
-    margin-left: -5px;
-    border-width: 5px;
+    margin-left: -4px;
+    border-width: 4px;
     border-style: solid;
-    border-color: rgba(0,0,0,0.9) transparent transparent transparent;
+    border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
 }
 
-/* Text Colors for Chart Breakdown */
-.text-fc { color: #6366f1; font-weight: 900; } /* Indigo */
-.text-qz { color: #a855f7; font-weight: 900; } /* Purple */
-.text-st { color: #ec4899; font-weight: 900; } /* Pink */
-.text-bl { color: #14b8a6; font-weight: 900; } /* Teal */
+.text-fc { color: #818cf8; }
+.text-qz { color: #c084fc; }
+.text-st { color: #f472b6; }
+.text-bl { color: #2dd4bf; }
 
-/* Scrollbar */
+.chart-label {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #4b5563; }
