@@ -17,13 +17,6 @@ export class ReverseApp {
         this.random();
     }
 
-    // NEW: Safe binding helper
-    bind(selector, event, handler) {
-        if (!this.container) return;
-        const el = this.container.querySelector(selector);
-        if (el) el.addEventListener(event, handler);
-    }
-
     random() {
         this.currentIndex = vocabService.getRandomIndex();
         this.loadGame();
@@ -149,32 +142,37 @@ export class ReverseApp {
                     `).join('')}
                 </div>
             </div>
+
+            <div class="fixed bottom-0 left-0 right-0 p-4 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg">
+                <div class="max-w-lg mx-auto flex gap-4">
+                    <button id="rev-prev-btn" class="flex-1 h-14 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all">
+                        <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button id="rev-next-btn" class="flex-1 h-14 bg-indigo-500 text-white rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center font-bold tracking-wide active:scale-95 transition-all">
+                        <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
             <style>.shake{animation:shake 0.4s cubic-bezier(.36,.07,.19,.97) both}@keyframes shake{10%,90%{transform:translate3d(-1px,0,0)}20%,80%{transform:translate3d(2px,0,0)}30%,50%,70%{transform:translate3d(-4px,0,0)}40%,60%{transform:translate3d(4px,0,0)}}</style>
         `;
 
-        // Safe bindings using helper
-        this.bind('#rev-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.bind('#rev-random-btn', 'click', () => this.random());
-        this.bind('#rev-prev-btn', 'click', () => this.prev());
-        this.bind('#rev-next-btn', 'click', () => this.next());
-        this.bind('#rev-q-box', 'click', () => this.playHint());
-        this.bind('#rev-go-btn', 'click', () => {
-            const inp = this.container.querySelector('#rev-id-input');
-            if(inp) this.gotoId(inp.value);
-        });
+        this.container.querySelector('#rev-close-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
+        this.container.querySelector('#rev-random-btn').addEventListener('click', () => this.random());
+        this.container.querySelector('#rev-prev-btn').addEventListener('click', () => this.prev());
+        this.container.querySelector('#rev-next-btn').addEventListener('click', () => this.next());
+        this.container.querySelector('#rev-q-box').addEventListener('click', () => this.playHint());
         
         const idInput = this.container.querySelector('#rev-id-input');
-        if (idInput) {
-            idInput.addEventListener('keypress', (e) => { 
-                if(e.key === 'Enter') this.gotoId(idInput.value); 
-            });
-        }
+        const goBtn = this.container.querySelector('#rev-go-btn');
+        goBtn.addEventListener('click', () => this.gotoId(idInput.value));
+        idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.gotoId(idInput.value); });
 
         this.container.querySelectorAll('.choice-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         
+        // Use updated textService methods
         requestAnimationFrame(() => {
-            textService.fitText(this.container.querySelector('.question-text'), 20, 60);
-            textService.fitGroup(this.container.querySelectorAll('.choice-text'), 14, 28);
+            textService.fitText(this.container.querySelector('.question-text'), 20, 60); // Constrained
+            textService.fitGroup(this.container.querySelectorAll('.choice-text'), 14, 28); // Uniform
         });
     }
 }

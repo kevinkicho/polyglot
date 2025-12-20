@@ -56,9 +56,15 @@ export class SentencesApp {
         if (!list.length) return;
         const item = list[this.currentIndex];
 
-        // Target sentence logic
         let sentence = item.back.sentenceTarget || item.front.main;
-        const parts = sentence.split(/([\s,.!?、。]+)/).filter(s => s.trim().length > 0);
+        
+        // FIXED: Explicit Japanese Pipeline usage
+        let parts;
+        if (settingsService.get().targetLang === 'ja') {
+            parts = textService.tokenizeJapanese(sentence);
+        } else {
+            parts = sentence.split(/([\s,.!?、。]+)/).filter(s => s.trim().length > 0);
+        }
         
         this.wordPool = parts.map((word, i) => ({ word, id: i, used: false })).sort(() => 0.5 - Math.random());
         this.builtIndices = [];
@@ -93,7 +99,7 @@ export class SentencesApp {
         const currentStr = this.builtIndices.map(idx => this.wordPool[idx].word).join('');
         const targetStr = this.currentData.parts.join('');
         
-        if (currentStr === targetStr) {
+        if (currentStr.replace(/\s/g, '') === targetStr.replace(/\s/g, '')) {
             this.isProcessing = true;
             scoreService.addScore('sentences', 10);
             

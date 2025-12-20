@@ -1,86 +1,46 @@
 import { vocabService } from './vocabService';
-import { settingsService } from './settingsService';
 
 class BlanksService {
-    generateQuestion(specificId = null) {
-        const fullList = vocabService.getFlashcardData();
-        const settings = settingsService.get();
-        const numChoices = parseInt(settings.blanksChoices) || 4;
-        const targetLang = settings.targetLang;
+    generateQuestion(targetId) {
+        const list = vocabService.getAll();
+        if (!list || list.length === 0) return null;
 
-        let correctIndex, correctItem, sentence, obscuredSentence, answerWord;
-        let attempts = 0;
-
-        // Find a suitable question
-        do {
-            if (specificId !== null && attempts === 0) {
-                correctIndex = vocabService.findIndexById(specificId);
-            } else {
-                correctIndex = vocabService.getRandomIndex();
-            }
-            
-            correctItem = fullList[correctIndex];
-            sentence = correctItem.back.sentenceTarget;
-            const vocab = correctItem.front.main; // The vocab word (e.g. "逃げる")
-
-            if (sentence) {
-                // STRATEGY 1: Exact Match
-                if (sentence.includes(vocab)) {
-                    const escaped = vocab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    obscuredSentence = sentence.replace(new RegExp(escaped, 'g'), '_______');
-                    answerWord = vocab;
-                } 
-                // STRATEGY 2: Japanese Conjugation Match (Stem Search)
-                // e.g. Vocab "逃げる" -> Sentence "彼は逃げました"
-                else if (targetLang === 'ja' && vocab.length > 1) {
-                    // Remove last character to find stem (逃げる -> 逃げ)
-                    const stem = vocab.slice(0, -1);
-                    if (sentence.includes(stem)) {
-                        // Find exactly what string in the sentence matches the stem + following chars
-                        // We strictly just replace the stem part to create the blank, 
-                        // implying the user must identify the root concept.
-                        // Or better: Replace the stem portion with blank.
-                        obscuredSentence = sentence.replace(stem, '_______');
-                        answerWord = vocab; // The answer key remains the dictionary form
-                    }
-                }
-            }
-            
-            if (obscuredSentence) break;
-            
-            attempts++;
-            if (specificId !== null) specificId = null; 
-        } while (attempts < fullList.length * 2);
-
-        if (!obscuredSentence) return null;
-
-        // Select Distractors
-        const choices = [correctItem];
-        const usedIndices = new Set([correctIndex]);
-
-        while (choices.length < numChoices) {
-            const randIndex = vocabService.getRandomIndex();
-            if (!usedIndices.has(randIndex)) {
-                // Ensure distractor is unique
-                if (fullList[randIndex].front.main !== correctItem.front.main) {
-                    choices.push(fullList[randIndex]);
-                    usedIndices.add(randIndex);
-                }
-            }
+        // 1. Find the target item
+        const targetItem = list.find(item => item.id === targetId);
+        
+        // 2. Validation: We need the item, a target sentence, and the main word
+        if (!targetItem || !targetItem.back.sentenceTarget || !targetItem.front.main) {
+            return null;
         }
 
-        // Shuffle
-        for (let i = choices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [choices[i], choices[j]] = [choices[j], choices[i]];
+        const sentence = targetItem.back.sentenceTarget;
+        const word = targetItem.front.main;
+
+        // 3. Validation: The word must actually exist in the sentence to be blanked out
+        // (Simple string matching is used here)
+        if (!sentence.includes(word)) {
+            return null; 
         }
+
+        // 4. Create the blanked sentence
+        // We replace the word with underscores. The BlanksApp will turn underscores into the UI pill.
+        const blankedSentence = sentence.replace(word, '_______');
+
+        // 5. Generate Distractors (3 random other words)
+        const others = list
+            .filter(item => item.id !== targetId && item.front.main)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 3);
+
+        // 6. Combine correct answer with distractors and shuffle
+        const choices = [targetItem, ...others].sort(() => 0.5 - Math.random());
 
         return {
-            target: correctItem,
-            sentence: obscuredSentence, // "彼は_______ました"
-            cleanSentence: sentence,    // "彼は逃げました" (for audio reconstruction)
-            answerWord: answerWord,
-            choices: choices
+            target: targetItem,
+            sentence: sentence,       // The full sentence (for audio/checking)
+            blankedSentence: blankedSentence, // The sentence with '_______'
+            answerWord: word,         // The correct word to fill in
+            choices: choices          // The 4 options
         };
     }
 }

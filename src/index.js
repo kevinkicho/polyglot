@@ -13,6 +13,8 @@ import { sentencesApp } from './components/SentencesApp';
 import { blanksApp } from './components/BlanksApp';
 import { listeningApp } from './components/ListeningApp'; 
 import { matchApp } from './components/MatchApp'; 
+import { memoryApp } from './components/MemoryApp'; 
+import { finderApp } from './components/FinderApp'; // NEW
 import { constructorApp } from './components/ConstructorApp';
 import { writingApp } from './components/WritingApp';
 import { trueFalseApp } from './components/TrueFalseApp';
@@ -35,10 +37,11 @@ window.saveGameHistory = (game, id) => {
     } 
 };
 
+let currentActiveApp = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     try { scoreService.init(); } catch(e){ console.error("Score Init Error", e); }
 
-    // Safely get views. If an ID is missing in HTML, it will be null, but we will handle that.
     const views = { 
         home: document.getElementById('main-menu'), 
         flashcard: document.getElementById('flashcard-view'), 
@@ -47,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         blanks: document.getElementById('blanks-view'),
         listening: document.getElementById('listening-view'),
         match: document.getElementById('match-view'),
+        memory: document.getElementById('memory-view'),
+        finder: document.getElementById('finder-view'), // NEW
         constructor: document.getElementById('constructor-view'),
         writing: document.getElementById('writing-view'),
         truefalse: document.getElementById('truefalse-view'),
@@ -108,10 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 startBtn.classList.add('bg-indigo-600', 'text-white'); 
                 startBtn.innerText = "Start Learning";
                 startBtn.onclick = () => {
-                    // Initialize audio context on user gesture
                     const s = new SpeechSynthesisUtterance(''); 
                     window.speechSynthesis.speak(s);
-                    
                     const splash = document.getElementById('splash-screen');
                     if(splash) splash.style.display = 'none'; 
                     document.body.classList.remove('is-loading'); 
@@ -134,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // SAFE EVENT LISTENER: Login
     const loginBtn = document.getElementById('user-login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', async () => { 
@@ -160,25 +162,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewName === 'home') document.body.classList.remove('game-mode'); 
         else document.body.classList.add('game-mode'); 
         
-        // SAFE VIEW HIDING
         Object.values(views).forEach(el => { if(el) el.classList.add('hidden'); }); 
         
         const target = views[viewName]; 
+        currentActiveApp = null; 
+
         if (target) { 
             target.classList.remove('hidden'); 
             const lastId = savedHistory[viewName]; 
             
-            // Only mount if the view container exists
-            if (viewName === 'flashcard' && views.flashcard) { flashcardApp.mount('flashcard-view'); if(lastId) flashcardApp.goto(lastId); } 
-            if (viewName === 'quiz' && views.quiz) { quizApp.mount('quiz-view'); if(lastId) quizApp.next(lastId); } 
-            if (viewName === 'sentences' && views.sentences) { sentencesApp.mount('sentences-view'); if(lastId) sentencesApp.next(lastId); } 
-            if (viewName === 'blanks' && views.blanks) { blanksApp.mount('blanks-view'); if(lastId) blanksApp.next(lastId); }
-            if (viewName === 'listening' && views.listening) { listeningApp.mount('listening-view'); if(lastId) listeningApp.next(lastId); }
-            if (viewName === 'match' && views.match) { matchApp.mount('match-view'); }
-            if (viewName === 'constructor' && views.constructor) { constructorApp.mount('constructor-view'); }
-            if (viewName === 'writing' && views.writing) { writingApp.mount('writing-view'); }
-            if (viewName === 'truefalse' && views.truefalse) { trueFalseApp.mount('truefalse-view'); }
-            if (viewName === 'reverse' && views.reverse) { reverseApp.mount('reverse-view'); }
+            if (viewName === 'flashcard' && views.flashcard) { flashcardApp.mount('flashcard-view'); currentActiveApp = flashcardApp; if(lastId) flashcardApp.goto(lastId); } 
+            if (viewName === 'quiz' && views.quiz) { quizApp.mount('quiz-view'); currentActiveApp = quizApp; if(lastId) quizApp.next(lastId); } 
+            if (viewName === 'sentences' && views.sentences) { sentencesApp.mount('sentences-view'); currentActiveApp = sentencesApp; if(lastId) sentencesApp.next(lastId); } 
+            if (viewName === 'blanks' && views.blanks) { blanksApp.mount('blanks-view'); currentActiveApp = blanksApp; if(lastId) blanksApp.next(lastId); }
+            if (viewName === 'listening' && views.listening) { listeningApp.mount('listening-view'); currentActiveApp = listeningApp; if(lastId) listeningApp.next(lastId); }
+            if (viewName === 'match' && views.match) { matchApp.mount('match-view'); currentActiveApp = matchApp; }
+            if (viewName === 'memory' && views.memory) { memoryApp.mount('memory-view'); currentActiveApp = memoryApp; }
+            if (viewName === 'finder' && views.finder) { finderApp.mount('finder-view'); currentActiveApp = finderApp; } // NEW
+            if (viewName === 'constructor' && views.constructor) { constructorApp.mount('constructor-view'); currentActiveApp = constructorApp; }
+            if (viewName === 'writing' && views.writing) { writingApp.mount('writing-view'); currentActiveApp = writingApp; }
+            if (viewName === 'truefalse' && views.truefalse) { trueFalseApp.mount('truefalse-view'); currentActiveApp = trueFalseApp; }
+            if (viewName === 'reverse' && views.reverse) { reverseApp.mount('reverse-view'); currentActiveApp = reverseApp; }
         } 
     }
 
@@ -196,6 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindNav('menu-blanks-btn', 'blanks');
     bindNav('menu-listening-btn', 'listening'); 
     bindNav('menu-match-btn', 'match'); 
+    bindNav('menu-memory-btn', 'memory'); 
+    bindNav('menu-finder-btn', 'finder'); // Add to index.html
     bindNav('menu-constructor-btn', 'constructor');
     bindNav('menu-writing-btn', 'writing');
     bindNav('menu-truefalse-btn', 'truefalse');
@@ -204,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('popstate', (e) => renderView(e.state ? e.state.view : 'home'));
     window.addEventListener('router:home', () => history.back());
     
-    // SAFE SUBSCRIPTION
     vocabService.subscribe(() => { 
         if (views.flashcard && !views.flashcard.classList.contains('hidden')) flashcardApp.refresh(); 
     });
@@ -213,11 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-            document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el));
+            if (currentActiveApp && currentActiveApp.render) currentActiveApp.render();
+            else document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el));
         }, 100);
     });
 
-    // Achievement Popup Logic
     const achPopup = document.getElementById('achievement-popup');
     window.addEventListener('achievement:unlocked', (e) => {
         const ach = e.detail;
@@ -230,16 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => achPopup.classList.add('hidden'), 4000);
     });
 
-    // SAFE EVENT LISTENER: Achievement Button
     const achBtn = document.getElementById('ach-btn');
     if(achBtn) achBtn.addEventListener('click', async () => {
         const achModal = document.getElementById('ach-list-modal');
         const achContent = document.getElementById('ach-list-content');
         if(!achModal || !achContent) return;
-        
         achModal.classList.remove('hidden'); setTimeout(()=>achModal.classList.remove('opacity-0'),10);
         achContent.innerHTML = 'Loading...';
-        
         const unlockedMap = currentUser ? await achievementService.getUserAchievements(currentUser.uid) : {};
         let html = '';
         const sorted = [...ACHIEVEMENTS].sort((a,b) => {
@@ -255,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         achContent.innerHTML = html;
     });
 
-    // SAFE EVENT LISTENER: Close Achievements
     const achClose = document.getElementById('ach-list-close');
     if (achClose) {
         achClose.addEventListener('click', ()=>{ 
@@ -264,58 +265,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Chart / Score Logic
     const scoreModal = document.getElementById('score-modal');
     const scoreClose = document.getElementById('score-close-btn');
     let chartDataCache=null, showingWeeklyScore=false;
-    
     scoreService.subscribe((s) => { document.querySelectorAll('.global-score-display').forEach(el=>el.textContent=s); });
     
-    // Global Click Handler delegation (safe by default)
     document.addEventListener('click', (e) => {
         if(e.target.closest('#score-pill')) showScoreChart();
         if(e.target.closest('#home-settings-btn')) openSettings();
         if(e.target.closest('#modal-done-btn')) closeSettings();
         if (e.target.closest('.game-edit-btn')) {
-            let app = null;
-            // Only check app if view container exists and is visible
-            if (views.flashcard && !views.flashcard.classList.contains('hidden')) app = flashcardApp;
-            if (views.quiz && !views.quiz.classList.contains('hidden')) app = quizApp;
-            if (views.sentences && !views.sentences.classList.contains('hidden')) app = sentencesApp;
-            if (views.blanks && !views.blanks.classList.contains('hidden')) app = blanksApp;
-            if (views.listening && !views.listening.classList.contains('hidden')) app = listeningApp;
-            if (views.constructor && !views.constructor.classList.contains('hidden')) app = constructorApp;
-            if (views.writing && !views.writing.classList.contains('hidden')) app = writingApp;
-            if (views.truefalse && !views.truefalse.classList.contains('hidden')) app = trueFalseApp;
-            if (views.reverse && !views.reverse.classList.contains('hidden')) app = reverseApp;
-
+            let app = currentActiveApp; 
             if (app) {
                 let item = app.currentData && (app.currentData.target || app.currentData.item) 
                            ? (app.currentData.target || app.currentData.item) 
-                           : (app.currentData || (app.currentIndex!==undefined ? vocabService.getAll()[app.currentIndex] : null));
+                           : (app.currentData || (app.currentIndex!==undefined && vocabService.getAll().length > app.currentIndex ? vocabService.getAll()[app.currentIndex] : null));
                 
-                if (item) {
-                    currentEditId = item.id;
+                if (item && item.id) {
                     const fullData = vocabService.getAll().find(v => v.id == item.id);
-                    const em = document.getElementById('edit-modal');
-                    if(em) {
-                        em.classList.remove('hidden'); 
-                        setTimeout(()=>em.classList.remove('opacity-0'), 10);
-                        const scrollContainer = em.querySelector('.flex-1.overflow-y-auto'); if(scrollContainer) scrollContainer.scrollTop = 0;
+                    if(fullData) {
+                        const em = document.getElementById('edit-modal');
+                        if(em) {
+                            em.classList.remove('hidden'); 
+                            setTimeout(()=>em.classList.remove('opacity-0'), 10);
+                            const scrollContainer = em.querySelector('.flex-1.overflow-y-auto'); if(scrollContainer) scrollContainer.scrollTop = 0;
+                        }
+                        switchEditTab('vocab');
+                        const vid = document.getElementById('edit-vocab-id'); if(vid) vid.textContent = `ID: ${item.id}`;
+                        renderVocabEditFields(fullData);
+                        const scanText = (fullData.ja||'') + (fullData.ja_ex||'') + (fullData.zh||'') + (fullData.ko||'');
+                        populateDictionaryEdit(scanText);
+                        updateEditPermissions();
                     }
-                    switchEditTab('vocab');
-                    const vid = document.getElementById('edit-vocab-id'); if(vid) vid.textContent = `ID: ${item.id}`;
-                    renderVocabEditFields(fullData);
-                    const scanText = (fullData.ja||'') + (fullData.ja_ex||'') + (fullData.zh||'') + (fullData.ko||'');
-                    populateDictionaryEdit(scanText);
-                    updateEditPermissions();
                 }
             }
         }
     });
 
     if(scoreClose) scoreClose.addEventListener('click', ()=>{ if(scoreModal) { scoreModal.classList.add('opacity-0'); setTimeout(()=>scoreModal.classList.add('hidden'),200); }});
-    
     const scoreTotalToggle = document.getElementById('score-total-toggle');
     if(scoreTotalToggle) scoreTotalToggle.addEventListener('click', ()=>{ showingWeeklyScore=!showingWeeklyScore; updateScoreDisplay(); });
     
