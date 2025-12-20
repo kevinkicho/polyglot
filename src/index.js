@@ -14,6 +14,8 @@ import { blanksApp } from './components/BlanksApp';
 import { listeningApp } from './components/ListeningApp'; 
 import { matchApp } from './components/MatchApp'; 
 import { constructorApp } from './components/ConstructorApp';
+import { writingApp } from './components/WritingApp';
+import { trueFalseApp } from './components/TrueFalseApp'; // NEW IMPORT
 import { audioService } from './services/audioService';
 import { textService } from './services/textService';
 
@@ -34,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
         blanks: document.getElementById('blanks-view'),
         listening: document.getElementById('listening-view'),
         match: document.getElementById('match-view'),
-        constructor: document.getElementById('constructor-view')
+        constructor: document.getElementById('constructor-view'),
+        writing: document.getElementById('writing-view'),
+        truefalse: document.getElementById('truefalse-view') // NEW VIEW
     };
     const iconOut = document.getElementById('icon-user-out'); const iconIn = document.getElementById('icon-user-in'); 
     let currentUser = null;
@@ -54,10 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await signInAnonymously(auth); 
             } catch(e) { 
                 console.error("Auth Error", e);
-                // FIX: If auth fails (e.g., API Key restriction), update UI to let user retry
                 const startBtn = document.getElementById('start-app-btn');
                 if(startBtn) {
-                    startBtn.innerText = "Connection Failed - Retry?";
+                    startBtn.innerText = "Connection Failed";
                     startBtn.disabled = false;
                     startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                     startBtn.classList.add('bg-red-500', 'text-white');
@@ -130,6 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (viewName === 'listening') { listeningApp.mount('listening-view'); if(lastId) listeningApp.next(lastId); }
             if (viewName === 'match') { matchApp.mount('match-view'); }
             if (viewName === 'constructor') { constructorApp.mount('constructor-view'); }
+            if (viewName === 'writing') { writingApp.mount('writing-view'); }
+            if (viewName === 'truefalse') { trueFalseApp.mount('truefalse-view'); } // NEW MOUNT
         } 
     }
     const bindNav = (id, view) => { const btn = document.getElementById(id); if(btn) btn.addEventListener('click', () => { history.pushState({view}, '', `#${view}`); renderView(view); }); };
@@ -140,6 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindNav('menu-listening-btn', 'listening'); 
     bindNav('menu-match-btn', 'match'); 
     bindNav('menu-constructor-btn', 'constructor');
+    bindNav('menu-writing-btn', 'writing');
+    bindNav('menu-truefalse-btn', 'truefalse'); // NEW BIND
 
     window.addEventListener('popstate', (e) => renderView(e.state ? e.state.view : 'home'));
     window.addEventListener('router:home', () => history.back());
@@ -204,8 +211,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!views.sentences.classList.contains('hidden')) app = sentencesApp;
             if (!views.blanks.classList.contains('hidden')) app = blanksApp;
             if (!views.listening.classList.contains('hidden')) app = listeningApp;
+            // Note: Constructor/Writing/TrueFalse usually don't have edit buttons in this design, but logic is here:
+            if (!views.constructor.classList.contains('hidden')) app = constructorApp;
+            if (!views.writing.classList.contains('hidden')) app = writingApp;
+            if (!views.truefalse.classList.contains('hidden')) app = trueFalseApp;
+
             if (app) {
-                let item = app.currentData && app.currentData.target ? app.currentData.target : (app.currentData || (app.currentIndex!==undefined ? vocabService.getAll()[app.currentIndex] : null));
+                let item = app.currentData && (app.currentData.target || app.currentData.item) 
+                           ? (app.currentData.target || app.currentData.item) 
+                           : (app.currentData || (app.currentIndex!==undefined ? vocabService.getAll()[app.currentIndex] : null));
+                
                 if (item) {
                     currentEditId = item.id;
                     const fullData = vocabService.getAll().find(v => v.id == item.id);
@@ -271,7 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
             chartDataCache = weekDates.map((date, i) => {
                 const d = data[date] || {};
-                return { dateStr: date, label: dayLabels[i], fc: d.flashcard || 0, qz: d.quiz || 0, st: d.sentences || 0, bl: d.blanks || 0, total: (d.flashcard||0) + (d.quiz||0) + (d.sentences||0) + (d.blanks||0) };
+                // Include 'wr' (writing) and 'tf' (truefalse) in totals
+                return { 
+                    dateStr: date, label: dayLabels[i], 
+                    fc: d.flashcard || 0, qz: d.quiz || 0, st: d.sentences || 0, bl: d.blanks || 0, wr: d.writing || 0, tf: d.truefalse || 0,
+                    total: (d.flashcard||0) + (d.quiz||0) + (d.sentences||0) + (d.blanks||0) + (d.writing||0) + (d.truefalse||0) 
+                };
             });
             const maxScore = Math.max(...chartDataCache.map(s => s.total), 50);
             let html = '';
@@ -279,18 +299,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const heightPct = Math.round((s.total / maxScore) * 100);
                 const isToday = s.dateStr === todayStr;
                 const labelColor = isToday ? 'text-indigo-600 dark:text-indigo-400 font-black' : 'text-gray-400';
-                const fcPct = s.total ? (s.fc / s.total) * 100 : 0;
-                const qzPct = s.total ? (s.qz / s.total) * 100 : 0;
-                const stPct = s.total ? (s.st / s.total) * 100 : 0;
-                const blPct = s.total ? (s.bl / s.total) * 100 : 0;
                 
                 html += `
                 <div class="chart-bar-container group relative" data-idx="${idx}">
                     <div class="chart-bar flex-col-reverse border-2 border-white dark:border-gray-700 shadow-sm" style="height: ${heightPct}%;">
-                        ${s.fc > 0 ? `<div style="height:${fcPct}%;" class="w-full bg-indigo-500"></div>` : ''}
-                        ${s.qz > 0 ? `<div style="height:${qzPct}%;" class="w-full bg-purple-500"></div>` : ''}
-                        ${s.st > 0 ? `<div style="height:${stPct}%;" class="w-full bg-pink-500"></div>` : ''}
-                        ${s.bl > 0 ? `<div style="height:${blPct}%;" class="w-full bg-teal-500"></div>` : ''}
+                        ${s.fc > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-indigo-500"></div>` : ''}
+                        ${s.qz > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-purple-500"></div>` : ''}
+                        ${s.st > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-pink-500"></div>` : ''}
+                        ${s.bl > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-teal-500"></div>` : ''}
+                        ${s.wr > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-cyan-500"></div>` : ''}
+                        ${s.tf > 0 ? `<div style="height:15%;" class="flex-1 w-full bg-orange-500"></div>` : ''}
                     </div>
                     <span class="chart-label ${labelColor}">${s.label.charAt(0)}</span>
                 </div>`;
@@ -300,20 +318,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const showTooltip = (idx) => {
                 const s = chartDataCache[idx];
-                if (s.total === 0) {
-                     tooltipArea.innerHTML = `<span class="text-xs text-gray-400 font-bold">${s.label}: No Activity</span>`;
-                } else {
-                     tooltipArea.innerHTML = `
-                        <div class="flex gap-3 text-xs font-bold items-center">
-                           <span class="text-gray-500 dark:text-gray-300 uppercase tracking-widest mr-2">${s.label}</span>
-                           ${s.fc > 0 ? `<span class="text-indigo-500">F:${s.fc}</span>` : ''}
-                           ${s.qz > 0 ? `<span class="text-purple-500">Q:${s.qz}</span>` : ''}
-                           ${s.st > 0 ? `<span class="text-pink-500">S:${s.st}</span>` : ''}
-                           ${s.bl > 0 ? `<span class="text-teal-500">B:${s.bl}</span>` : ''}
-                           <span class="text-gray-800 dark:text-white border-l border-gray-300 pl-2 ml-1">Tot: ${s.total}</span>
-                        </div>
-                     `;
-                }
+                tooltipArea.innerHTML = `
+                    <div class="flex gap-2 text-xs font-bold items-center flex-wrap justify-center">
+                       <span class="text-gray-500 dark:text-gray-300 uppercase">${s.label}</span>
+                       <span class="text-gray-800 dark:text-white border-l border-gray-300 pl-2">Tot: ${s.total}</span>
+                    </div>
+                 `;
             };
             
             container.querySelectorAll('.chart-bar-container').forEach(el => {
