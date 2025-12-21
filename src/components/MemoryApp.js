@@ -118,7 +118,6 @@ export class MemoryApp {
                         const isFlipped = this.flippedIndices.includes(i) || c.matched;
                         
                         const content = isFlipped 
-                            // UPDATED: Reduced padding (p-1)
                             ? `<div class="w-full h-full flex items-center justify-center rotate-y-180 p-1"><span class="card-text font-bold text-center leading-tight select-none w-full">${textService.smartWrap(c.text)}</span></div>` 
                             : ``;
                         
@@ -148,8 +147,11 @@ export class MemoryApp {
 
         this.container.querySelectorAll('.mem-card').forEach(btn => btn.addEventListener('click', (e) => this.handleCardClick(parseInt(e.currentTarget.dataset.index))));
         
-        // UPDATED: Min size 16
-        requestAnimationFrame(() => textService.fitGroup(this.container.querySelectorAll('.card-text'), 16, 42));
+        // UPDATED: Use Individual fitText
+        requestAnimationFrame(() => {
+            if(!this.container) return;
+            this.container.querySelectorAll('.card-text').forEach(el => textService.fitText(el, 16, 42));
+        });
     }
 }
 export const memoryApp = new MemoryApp();

@@ -188,10 +188,12 @@ export class ConstructorApp {
         this.container.querySelectorAll('.choice-tile').forEach(btn => btn.addEventListener('click', (e) => this.handlePoolClick(parseInt(e.currentTarget.dataset.index))));
         this.container.querySelectorAll('[data-pos]').forEach(btn => btn.addEventListener('click', (e) => this.handleBuiltClick(parseInt(e.currentTarget.dataset.pos))));
         
-        // UPDATED: Min size 28
         requestAnimationFrame(() => {
             textService.fitText(this.container.querySelector('[data-fit="true"]'), 20, 60);
-            textService.fitGroup(this.container.querySelectorAll('.tile-text'), 28, 64);
+            if(this.container) {
+                // Use Individual FitText
+                this.container.querySelectorAll('.tile-text').forEach(el => textService.fitText(el, 28, 64));
+            }
         });
     }
 }

@@ -89,36 +89,51 @@ export class TrueFalseApp {
             
             box.classList.add('animate-celebrate', 'border-green-500', 'bg-green-50', 'dark:bg-green-900/20');
 
-            // UPDATED: Only show logic adjustment - If Correct is NO (Mismatch), and user clicked NO (Correct), 
-            // do NOT cross out. Just reveal "YES, [Item] = [Correct Meaning]" as a reinforcement.
-            if (!userGuessedTrue && !this.isCorrectPair) {
+            // CORRECT GUESS: "NO" (It was false, User said No)
+            if (!userGuessedTrue && !this.isCorrectPair) { 
+                // Reveal the ACTUAL meaning so they learn
                 if(meaningEl) {
                     meaningEl.innerHTML = `
-                        <span class="line-through opacity-40 text-gray-400 block text-lg mb-2">${textService.smartWrap(this.currentData.displayMeaning)}</span>
+                        <div class="text-gray-400 text-sm mb-1 line-through opacity-50">${textService.smartWrap(this.currentData.displayMeaning)}</div>
                         <span class="font-black text-indigo-600 dark:text-indigo-400 block text-4xl animate-celebrate">${textService.smartWrap(correctMeaning)}</span>
-                        <span class="block text-xs font-bold text-green-500 mt-2 uppercase tracking-widest">Correct!</span>
+                        <span class="block text-xs font-bold text-green-500 mt-2 uppercase tracking-widest">Correct Meaning</span>
                     `;
                 }
                 setTimeout(() => this.next(), 2000);
             } else {
+                // User said True, it was True -> Just success
                 setTimeout(() => this.next(), 800);
             }
         } else {
+            // WRONG GUESS
             box.classList.add('shake', 'border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
             
-            // On Error: Always reveal truth
             if(meaningEl) {
-                meaningEl.style.color = '#EF4444'; 
-                meaningEl.innerHTML = `
-                    <span class="line-through opacity-50 text-sm block">${textService.smartWrap(this.currentData.displayMeaning)}</span>
-                    <span class="font-black text-indigo-600 dark:text-indigo-400 block mt-2 text-4xl">${textService.smartWrap(correctMeaning)}</span>
-                `;
+                // Case 1: Was Correct (YES), User said NO.
+                // Do NOT cross out. Just emphasize "YES, it is [Meaning]"
+                if (this.isCorrectPair) {
+                    meaningEl.style.color = '#EF4444';
+                    meaningEl.innerHTML = `
+                        <span class="font-black text-4xl block">${textService.smartWrap(correctMeaning)}</span>
+                        <span class="block text-xs font-bold text-red-500 mt-2 uppercase tracking-widest">It was correct!</span>
+                    `;
+                } 
+                // Case 2: Was Wrong (NO), User said YES.
+                // Cross out the displayed meaning, show real meaning.
+                else {
+                    meaningEl.style.color = '#EF4444'; 
+                    meaningEl.innerHTML = `
+                        <span class="line-through opacity-50 text-sm block">${textService.smartWrap(this.currentData.displayMeaning)}</span>
+                        <span class="font-black text-indigo-600 dark:text-indigo-400 block mt-2 text-4xl">${textService.smartWrap(correctMeaning)}</span>
+                        <span class="block text-xs font-bold text-red-500 mt-2 uppercase tracking-widest">Wrong! Actual meaning:</span>
+                    `;
+                }
             }
 
             setTimeout(() => {
                 box.classList.remove('shake', 'border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
                 this.isProcessing = false;
-            }, 2000); 
+            }, 2500); 
         }
     }
 
@@ -162,8 +177,8 @@ export class TrueFalseApp {
                 </div>
 
                 <div class="flex gap-4 w-full max-w-sm mt-8">
-                     <button id="btn-false" class="flex-1 py-6 bg-red-500 dark:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-500/30 font-black text-2xl active:scale-95 transition-transform">NO</button>
-                     <button id="btn-true" class="flex-1 py-6 bg-green-500 dark:bg-green-700 text-white rounded-2xl shadow-lg shadow-green-500/30 font-black text-2xl active:scale-95 transition-transform">YES</button>
+                     <button id="btn-false" class="flex-1 py-6 bg-transparent border-4 border-red-500 text-red-500 rounded-2xl font-black text-2xl active:scale-95 transition-transform hover:bg-red-50 dark:hover:bg-red-900/20">NO</button>
+                     <button id="btn-true" class="flex-1 py-6 bg-transparent border-4 border-green-500 text-green-500 rounded-2xl font-black text-2xl active:scale-95 transition-transform hover:bg-green-50 dark:hover:bg-green-900/20">YES</button>
                 </div>
             </div>
 

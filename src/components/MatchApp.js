@@ -141,10 +141,10 @@ export class MatchApp {
         this.container.querySelector('#match-random-btn').addEventListener('click', () => this.startNewGame());
         this.container.querySelectorAll('.match-card').forEach(btn => btn.addEventListener('click', (e) => this.handleCardClick(parseInt(e.currentTarget.dataset.index), e.currentTarget)));
         
-        // UPDATED: Min size 14
+        // UPDATED: Use Individual fitText
         requestAnimationFrame(() => {
             if(!this.container) return;
-            this.container.querySelectorAll('.card-text').forEach(el => textService.fitText(el, 14, 44, false));
+            this.container.querySelectorAll('.card-text').forEach(el => textService.fitText(el, 14, 60, false));
         });
     }
 }

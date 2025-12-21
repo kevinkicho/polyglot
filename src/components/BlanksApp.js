@@ -25,6 +25,7 @@ export class BlanksApp {
         this.loadGame();
     }
     
+    // ... next/prev same as before ...
     next(id = null) { 
         this.isProcessing = false;
         this.selectedAnswerId = null;
@@ -50,15 +51,25 @@ export class BlanksApp {
     loadGame() {
         const list = vocabService.getAll();
         if (!list || !list.length) { this.renderError(); return; }
+        
         const targetId = list[this.currentIndex].id;
         this.currentData = blanksService.generateQuestion(targetId);
-        if (!this.currentData) { this.renderError(); return; }
+        
+        // UPDATED: ROBUSTNESS - Retry if no data generated (e.g. missing sentence)
+        if (!this.currentData || !this.currentData.sentence) {
+            console.log("Skipping ID " + targetId + " (No sentence)");
+            // Try next index instead of purely random to avoid loops, or just random
+            this.random(); 
+            return;
+        }
+
         if(this.currentData && this.currentData.target && window.saveGameHistory) {
             window.saveGameHistory('blanks', this.currentData.target.id);
         }
         this.render();
     }
 
+    // ... renderError, bind ...
     renderError() {
         if (this.container) {
             this.container.innerHTML = `<div class="flex flex-col items-center justify-center h-full pt-20"><div class="text-xl font-bold text-gray-400 mb-4">No Data Available</div><button id="blanks-close-err" class="px-6 py-2 bg-indigo-600 text-white rounded-full">Go Home</button></div>`;
@@ -84,6 +95,7 @@ export class BlanksApp {
         if (parts.length > 1) {
             if (parts[0].trim()) await audioService.speak(parts[0], lang);
             if (this.playbackId !== currentPid) return; 
+            // Wait slightly for the 'blank' silence
             await new Promise(r => setTimeout(r, 800));
             if (this.playbackId !== currentPid) return; 
             if (parts[1].trim()) await audioService.speak(parts[1], lang);
@@ -93,6 +105,7 @@ export class BlanksApp {
     }
 
     handleOptionClick(id, el, choiceText) {
+        // ... double click logic same ...
         if (this.isProcessing || window.wasLongPress) return;
         const settings = settingsService.get();
         const isConfirmationClick = (settings.blanksDoubleClick && this.selectedAnswerId === id);
@@ -135,16 +148,14 @@ export class BlanksApp {
                 const pill = qBox.querySelector('.blank-pill');
                 if (pill) {
                     pill.innerHTML = answerWord;
-                    // UPDATED: Height transition on reveal
                     pill.classList.remove('border-dashed', 'bg-indigo-50', 'text-transparent', 'w-16', 'h-10');
                     pill.classList.add('text-indigo-600', 'dark:text-indigo-400', 'scale-110', 'px-2', 'h-auto');
                 }
             }
-            const s = settingsService.get();
-            if (s.blanksAutoPlayCorrect) {
-                if (s.waitForAudio) { await audioService.speak(fullSentence, s.targetLang); this.next(); } 
-                else { audioService.speak(fullSentence, s.targetLang); setTimeout(() => this.next(), 1500); }
-            } else { setTimeout(() => this.next(), 1000); }
+            
+            // UPDATED: Wait for audio
+            await audioService.speak(fullSentence, settingsService.get().targetLang);
+            setTimeout(() => this.next(), 500);
         } else {
             this.isProcessing = false;
             this.selectedAnswerId = null;
@@ -168,7 +179,6 @@ export class BlanksApp {
             rawSentence = rawSentence.replace(answerWord, '______');
         }
 
-        // UPDATED: Increased height to h-10 to fix cutoff
         const pillHtml = `<span class="blank-pill inline-flex items-center justify-center border-2 border-dashed border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700 rounded-lg mx-1 w-16 h-10 align-middle text-transparent transition-all duration-300 overflow-hidden select-none"><span class="text-indigo-300 dark:text-indigo-700 text-sm font-bold">?</span></span>`;
         const displayHtml = rawSentence.replace(/_+/g, pillHtml);
         
@@ -199,7 +209,7 @@ export class BlanksApp {
                 <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-2">
                     ${choices.map(c => `
                         <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-1 overflow-hidden text-center" data-id="${c.id}">
-                            <div class="option-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full">${textService.smartWrap(c.front.main)}</div>
+                            <div class="option-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full h-full flex items-center justify-center">${textService.smartWrap(c.front.main)}</div>
                         </button>
                     `).join('')}
                 </div>

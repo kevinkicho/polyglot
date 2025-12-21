@@ -4,6 +4,7 @@ class AudioService {
     constructor() {
         this.synth = window.speechSynthesis;
         this.voices = [];
+        this.isPlaying = false; // Track state
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             this.loadVoices();
             window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
@@ -25,28 +26,32 @@ class AudioService {
     sanitizeText(text, lang) {
         if (!text) return "";
         let clean = text;
-
-        // UNIVERSAL: STOP reading at any of these characters: ・, ･, ·, •, （, (, [, <, /, ,
+        // Clean text at separators
         clean = clean.split(/[・･\u30FB\uFF65\u00B7\u2022（(\[<\/,]/)[0];
-
         return clean.trim();
     }
 
+    // UPDATED: Returns a Promise that resolves when audio ends
     speak(text, lang) {
         return new Promise((resolve, reject) => {
             if (!this.synth) { resolve(); return; }
             
-            // App-wide Effect: Do not play audio for the Origin Language
             const settings = settingsService.get();
+            // Don't play if it matches Origin Language
             if (lang === settings.originLang) {
                 resolve(); 
                 return;
             }
 
-            this.synth.cancel();
+            this.synth.cancel(); // Stop previous
+            this.isPlaying = true;
 
             const cleanText = this.sanitizeText(text, lang);
-            if (!cleanText) { resolve(); return; }
+            if (!cleanText) { 
+                this.isPlaying = false;
+                resolve(); 
+                return; 
+            }
 
             const utter = new SpeechSynthesisUtterance(cleanText);
             const voice = this.getVoice(lang);
@@ -56,10 +61,15 @@ class AudioService {
             utter.volume = settings.volume !== undefined ? settings.volume : 1.0;
             utter.rate = 1.0; 
 
-            utter.onend = () => resolve();
+            utter.onend = () => {
+                this.isPlaying = false;
+                resolve();
+            };
+            
             utter.onerror = (e) => {
                 console.warn("Audio error:", e);
-                resolve();
+                this.isPlaying = false;
+                resolve(); // Resolve anyway to not block app
             };
 
             this.synth.speak(utter);
@@ -67,7 +77,10 @@ class AudioService {
     }
 
     stop() {
-        if (this.synth) this.synth.cancel();
+        if (this.synth) {
+            this.synth.cancel();
+            this.isPlaying = false;
+        }
     }
 }
 

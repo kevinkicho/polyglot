@@ -24,10 +24,12 @@ import { textService } from './services/textService';
 
 window.wasLongPress = false;
 
+// Register Service Worker
 if ('serviceWorker' in navigator) { 
     window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW failed', err)); }); 
 }
 
+// History Management
 let savedHistory = {}; 
 try { savedHistory = JSON.parse(localStorage.getItem('polyglot_history') || '{}'); } catch (e) {}
 window.saveGameHistory = (game, id) => { 
@@ -62,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconIn = document.getElementById('icon-user-in'); 
     let currentUser = null;
 
+    // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         if (user) { 
@@ -85,7 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const saved = settingsService.get(); 
             if(saved.darkMode) document.documentElement.classList.add('dark');
-            await vocabService.reload(); 
+            
+            // Init services (vocab uses realtime onValue now)
+            await vocabService.init(); 
             dictionaryService.fetchData();
 
             if (!vocabService.hasData()) throw new Error("No vocabulary data.");
@@ -96,7 +101,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 startBtn.classList.add('bg-indigo-600', 'text-white'); 
                 startBtn.innerText = "Start Learning";
                 startBtn.onclick = () => {
+                    // Unlock audio context
                     const s = new SpeechSynthesisUtterance(''); window.speechSynthesis.speak(s);
+                    
                     const splash = document.getElementById('splash-screen');
                     if(splash) splash.style.display = 'none'; 
                     document.body.classList.remove('is-loading'); 
@@ -110,9 +117,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const loginBtn = document.getElementById('user-login-btn');
-    if (loginBtn) loginBtn.addEventListener('click', async () => { if (currentUser && !currentUser.isAnonymous) { if(confirm("Log out?")) await signOut(auth); } else { try { await signInWithPopup(auth, googleProvider); } catch(e){} } });
+    if (loginBtn) loginBtn.addEventListener('click', async () => { 
+        if (currentUser && !currentUser.isAnonymous) { 
+            if(confirm("Log out?")) await signOut(auth); 
+        } else { 
+            try { await signInWithPopup(auth, googleProvider); } catch(e){} 
+        } 
+    });
 
-    // FIXED: Toggle HIDDEN class properly
+    // --- EDIT MODAL & PERMISSIONS ---
+    
     function updateEditPermissions() { 
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com'; 
         const btns = document.querySelectorAll('#btn-save-vocab, #btn-save-dict, #btn-add-dict');
@@ -127,16 +141,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Render Inputs for Admin, Text for Users
     window.renderVocabEditFields = (data) => {
         const container = document.getElementById('edit-vocab-fields');
         const idLabel = document.getElementById('edit-vocab-id');
         if (idLabel) idLabel.textContent = `ID: ${data.id}`;
         
-        // Store the Firebase Key on the container for the save button to find
-        container.dataset.fbKey = data.firebaseKey || '';
-
         if (!container) return;
+        
+        // Store Firebase key for saving
+        container.dataset.fbKey = data.firebaseKey || '';
         container.innerHTML = '';
         
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com';
@@ -145,28 +158,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fields.forEach(key => {
             const val = data[key] || '';
             let content;
-            
             if (isAdmin) {
-                // Admin: Editable Inputs
-                content = `
-                    <input class="vocab-input w-full bg-gray-100 dark:bg-gray-800 border-none rounded-lg p-3 text-gray-800 dark:text-white font-medium focus:ring-2 ring-indigo-500 outline-none" 
-                           data-key="${key}" value="${val}">
-                `;
+                content = `<input class="vocab-input w-full bg-gray-100 dark:bg-gray-800 border-none rounded-lg p-3 text-gray-800 dark:text-white font-medium focus:ring-2 ring-indigo-500 outline-none" data-key="${key}" value="${val}">`;
             } else {
-                // User: Read Only
-                content = `
-                    <div class="w-full bg-transparent border-b border-gray-200 dark:border-gray-700 py-2 text-gray-700 dark:text-gray-300 font-medium select-text">
-                        ${val || '<span class="text-gray-400 italic">Empty</span>'}
-                    </div>
-                `;
+                content = `<div class="w-full bg-transparent border-b border-gray-200 dark:border-gray-700 py-2 text-gray-700 dark:text-gray-300 font-medium select-text">${val || '<span class="text-gray-400 italic">Empty</span>'}</div>`;
             }
-
-            const fieldHTML = `
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">${key}</label>
-                    ${content}
-                </div>`;
-            container.insertAdjacentHTML('beforeend', fieldHTML);
+            container.insertAdjacentHTML('beforeend', `<div><label class="block text-xs font-bold text-gray-400 mb-1 uppercase">${key}</label>${content}</div>`);
         });
     }
 
@@ -200,12 +197,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <input class="dict-input w-full bg-gray-100 dark:bg-gray-800 border-none rounded p-2 text-sm" data-field="ko" value="${entry.ko}" placeholder="Korean">
                         </div>
                         <textarea class="dict-input w-full bg-gray-100 dark:bg-gray-800 border-none rounded p-2 text-sm h-16" data-field="e" placeholder="English">${entry.e}</textarea>
-                    </div>
-                 `;
+                    </div>`;
              } else {
                  html += `
-                    <div class="flex items-start gap-4 p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer active:scale-95 transition-transform" 
-                         onclick="window.playDictAudio('${entry.s}')">
+                    <div class="flex items-start gap-4 p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer active:scale-95 transition-transform" onclick="window.playDictAudio('${entry.s}')">
                         <div class="text-4xl font-black text-indigo-600 dark:text-indigo-400 font-serif">${entry.s}</div>
                         <div class="flex-1">
                             <div class="flex gap-2 items-baseline mb-1">
@@ -215,20 +210,38 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="text-sm text-gray-600 dark:text-gray-300 leading-snug">${entry.e}</div>
                             ${entry.ko ? `<div class="text-xs text-indigo-500 mt-1 font-medium">${entry.ko}</div>` : ''}
                         </div>
-                    </div>
-                 `;
+                    </div>`;
              }
          });
          list.innerHTML = html;
     }
 
+    // Expose Global Audio Player for Dictionary
     window.playDictAudio = (text) => {
         audioService.speak(text, 'zh-CN');
     };
 
-    // --- SAVE LOGIC ---
+    // --- SAVE HANDLERS ---
+    const saveVocabBtn = document.getElementById('btn-save-vocab');
+    if(saveVocabBtn) {
+        saveVocabBtn.addEventListener('click', async () => {
+            const container = document.getElementById('edit-vocab-fields');
+            const key = container.dataset.fbKey;
+            if(!key) return alert("Error: No record ID");
+            
+            saveVocabBtn.innerText = "Saving...";
+            saveVocabBtn.disabled = true;
+            try {
+                const inputs = container.querySelectorAll('.vocab-input');
+                const data = {};
+                inputs.forEach(i => data[i.dataset.key] = i.value);
+                await vocabService.saveItem(key, data);
+                alert("Vocabulary saved!");
+            } catch(e) { console.error(e); alert("Save failed"); } 
+            finally { saveVocabBtn.innerText = "SAVE VOCAB"; saveVocabBtn.disabled = false; }
+        });
+    }
 
-    // 1. Save Dictionary
     const saveDictBtn = document.getElementById('btn-save-dict');
     if(saveDictBtn) {
         saveDictBtn.addEventListener('click', async () => {
@@ -240,53 +253,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updates = [];
                 rows.forEach(row => {
                     const key = row.dataset.fbKey;
-                    if(!key) return;
-                    const getVal = (f) => row.querySelector(`[data-field="${f}"]`).value;
-                    updates.push(dictionaryService.saveEntry(key, {
-                        s: getVal('s'), t: getVal('t'), p: getVal('p'), e: getVal('e'), ko: getVal('ko')
-                    }));
+                    if(key) {
+                        const getVal = (f) => row.querySelector(`[data-field="${f}"]`).value;
+                        updates.push(dictionaryService.saveEntry(key, {
+                            s: getVal('s'), t: getVal('t'), p: getVal('p'), e: getVal('e'), ko: getVal('ko')
+                        }));
+                    }
                 });
                 await Promise.all(updates);
                 alert("Dictionary saved!");
-            } catch(e) { console.error(e); alert("Error."); } 
+            } catch(e) { console.error(e); alert("Save failed"); }
             finally { saveDictBtn.innerText = "SAVE DICTIONARY"; saveDictBtn.disabled = false; }
         });
     }
 
-    // 2. Save Vocabulary (NEW)
-    const saveVocabBtn = document.getElementById('btn-save-vocab');
-    if(saveVocabBtn) {
-        saveVocabBtn.addEventListener('click', async () => {
-            const container = document.getElementById('edit-vocab-fields');
-            const firebaseKey = container.dataset.fbKey;
-            
-            if(!firebaseKey) {
-                alert("Error: Missing Record ID");
-                return;
-            }
-
-            saveVocabBtn.innerText = "Saving...";
-            saveVocabBtn.disabled = true;
-
-            try {
-                const inputs = container.querySelectorAll('.vocab-input');
-                const data = {};
-                inputs.forEach(input => {
-                    data[input.dataset.key] = input.value;
-                });
-
-                await vocabService.saveItem(firebaseKey, data);
-                alert("Vocabulary saved!");
-            } catch(e) {
-                console.error(e);
-                alert("Error saving vocabulary.");
-            } finally {
-                saveVocabBtn.innerText = "SAVE VOCAB";
-                saveVocabBtn.disabled = false;
-            }
-        });
-    }
-
+    // --- NAVIGATION & ROUTING ---
     function renderView(viewName) { 
         audioService.stop(); 
         if (viewName === 'home') document.body.classList.remove('game-mode'); 
@@ -301,18 +282,19 @@ document.addEventListener('DOMContentLoaded', () => {
             target.classList.remove('hidden'); 
             const lastId = savedHistory[viewName]; 
             
-            if (viewName === 'flashcard' && views.flashcard) { flashcardApp.mount('flashcard-view'); currentActiveApp = flashcardApp; if(lastId) flashcardApp.goto(lastId); } 
-            if (viewName === 'quiz' && views.quiz) { quizApp.mount('quiz-view'); currentActiveApp = quizApp; if(lastId) quizApp.next(lastId); } 
-            if (viewName === 'sentences' && views.sentences) { sentencesApp.mount('sentences-view'); currentActiveApp = sentencesApp; if(lastId) sentencesApp.next(lastId); } 
-            if (viewName === 'blanks' && views.blanks) { blanksApp.mount('blanks-view'); currentActiveApp = blanksApp; if(lastId) blanksApp.next(lastId); }
-            if (viewName === 'listening' && views.listening) { listeningApp.mount('listening-view'); currentActiveApp = listeningApp; if(lastId) listeningApp.next(lastId); }
-            if (viewName === 'match' && views.match) { matchApp.mount('match-view'); currentActiveApp = matchApp; }
-            if (viewName === 'memory' && views.memory) { memoryApp.mount('memory-view'); currentActiveApp = memoryApp; }
-            if (viewName === 'finder' && views.finder) { finderApp.mount('finder-view'); currentActiveApp = finderApp; }
-            if (viewName === 'constructor' && views.constructor) { constructorApp.mount('constructor-view'); currentActiveApp = constructorApp; }
-            if (viewName === 'writing' && views.writing) { writingApp.mount('writing-view'); currentActiveApp = writingApp; }
-            if (viewName === 'truefalse' && views.truefalse) { trueFalseApp.mount('truefalse-view'); currentActiveApp = trueFalseApp; }
-            if (viewName === 'reverse' && views.reverse) { reverseApp.mount('reverse-view'); currentActiveApp = reverseApp; }
+            // Mount the appropriate app
+            if (viewName === 'flashcard') { flashcardApp.mount('flashcard-view'); currentActiveApp = flashcardApp; if(lastId) flashcardApp.goto(lastId); } 
+            if (viewName === 'quiz') { quizApp.mount('quiz-view'); currentActiveApp = quizApp; if(lastId) quizApp.next(lastId); } 
+            if (viewName === 'sentences') { sentencesApp.mount('sentences-view'); currentActiveApp = sentencesApp; if(lastId) sentencesApp.next(lastId); } 
+            if (viewName === 'blanks') { blanksApp.mount('blanks-view'); currentActiveApp = blanksApp; if(lastId) blanksApp.next(lastId); }
+            if (viewName === 'listening') { listeningApp.mount('listening-view'); currentActiveApp = listeningApp; if(lastId) listeningApp.next(lastId); }
+            if (viewName === 'match') { matchApp.mount('match-view'); currentActiveApp = matchApp; }
+            if (viewName === 'memory') { memoryApp.mount('memory-view'); currentActiveApp = memoryApp; }
+            if (viewName === 'finder') { finderApp.mount('finder-view'); currentActiveApp = finderApp; }
+            if (viewName === 'constructor') { constructorApp.mount('constructor-view'); currentActiveApp = constructorApp; }
+            if (viewName === 'writing') { writingApp.mount('writing-view'); currentActiveApp = writingApp; }
+            if (viewName === 'truefalse') { trueFalseApp.mount('truefalse-view'); currentActiveApp = trueFalseApp; }
+            if (viewName === 'reverse') { reverseApp.mount('reverse-view'); currentActiveApp = reverseApp; }
         } 
     }
 
@@ -330,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeTimer = setTimeout(() => { if (currentActiveApp && currentActiveApp.render) currentActiveApp.render(); else document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)); }, 100);
     });
 
+    // --- ACHIEVEMENTS & SCORES ---
     const achPopup = document.getElementById('achievement-popup');
     window.addEventListener('achievement:unlocked', (e) => {
         const ach = e.detail; const t = document.getElementById('ach-popup-title'); const d = document.getElementById('ach-popup-desc'); const p = document.getElementById('ach-popup-pts');
@@ -358,10 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
              return sum + (achDef ? achDef.points : 0);
         }, 0);
 
+        // Subtle Total Score Design
         let html = `
         <div class="mb-8 flex flex-col items-center">
             <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">Total Score</div>
-            <div class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-white to-gray-400 font-mono tracking-tighter">${totalPoints}</div>
+            <div class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-500 to-purple-500 dark:from-white dark:to-gray-400 font-mono tracking-tighter">${totalPoints}</div>
             <div class="h-1 w-12 bg-indigo-500 rounded-full mt-2 opacity-50"></div>
         </div>`;
 
@@ -373,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sorted.forEach(ach => {
             const unlocked = !!unlockedMap[ach.id];
             const bg = unlocked ? 'bg-white/10 border-indigo-500/30' : 'bg-black/20 border-white/5 opacity-50 grayscale';
-            const textCol = unlocked ? 'text-white' : 'text-gray-500';
+            const textCol = unlocked ? 'text-gray-800 dark:text-white' : 'text-gray-500';
             const ic = unlocked ? '🏆' : '🔒';
             html += `<div class="flex items-center gap-4 p-4 rounded-2xl border ${bg} backdrop-blur-sm transition-all hover:bg-white/15"><div class="text-3xl">${ic}</div><div class="flex-1"><h4 class="font-bold text-sm ${textCol}">${ach.title}</h4><p class="text-[10px] text-gray-400 leading-tight mt-1">${ach.desc}</p></div><div class="text-xs font-black text-indigo-400 font-mono">+${ach.points}</div></div>`;
         });
@@ -395,8 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.closest('.game-edit-btn')) {
             let app = currentActiveApp; 
             if (app) {
+                // Get current item ID
                 let item = app.currentData && (app.currentData.target || app.currentData.item) ? (app.currentData.target || app.currentData.item) : (app.currentData || (app.currentIndex!==undefined && vocabService.getAll().length > app.currentIndex ? vocabService.getAll()[app.currentIndex] : null));
-                if (item && item.id) {
+                
+                if (item && item.id !== undefined) {
                     currentEditId = item.id;
                     const fullData = vocabService.getAll().find(v => v.id == item.id);
                     if(fullData) {
@@ -529,19 +515,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = settingsService.get();
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
         const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
-        setVal('target-select', s.targetLang); setVal('origin-select', s.originLang);
-        setChk('toggle-dark', s.darkMode); setChk('toggle-audio', s.autoPlay); setChk('toggle-wait-audio', s.waitForAudio); setChk('toggle-click-audio', s.clickAudio);
-        setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0); setVal('font-family-select', s.fontFamily); setVal('font-weight-select', s.fontWeight);
-        setChk('toggle-vocab', s.showVocab); setChk('toggle-sentence', s.showSentence); setChk('toggle-english', s.showEnglish);
-        setChk('toggle-dict-enable', s.dictEnabled); setChk('toggle-dict-click-audio', s.dictClickAudio);
-        setChk('toggle-quiz-audio', s.quizAnswerAudio); setChk('toggle-quiz-autoplay-correct', s.quizAutoPlayCorrect); setChk('toggle-quiz-double', s.quizDoubleClick);
-        setChk('toggle-sent-audio', s.sentencesWordAudio); setChk('toggle-blanks-audio', s.blanksAnswerAudio); setChk('toggle-blanks-double', s.blanksDoubleClick);
+        
+        setVal('target-select', s.targetLang); 
+        setVal('origin-select', s.originLang);
+        setChk('toggle-dark', s.darkMode); 
+        setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0); 
+        setVal('font-family-select', s.fontFamily); 
+        setVal('font-weight-select', s.fontWeight);
+        
+        // Removed audio toggles as requested
+        setChk('toggle-vocab', s.showVocab); 
+        setChk('toggle-sentence', s.showSentence); 
+        setChk('toggle-english', s.showEnglish);
+        
         setChk('toggle-sent-anim', s.sentencesWinAnim !== false);
     }
+
     function bindSetting(id, key, cb) { const el = document.getElementById(id); if(el) el.addEventListener('change', (e) => { settingsService.set(key, e.target.type==='checkbox'?e.target.checked:e.target.value); if(cb) cb(); }); }
-    bindSetting('target-select', 'targetLang', ()=>flashcardApp.refresh()); bindSetting('origin-select', 'originLang', ()=>flashcardApp.refresh());
-    bindSetting('toggle-dark', 'darkMode', () => document.documentElement.classList.toggle('dark')); bindSetting('toggle-audio', 'autoPlay'); bindSetting('toggle-wait-audio', 'waitForAudio'); bindSetting('volume-slider', 'volume'); bindSetting('font-family-select', 'fontFamily', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); bindSetting('font-weight-select', 'fontWeight', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); bindSetting('toggle-vocab', 'showVocab', ()=>flashcardApp.refresh()); bindSetting('toggle-sentence', 'showSentence', ()=>flashcardApp.refresh()); bindSetting('toggle-english', 'showEnglish', ()=>flashcardApp.refresh()); bindSetting('toggle-dict-enable', 'dictEnabled'); bindSetting('toggle-dict-click-audio', 'dictClickAudio'); bindSetting('toggle-quiz-audio', 'quizAnswerAudio'); bindSetting('toggle-quiz-autoplay-correct', 'quizAutoPlayCorrect'); bindSetting('toggle-quiz-double', 'quizDoubleClick'); bindSetting('toggle-sent-audio', 'sentencesWordAudio'); bindSetting('toggle-blanks-audio', 'blanksAnswerAudio'); bindSetting('toggle-blanks-double', 'blanksDoubleClick'); bindSetting('toggle-sent-anim', 'sentencesWinAnim'); bindSetting('toggle-click-audio', 'clickAudio');
-    [{btn:'dict-accordion-btn',c:'dict-options',a:'accordion-arrow-dict'},{btn:'display-accordion-btn',c:'display-options',a:'accordion-arrow-1'},{btn:'quiz-accordion-btn',c:'quiz-options',a:'accordion-arrow-3'},{btn:'sent-accordion-btn',c:'sent-options',a:'accordion-arrow-sent'},{btn:'blanks-accordion-btn',c:'blanks-options',a:'accordion-arrow-blanks'},{btn:'fonts-accordion-btn',c:'fonts-options',a:'accordion-arrow-fonts'}].forEach(o=>{ const b=document.getElementById(o.btn), c=document.getElementById(o.c), a=document.getElementById(o.a); if(b) b.addEventListener('click', ()=>{ c.classList.toggle('open'); a.classList.toggle('rotate'); }); });
+    
+    bindSetting('target-select', 'targetLang', ()=>flashcardApp.refresh()); 
+    bindSetting('origin-select', 'originLang', ()=>flashcardApp.refresh());
+    bindSetting('toggle-dark', 'darkMode', () => document.documentElement.classList.toggle('dark')); 
+    bindSetting('volume-slider', 'volume'); 
+    bindSetting('font-family-select', 'fontFamily', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); 
+    bindSetting('font-weight-select', 'fontWeight', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); 
+    bindSetting('toggle-vocab', 'showVocab', ()=>flashcardApp.refresh()); 
+    bindSetting('toggle-sentence', 'showSentence', ()=>flashcardApp.refresh()); 
+    bindSetting('toggle-english', 'showEnglish', ()=>flashcardApp.refresh()); 
+    bindSetting('toggle-sent-anim', 'sentencesWinAnim'); 
+
+    // CLEANED ACCORDIONS LIST
+    [{btn:'display-accordion-btn',c:'display-options',a:'accordion-arrow-1'},{btn:'sent-accordion-btn',c:'sent-options',a:'accordion-arrow-sent'},{btn:'fonts-accordion-btn',c:'fonts-options',a:'accordion-arrow-fonts'}].forEach(o=>{ const b=document.getElementById(o.btn), c=document.getElementById(o.c), a=document.getElementById(o.a); if(b) b.addEventListener('click', ()=>{ c.classList.toggle('open'); a.classList.toggle('rotate'); }); });
 
     let currentEditId = null;
     function switchEditTab(tab) {

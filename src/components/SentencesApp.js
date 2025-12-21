@@ -94,7 +94,7 @@ export class SentencesApp {
         this.render();
     }
 
-    checkWin() {
+    async checkWin() {
         const currentStr = this.builtIndices.map(idx => this.wordPool[idx].word).join('');
         const targetStr = this.currentData.parts.join('');
         
@@ -103,12 +103,12 @@ export class SentencesApp {
             scoreService.addScore('sentences', 10);
             
             if(settingsService.get().autoPlay) {
-                audioService.speak(this.currentData.sentence, settingsService.get().targetLang);
+                await audioService.speak(this.currentData.sentence, settingsService.get().targetLang);
             }
 
             const zone = this.container.querySelector('#sent-slots');
             zone.classList.add('animate-celebrate', 'border-green-500', 'bg-green-50', 'dark:bg-green-900/20');
-            setTimeout(() => this.next(), 1500);
+            setTimeout(() => this.next(), 500);
         }
     }
 
@@ -151,17 +151,17 @@ export class SentencesApp {
                     <h2 class="text-2xl font-bold text-gray-800 dark:text-white mt-1" data-fit="true">${textService.smartWrap(originText)}</h2>
                 </div>
 
-                <div id="sent-slots" class="flex flex-wrap justify-center gap-2 min-h-[5rem] p-4 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all">
+                <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 min-h-[5rem] p-4 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar">
                     ${this.builtIndices.map((poolIdx, i) => `
-                        <button class="bg-pink-500 text-white rounded-xl px-4 py-3 font-bold shadow-md active:scale-95 whitespace-nowrap text-lg" data-pos="${i}">${this.wordPool[poolIdx].word}</button>
+                        <button class="bg-pink-500 text-white rounded-lg px-2 py-1 font-bold shadow-md active:scale-95 whitespace-nowrap text-lg" data-pos="${i}">${this.wordPool[poolIdx].word}</button>
                     `).join('')}
-                    ${this.builtIndices.length === 0 ? '<span class="text-gray-400 text-sm self-center font-medium animate-pulse">Tap words below</span>' : ''}
+                    ${this.builtIndices.length === 0 ? '<span class="text-gray-400 text-sm self-center font-medium animate-pulse w-full text-center">Tap words below</span>' : ''}
                 </div>
 
                 <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <div class="flex flex-wrap justify-center gap-3 pb-4">
+                    <div class="flex flex-wrap justify-center gap-2 pb-4">
                         ${this.wordPool.map((w, i) => `
-                            <button class="bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-1 min-w-[4rem] min-h-[4rem] font-bold text-2xl text-gray-700 dark:text-white shadow-sm hover:border-pink-400 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center ${w.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
+                            <button class="bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl p-1 min-w-[3rem] min-h-[3.5rem] font-bold text-xl text-gray-700 dark:text-white shadow-sm hover:border-pink-400 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center ${w.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
                                 <span class="w-full text-center">${w.word}</span>
                             </button>
                         `).join('')}

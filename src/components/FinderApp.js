@@ -9,17 +9,15 @@ export class FinderApp {
         this.container = null;
         this.currentData = null;
         this.isProcessing = false;
-        this.currentIndex = 0; // Track index for navigation
+        this.currentIndex = 0;
     }
 
     mount(elementId) {
         this.container = document.getElementById(elementId);
-        // Start at random index if first mount
         this.currentIndex = vocabService.getRandomIndex();
         this.loadGame();
     }
 
-    // UPDATED: Navigation Logic instead of Random
     next(id = null) {
         this.isProcessing = false;
         if (id !== null) {
@@ -44,6 +42,14 @@ export class FinderApp {
         this.loadGame();
     }
 
+    gotoId(id) {
+        const idx = vocabService.findIndexById(id);
+        if (idx !== -1) {
+            this.currentIndex = idx;
+            this.loadGame();
+        }
+    }
+
     loadGame() {
         const list = vocabService.getAll();
         if (!list || list.length < 9) { 
@@ -51,13 +57,8 @@ export class FinderApp {
             return;
         }
         
-        // Target is determined by currentIndex
         const target = list[this.currentIndex];
-        
-        // Pick 8 distractors
         const others = list.filter(i => i.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 8);
-        
-        // Mix
         const choices = [target, ...others].sort(() => 0.5 - Math.random());
         
         this.currentData = { target, choices };
@@ -76,8 +77,6 @@ export class FinderApp {
             el.classList.remove('bg-white', 'dark:bg-dark-card');
             el.classList.add('bg-green-500', 'text-white', 'border-green-600');
             scoreService.addScore('finder', 10);
-            
-            // Auto advance
             setTimeout(() => this.next(), 1000);
         } else {
             el.classList.add('bg-red-100', 'dark:bg-red-900', 'shake');
@@ -156,7 +155,13 @@ export class FinderApp {
 
         this.container.querySelectorAll('.find-choice').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         
-        requestAnimationFrame(() => textService.fitGroup(this.container.querySelectorAll('.find-text'), 18, 48));
+        // UPDATED: Using Individual fitText so short words stay big!
+        requestAnimationFrame(() => {
+            if(!this.container) return;
+            this.container.querySelectorAll('.find-text').forEach(el => {
+                textService.fitText(el, 18, 55, false); // Increased max size
+            });
+        });
     }
 }
 export const finderApp = new FinderApp();

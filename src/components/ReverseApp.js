@@ -35,6 +35,7 @@ export class ReverseApp {
     }
 
     prev() {
+        this.isProcessing = false;
         const list = vocabService.getAll();
         this.currentIndex = (this.currentIndex - 1 + list.length) % list.length;
         this.loadGame();
@@ -73,8 +74,10 @@ export class ReverseApp {
         if (isCorrect) {
             el.classList.replace('bg-white', 'bg-green-500');
             el.classList.replace('dark:bg-dark-card', 'bg-green-500');
-            el.classList.add('text-white', 'border-green-600');
+            el.classList.add('text-white', 'border-green-600', 'animate-celebrate');
+            
             scoreService.addScore('reverse', 10);
+            
             setTimeout(() => this.next(), 1000);
         } else {
             el.classList.replace('bg-white', 'bg-red-500');
@@ -166,9 +169,12 @@ export class ReverseApp {
 
         this.container.querySelectorAll('.choice-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         
+        // UPDATED: Using Individual fitText
         requestAnimationFrame(() => {
             textService.fitText(this.container.querySelector('.question-text'), 20, 60);
-            textService.fitGroup(this.container.querySelectorAll('.choice-text'), 20, 48); 
+            if(this.container) {
+                this.container.querySelectorAll('.choice-text').forEach(el => textService.fitText(el, 22, 60));
+            }
         });
     }
 }
