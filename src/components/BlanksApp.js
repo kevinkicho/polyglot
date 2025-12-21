@@ -13,39 +13,15 @@ export class BlanksApp {
         this.selectedAnswerId = null;
         this.playbackId = 0; 
         this.currentIndex = 0; 
-        this.categories = [];
-        this.currentCategory = 'All';
     }
 
     mount(elementId) { 
         this.container = document.getElementById(elementId); 
-        this.updateCategories();
         this.random();
-    }
-
-    updateCategories() {
-        const all = vocabService.getAll();
-        const cats = new Set(all.map(i => i.category || 'Uncategorized'));
-        this.categories = ['All', ...cats];
-    }
-
-    setCategory(cat) {
-        this.currentCategory = cat;
-        this.random();
-    }
-
-    getFilteredList() {
-        const all = vocabService.getAll();
-        if (this.currentCategory === 'All') return all;
-        return all.filter(i => (i.category || 'Uncategorized') === this.currentCategory);
     }
 
     random() { 
-        const list = this.getFilteredList();
-        if (list.length === 0) return;
-        // Pick random from filtered list
-        const randItem = list[Math.floor(Math.random() * list.length)];
-        this.currentIndex = vocabService.findIndexById(randItem.id);
+        this.currentIndex = vocabService.getRandomIndex();
         this.loadGame();
     }
     
@@ -53,17 +29,12 @@ export class BlanksApp {
         this.isProcessing = false;
         this.selectedAnswerId = null;
         audioService.stop();
-        
         if (id !== null) {
             const idx = vocabService.findIndexById(id);
             if (idx !== -1) this.currentIndex = idx;
         } else {
-            // Find next in filtered list
-            const list = this.getFilteredList();
-            const currentItem = vocabService.getAll()[this.currentIndex];
-            let listIdx = list.findIndex(i => i.id === currentItem.id);
-            listIdx = (listIdx + 1) % list.length;
-            this.currentIndex = vocabService.findIndexById(list[listIdx].id);
+            const list = vocabService.getAll();
+            this.currentIndex = (this.currentIndex + 1) % list.length;
         }
         this.loadGame();
     }
@@ -71,13 +42,8 @@ export class BlanksApp {
     prev() { 
         this.isProcessing = false;
         audioService.stop();
-        
-        const list = this.getFilteredList();
-        const currentItem = vocabService.getAll()[this.currentIndex];
-        let listIdx = list.findIndex(i => i.id === currentItem.id);
-        listIdx = (listIdx - 1 + list.length) % list.length;
-        this.currentIndex = vocabService.findIndexById(list[listIdx].id);
-        
+        const list = vocabService.getAll();
+        this.currentIndex = (this.currentIndex - 1 + list.length) % list.length;
         this.loadGame();
     }
 
@@ -210,22 +176,13 @@ export class BlanksApp {
 
         const pillHtml = `<span class="blank-pill inline-flex items-center justify-center border-2 border-dashed border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700 rounded-lg mx-1 w-16 h-10 align-middle text-transparent transition-all duration-300 overflow-hidden select-none"><span class="text-indigo-300 dark:text-indigo-700 text-sm font-bold">?</span></span>`;
         const displayHtml = rawSentence.replace(/_+/g, pillHtml);
+        
         const jaClass = settingsService.get().targetLang === 'ja' ? 'text-ja-wrap' : '';
-
-        // Generate Pills HTML
-        const pillsHtml = `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar">
-                ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
-                        ${cat}
-                    </button>
-                `).join('')}
-            </div>
-        `;
 
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
-                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-teal-100 text-teal-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span><input type="number" id="blanks-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${target.id}"></div>
+                <div class="flex items-center gap-2"><div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm"><span class="bg-teal-100 text-teal-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span>
+                <input type="number" id="blanks-id-input" class="w-12 bg-transparent border-none text-center font-bold text-gray-700 dark:text-white text-sm p-0" value="${target.id}"></div>
                 <button class="game-edit-btn header-icon-btn bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button></div>
                 <div class="flex items-center gap-2">
                     <button id="score-pill" class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full px-3 py-1 flex items-center gap-2 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -236,29 +193,23 @@ export class BlanksApp {
                     <button id="blanks-close-btn" class="header-icon-btn bg-red-50 text-red-500 rounded-full shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             </div>
-
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto flex flex-col">
-                ${pillsHtml}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                    <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                        <div class="w-full py-2 px-1 text-center flex-none min-h-[3rem] flex items-center justify-center">
-                            <span class="question-text text-sm font-bold text-gray-500 dark:text-gray-400">${translationText}</span>
-                        </div>
-                        <div class="flex-grow flex items-center justify-center p-4">
-                            <div class="sentence-text text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full ${jaClass}">${displayHtml}</div>
-                        </div>
+            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <div class="w-full py-2 px-1 text-center flex-none min-h-[3rem] flex items-center justify-center">
+                        <span class="question-text text-sm font-bold text-gray-500 dark:text-gray-400">${translationText}</span>
                     </div>
-                    
-                    <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-2">
-                        ${choices.map(c => `
-                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col items-center justify-center p-1 overflow-hidden" data-id="${c.id}">
-                                <div class="option-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full">${textService.smartWrap(c.front.main)}</div>
-                            </button>
-                        `).join('')}
+                    <div class="flex-grow flex items-center justify-center p-4">
+                        <div class="sentence-text text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full ${jaClass}">${displayHtml}</div>
                     </div>
                 </div>
+                <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-2">
+                    ${choices.map(c => `
+                        <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center p-1 overflow-hidden" data-id="${c.id}">
+                            <div class="option-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full h-full flex items-center justify-center m-auto">${textService.smartWrap(c.front.main)}</div>
+                        </button>
+                    `).join('')}
+                </div>
             </div>
-            
             <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg"><div class="max-w-md mx-auto flex gap-4"><button id="blanks-prev-btn" class="flex-1 h-16 bg-white border border-gray-200 rounded-3xl shadow-sm flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button><button id="blanks-next-btn" class="flex-1 h-16 bg-indigo-600 text-white rounded-3xl shadow-xl flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button></div></div>
         `;
 
@@ -266,13 +217,16 @@ export class BlanksApp {
         this.bind('#blanks-prev-btn', 'click', () => this.prev());
         this.bind('#blanks-random-btn', 'click', () => this.random());
         this.bind('#blanks-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.bind('#blanks-id-input', 'change', (e) => this.next(parseInt(e.target.value)));
         
-        // Category Click Handler
-        this.container.querySelectorAll('.category-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
-        });
-
+        // Navigation Logic
+        const idInput = this.container.querySelector('#blanks-id-input');
+        if(idInput) {
+            idInput.addEventListener('keypress', (e) => { 
+                if(e.key === 'Enter') this.next(parseInt(e.target.value)); 
+            });
+            idInput.addEventListener('click', (e) => e.stopPropagation());
+        }
+        
         this.bind('#blanks-question-box', 'click', () => {
             if (!this.isProcessing && !window.wasLongPress) {
                 audioService.stop();
@@ -288,8 +242,7 @@ export class BlanksApp {
         requestAnimationFrame(() => {
             textService.fitText(this.container.querySelector('.question-text'), 12, 18);
             textService.fitText(this.container.querySelector('.sentence-text'), 18, 42);
-            // Apply text fit individually instead of as a group
-            this.container.querySelectorAll('.option-text').forEach(el => textService.fitText(el, 20, 48));
+            textService.fitGroup(this.container.querySelectorAll('.option-text'), 20, 48);
         });
 
         if (settingsService.get().autoPlay) {

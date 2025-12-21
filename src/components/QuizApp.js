@@ -53,9 +53,6 @@ export class QuizApp {
         this.selectedAnswerId = null;
         audioService.stop(); 
         
-        // Generate question from filtered list
-        // Note: quizService.generateQuestion usually picks random from ALL. 
-        // We need to ensure the target comes from our filtered list.
         const target = list[Math.floor(Math.random() * list.length)];
         this.currentData = quizService.generateQuestion(target.id);
         
@@ -72,9 +69,7 @@ export class QuizApp {
 
         if(id === null && this.currentData) {
             const currentItem = vocabService.getAll().find(v => v.id === this.currentData.target.id);
-            // Find current item's index within the FILTERED list
             let listIdx = list.findIndex(i => i.id === currentItem.id);
-            // If not found in current filter (category changed), start at 0
             if (listIdx === -1) listIdx = 0;
             else listIdx = (listIdx + 1) % list.length;
             
@@ -113,9 +108,7 @@ export class QuizApp {
         const settings = settingsService.get();
         const isConfirmationClick = (settings.quizDoubleClick && this.selectedAnswerId === id);
         
-        if (!isConfirmationClick && (settings.quizAnswerAudio || settings.quizDoubleClick)) {
-            audioService.speak(choiceText, settings.targetLang);
-        }
+        // FIX: Removed audioService.speak call entirely for choices as they are Definitions/Origin (Request #1)
         
         if (settings.quizDoubleClick) {
             if (this.selectedAnswerId !== id) {

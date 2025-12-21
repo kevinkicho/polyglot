@@ -10,33 +10,15 @@ export class FlashcardApp {
         this.currentIndex = 0;
         this.isFlipped = false;
         this.history = [];
-        this.categories = [];
-        this.currentCategory = 'All';
     }
 
     mount(elementId) {
         this.container = document.getElementById(elementId);
-        this.updateCategories();
-        this.random();
-    }
-
-    updateCategories() {
-        const all = vocabService.getAll();
-        const cats = new Set(all.map(i => i.category || 'Uncategorized'));
-        this.categories = ['All', ...cats];
-    }
-
-    setCategory(cat) {
-        this.currentCategory = cat;
-        // Reset history when changing categories so prev button doesn't jump to old category
-        this.history = []; 
-        this.random();
-    }
-
-    getFilteredList() {
-        const all = vocabService.getAll();
-        if (this.currentCategory === 'All') return all;
-        return all.filter(i => (i.category || 'Uncategorized') === this.currentCategory);
+        const list = vocabService.getAll();
+        if (list && list.length > 0) {
+           this.currentIndex = vocabService.getRandomIndex();
+        }
+        this.render();
     }
 
     bind(selector, event, handler) {
@@ -47,21 +29,6 @@ export class FlashcardApp {
 
     refresh() {
         this.render();
-    }
-
-    random() {
-        const list = this.getFilteredList();
-        if (list && list.length > 0) {
-            // Pick a random item from the FILTERED list
-            const randItem = list[Math.floor(Math.random() * list.length)];
-            // Map it back to the global index (or just pass object to loadGame, but loadGame uses global index currently)
-            // Let's refactor loadGame to accept an ID or Object, but sticking to existing pattern:
-            const globalIndex = vocabService.findIndexById(randItem.id);
-            this.loadGame(globalIndex);
-        } else {
-            this.currentData = null;
-            this.render();
-        }
     }
 
     loadGame(index) {
@@ -87,20 +54,7 @@ export class FlashcardApp {
              if(idx !== -1) this.loadGame(idx);
         } else {
              if (this.currentData) this.history.push(this.currentIndex);
-             
-             // Navigation within Filtered List
-             const list = this.getFilteredList();
-             if (list.length === 0) return;
-             
-             const currentItem = vocabService.getAll()[this.currentIndex];
-             let listIdx = list.findIndex(i => i.id === currentItem.id);
-             
-             // Move to next in filtered list
-             if (listIdx === -1) listIdx = 0;
-             else listIdx = (listIdx + 1) % list.length;
-             
-             const nextGlobalIndex = vocabService.findIndexById(list[listIdx].id);
-             this.loadGame(nextGlobalIndex);
+             this.loadGame(this.currentIndex + 1);
         }
     }
 
@@ -108,24 +62,14 @@ export class FlashcardApp {
         if (this.history.length > 0) {
             this.loadGame(this.history.pop());
         } else {
-             // Navigation within Filtered List
-             const list = this.getFilteredList();
-             if (list.length === 0) return;
-             
-             const currentItem = vocabService.getAll()[this.currentIndex];
-             let listIdx = list.findIndex(i => i.id === currentItem.id);
-             
-             if (listIdx === -1) listIdx = 0;
-             else listIdx = (listIdx - 1 + list.length) % list.length;
-             
-             const prevGlobalIndex = vocabService.findIndexById(list[listIdx].id);
-             this.loadGame(prevGlobalIndex);
+            this.loadGame(this.currentIndex - 1);
         }
     }
     
     goto(id) {
-      const idx = vocabService.findIndexById(id);
+      const idx = vocabService.findIndexById(parseInt(id));
       if(idx !== -1) this.loadGame(idx);
+      else alert("ID not found / IDが見つかりません");
     }
 
     handleCardClick() {
@@ -155,34 +99,25 @@ export class FlashcardApp {
         if (!this.container) return;
         
         if (!this.currentData) {
-             const list = this.getFilteredList();
+             const list = vocabService.getAll();
              if(list.length > 0) {
-                 this.random();
+                 this.loadGame(this.currentIndex);
                  return; 
              }
-            this.container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500 pt-20">No vocabulary data available in this category.</div>';
+            this.container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">No vocabulary data available.</div>';
             return;
         }
 
         const { front, back, id } = this.currentData;
         const s = settingsService.get();
 
-        const pillsHtml = `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-6 pb-2 mb-2 flex gap-2 no-scrollbar">
-                ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
-                        ${cat}
-                    </button>
-                `).join('')}
-            </div>
-        `;
-
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2">
-                    <div class="flex items-center bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm">
+                    <div class="flex items-center bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-3 pr-1 py-1 shadow-sm">
                         <span class="bg-indigo-100 text-indigo-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span>
-                        <span class="font-bold text-gray-700 dark:text-white text-sm">${id}</span>
+                        <input type="number" id="fc-id-input" value="${id}" class="w-12 bg-transparent text-sm font-bold text-gray-700 dark:text-white outline-none text-center appearance-none m-0 p-0">
+                        <button id="fc-go-btn" class="ml-1 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center hover:bg-indigo-200"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
                     </div>
                     <button class="game-edit-btn header-icon-btn bg-gray-200 dark:bg-gray-800 rounded-full text-gray-500 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
                 </div>
@@ -190,7 +125,6 @@ export class FlashcardApp {
             </div>
 
             <div class="w-full h-full pt-20 pb-28 px-6 flex flex-col items-center justify-center">
-                ${pillsHtml}
                 <div class="w-full max-w-md aspect-[3/4] relative perspective group cursor-pointer" id="flashcard-container">
                     <div id="flashcard-card" class="card-inner w-full h-full duration-500 transform-style-3d relative ${this.isFlipped ? 'rotate-y-180' : ''}">
                         
@@ -246,14 +180,11 @@ export class FlashcardApp {
         this.bind('#fc-prev-btn', 'click', () => this.prev());
         this.bind('#fc-next-btn', 'click', () => this.next());
         
-        this.container.querySelectorAll('.category-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
-        });
-
         this.container.querySelectorAll('.audio-btn').forEach(btn => 
             btn.addEventListener('click', (e) => { e.stopPropagation(); this.playAudio(); })
         );
         
+        // Navigation Logic Binding
         const idInput = this.container.querySelector('#fc-id-input');
         if(idInput) {
             idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.goto(idInput.value); });

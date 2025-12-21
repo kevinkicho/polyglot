@@ -72,10 +72,12 @@ export class ConstructorApp {
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id)); // FIX: Added parseInt
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -85,12 +87,27 @@ export class ConstructorApp {
         if (!list.length) return;
         const item = list[this.currentIndex];
 
-        const targetWord = item.front.main;
-        let chars = targetWord.split(''); 
+        let targetText = item.front.main;
+
+        // Splitting Logic for synonyms
+        const separatorRegex = /[\/·・･,、。.\s]+/;
+        const variations = targetText.split(separatorRegex).filter(v => v.trim().length > 0);
         
+        let selectedVariation = targetText;
+        if (variations.length > 0) {
+            selectedVariation = variations[Math.floor(Math.random() * variations.length)];
+        }
+
+        // Clean forbidden chars from tiles
+        const forbiddenChars = /[\/·・･,、。.\s\t\n]/;
+        const chars = selectedVariation.split('').filter(c => !forbiddenChars.test(c));
+        
+        const cleanTargetWord = chars.join('');
+
         this.charPool = chars.map((char, i) => ({ char, id: i, used: false })).sort(() => 0.5 - Math.random());
         this.builtChars = [];
-        this.currentData = { item, chars, targetWord };
+        this.currentData = { item, chars, targetWord: cleanTargetWord, displayWord: selectedVariation };
+        
         this.render();
     }
 
@@ -125,7 +142,7 @@ export class ConstructorApp {
             scoreService.addScore('constructor', 10);
             
             if(settingsService.get().autoPlay) {
-                audioService.speak(this.currentData.targetWord, settingsService.get().targetLang);
+                audioService.speak(this.currentData.displayWord, settingsService.get().targetLang);
             }
 
             const zone = this.container.querySelector('#const-slots');
@@ -135,7 +152,7 @@ export class ConstructorApp {
     }
 
     playHint() {
-        audioService.speak(this.currentData.targetWord, settingsService.get().targetLang);
+        audioService.speak(this.currentData.displayWord, settingsService.get().targetLang);
     }
 
     render() {
@@ -224,10 +241,12 @@ export class ConstructorApp {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
+        // Navigation Logic
         const idInput = this.container.querySelector('#const-id-input');
         const goBtn = this.container.querySelector('#const-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
         idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.gotoId(idInput.value); });
+        idInput.addEventListener('click', (e) => e.stopPropagation());
 
         this.container.querySelectorAll('.choice-tile').forEach(btn => btn.addEventListener('click', (e) => this.handlePoolClick(parseInt(e.currentTarget.dataset.index))));
         this.container.querySelectorAll('[data-pos]').forEach(btn => btn.addEventListener('click', (e) => this.handleBuiltClick(parseInt(e.currentTarget.dataset.pos))));

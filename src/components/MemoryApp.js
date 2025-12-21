@@ -71,8 +71,9 @@ export class MemoryApp {
 
         if (settingsService.get().clickAudio !== false) {
             const c = this.cards[idx];
-            const lang = c.type === 'target' ? settingsService.get().targetLang : settingsService.get().originLang;
-            audioService.speak(c.text, lang);
+            if (c.type === 'target') {
+                 audioService.speak(c.text, settingsService.get().targetLang);
+            }
         }
 
         if (this.flippedIndices.length === 2) {

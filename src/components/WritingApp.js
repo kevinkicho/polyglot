@@ -70,10 +70,12 @@ export class WritingApp {
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id)); // FIX: Added parseInt
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -101,9 +103,7 @@ export class WritingApp {
         const guess = input.value.trim().toLowerCase();
         const correctFull = this.currentData.front.main.toLowerCase();
         
-        // Split by separators
         const variations = correctFull.split(/[・･,、.。]+/);
-        
         const isCorrect = (guess === correctFull) || variations.some(v => v.trim() === guess);
         
         if (isCorrect) {
@@ -201,15 +201,22 @@ export class WritingApp {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
+        // Navigation Logic
         const idInput = this.container.querySelector('#write-id-input');
         const goBtn = this.container.querySelector('#write-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
+        idInput.addEventListener('click', (e) => e.stopPropagation()); // prevent text from being selected when clicked
         
         const textInput = this.container.querySelector('#writing-input');
         textInput.addEventListener('keydown', (e) => e.stopPropagation());
         textInput.addEventListener('keypress', (e) => {
             e.stopPropagation();
             if(e.key === 'Enter') this.checkAnswer();
+        });
+        
+        // Navigation ID Input Enter key
+        idInput.addEventListener('keypress', (e) => {
+             if(e.key === 'Enter') this.gotoId(idInput.value);
         });
     }
 }

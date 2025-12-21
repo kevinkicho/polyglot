@@ -1,65 +1,134 @@
-# Polyglot Flashcards
+# Polyglot.AI
 
-**Polyglot Flashcards** is a comprehensive, web-based language learning application designed to help users master vocabulary through various interactive game modes. It supports multiple languages (including Japanese, Korean, Chinese, and European languages) and features a spaced-repetition style learning environment. The app includes customizable settings for audio, visual themes, and input methods, catering to different learning styles.
+**Polyglot.AI** is a robust, web-based language learning ecosystem built to help users master vocabulary and sentence structure through a wide variety of interactive game modes. It leverages Firebase for real-time data and authentication, offering a highly customizable experience with support for complex scripts (Japanese, Chinese, Korean) and intelligent audio handling.
 
 ---
 
-## File Structure & Descriptions
+## 📂 File Structure & Architecture
 
-| File Name | Description |
+The application uses a modular architecture with distinct services handling logic and components handling the UI for each game mode.
+
+| File Path | Description |
 | :--- | :--- |
-| **`src/index.html`** | The main entry point containing the app's HTML structure, including modals for settings, navigation, and dynamic game containers. |
-| **`src/index.js`** | The central controller that initializes the app, manages Firebase Auth, handles routing, and registers global event listeners. |
-| **`src/services/vocabService.js`** | Fetches raw data from Firebase and maps it into a unified game object structure (`Front`/`Back`), handling fallbacks. |
-| **`src/services/textService.js`** | Critical engine handling smart font resizing (`fitText`, `fitGroup`) and language-specific tokenization logic. |
-| **`src/services/audioService.js`** | Manages the Web Speech API (TTS), specifically sanitizing text to prevent reading metadata like parenthesis or separators. |
-| **`src/services/settingsService.js`** | Manages the application's state, persisting user preferences (Dark Mode, Language, Volume) to `localStorage`. |
-| **`src/components/*`** | Individual game logic files (e.g., `FlashcardApp.js`, `QuizApp.js`) handling rendering and state for specific modes. |
-| **`src/styles/main.scss`** | Contains Tailwind CSS directives and custom animations (e.g., 3D flips, shakes, celebrations) for visual design. |
+| **`src/index.html`** | The application shell containing the main menu, settings modals, and dynamic view containers for all 12 game modes. |
+| **`src/index.js`** | The entry point. Handles app initialization, routing state, Firebase auth listeners, and global event delegation. |
+| **`src/services/`** | Contains core business logic: <br>• **`textService.js`**: The central engine for CJK text processing, tokenization, and smart wrapping.<br>• **`audioService.js`**: Manages TTS and prevents "Origin" language audio playback.<br>• **`vocabService.js`** & **`dictionaryService.js`**: Manages data synchronization with Firebase.<br>• **`scoreService.js`**: Tracks streaks and daily progress. |
+| **`src/components/`** | Individual game logic classes. Each class (e.g., `QuizApp`, `MatchApp`) encapsulates its own game loop and DOM manipulation. |
 
 ---
 
-## Key Functions & Logic Engines
+## 🧩 Advanced Text & Language Algorithms
 
-### `src/services/textService.js`
-* **`fitText(element, min, max)`**: Uses binary search to maximize the font size of a specific element within its container bounds without overflowing.
-* **`fitGroup(elements, min, max)`**: Calculates the optimal size for every element in a list, finds the smallest among them, and applies it globally for a uniform UI.
-* **`tokenizeJapanese(text)`**: Uses `Intl.Segmenter` to split Japanese text, applying post-processing to merge particles (`は`, `が`) and suffixes (`さん`) for logical sentence blocks.
+Polyglot.AI implements specific algorithms to handle the complexities of Asian languages and multi-variation vocabulary.
 
-### `src/services/audioService.js`
-* **`sanitizeText(text, lang)`**: Filters text before sending it to the Web Speech API, specifically stripping content after separators (`・`, `[`) or parenthesis to ensure natural pronunciation.
-* **`speak(text, lang)`**: Manages the TTS queue, canceling previous utterances and applying volume/rate settings dynamically.
+### 1. Special Character Handling & Smart Wrap
+The application actively scans for special separators to optimize legibility in grid-based games (Finder, Match, Memory) and enforce strict rules in spelling games (Constructor).
 
-### `src/services/vocabService.js`
-* **`reload()`**: Fetches the raw `vocab` node from Firebase and maps flat JSON data into structured `front` (target) and `back` (origin) objects.
-* **`remapForLanguage(target, origin)`**: Dynamically re-maps the vocabulary objects when the user changes their target or origin language settings.
+* **Separators Detected**: `/`, `·` (Middle Dot), `・` (Katakana Middle Dot), `･` (Half-width Middle Dot), `,`, `、` (Ideographic Comma), and `。` (Ideographic Full Stop).
+* **Vertical Stacking**: In "Grid" layouts, if any of these separators are detected, the `textService` splits the string and wraps each segment in a `<div>`. This stacks synonyms vertically (e.g., "Word A" above "Word B") instead of squeezing them horizontally, preventing text overflow.
+* **Constructor "Cleaning"**: For the **Constructor** game, these special characters are strictly stripped from the answer pool. If a word is `襟もと·襟元`, the game logic randomly selects *one* variation (e.g., `襟もと`) and ensures the user only builds the semantic characters, ignoring the separator.
+
+### 2. Language-Specific Tokenization
+* **Japanese Morphological Analysis**: The `Sentences` game does not simply split by spaces (which don't exist in Japanese). It uses a custom tokenizer algorithm (`textService.tokenizeJapanese`) that breaks sentences into meaningful morphemes or chunks.
+* **Structure**: The tokenizer returns objects containing the `surface_form` (the actual text to display) and metadata, ensuring the drag-and-drop blocks correspond to grammatically correct sentence parts.
 
 ---
 
-## Critical App Components
+## ⚙️ Global Settings & Customization
 
-### 1. Game Modes (12 Types)
-* **Flashcards**: 3D flip cards with auto-play audio and adjustable text sizing.
-* **Quiz Mode**: Rapid-fire 4-choice definition checks with double-click safety options.
-* **Sentences**: Context-based learning where users reorder scrambled tokens (using smart tokenization) to form correct sentences.
-* **Blanks**: Fill-in-the-blank challenges derived from example sentences.
-* **Match**: Time-pressure grid game pairing visible words and definitions.
-* **Memory**: "Concentration" style game to find hidden matching pairs behind cards.
-* **Finder**: Grid-based challenge to locate the correct target word based on a definition.
-* **Constructor**: Character-by-character word building for spelling mastery.
-* **Writing**: Typing practice with strict spelling validation and visual feedback.
-* **Listening**: Audio-only challenge to identify the correct word without visual cues.
-* **Review**: Rapid True/False verification of word pairs.
-* **Reverse Quiz**: Given a definition, choose the correct word from a list.
+The **Settings Modal** provides granular control over the learning experience. Changes are persisted via `settingsService` and apply immediately across all games.
 
-### 2. Data Management (Firebase)
-* **Vocabulary Data**: Stored as a flat object keyed by ID. The app maps `ja` (Target) and `en` (Origin) dynamically.
-* **Dictionary Data**: Used for the in-app dictionary lookup, stored with keys for search term (`s`), pronunciation (`p`), and definition (`e`).
+| Section | Button/Toggle | Functionality |
+| :--- | :--- | :--- |
+| **Language** | **Target / Origin** | Selects the language to learn (Target) and the user's native language (Origin). Dynamically updates flashcard content and audio sources. |
+| **Audio** | **Auto Play** | Automatically speaks the target word/sentence when a new card loads. |
+| | **Wait for Audio** | In Flashcards, flipping a card is delayed until the audio finishes playing (prevents "spoiling" the answer). |
+| | **Touch-to-Speak** | Enables clicking any text element to hear its pronunciation on demand. |
+| | **Volume Slider** | Global volume control for the TTS engine. |
+| **Visuals** | **Dark Mode** | Toggles the CSS dark theme (Tailwind `dark:` classes). |
+| | **Fonts** | Dropdowns to select specific font families (e.g., Noto Sans JP, serif vs. sans) and font weights. |
+| **Card Display** | **Show Vocab/Sent/Eng** | Toggles visibility of specific fields on Flashcards (e.g., hide the English translation to test yourself). |
+| **Game Specific** | **Double Click** | For Quiz/Blanks: First click selects (and plays audio), second click submits. Prevents accidental mis-clicks. |
+| | **Win Animation** | Toggles the celebratory animation in the Sentence game. |
+| **Dictionary** | **Enable Popup** | Allows Admin users to summon the edit modal. |
 
-### 3. Audio & Text Engine
-* **Smart Masking**: The audio service strips metadata (e.g., "Run (fast)") to read only the core word ("Run").
-* **No-Wrap Policy**: The text service enforces `white-space: nowrap` to ensure maximum legibility for single-line vocabulary in Flashcards and Grids.
+---
 
-### 4. Customization
-* **Theme Engine**: Fully supported Dark Mode toggled via settings or system preference.
-* **Font Control**: Users can adjust font weight and family preference, which triggers a global re-calculation of text fitting.
+## 🧭 Navigation & UI Architecture
+
+### Top Bar Elements
+The unified header persists across all views, providing quick access to essential tools:
+1.  **Home / Logo**: Returns the user to the Main Menu grid.
+2.  **Score Pill**: Displays today's total XP. Clicking it opens the **Weekly Progress Chart**.
+3.  **Edit Button (Admin)**: A context-aware pencil icon (visible only to Admins). It summons the Edit Modal pre-filled with the data of the *currently active* game item.
+4.  **Settings Cog**: Opens the global settings modal.
+5.  **User Profile**: Handles Firebase Authentication (Google Sign-In/Out).
+
+### Navigation Implementation
+The app uses a custom single-page application (SPA) router located in `src/index.js`.
+* **State Management**: It utilizes `history.pushState` to manage URL hashes (e.g., `#/quiz`, `#/match`) without reloading the page.
+* **View Rendering**: A `renderView(viewName)` function orchestrates the transition. It hides all view containers, unmounts the current game instance (stopping audio/timers), and mounts the requested game component.
+* **Back Button Support**: Listens for the `popstate` event to handle browser "Back" button presses naturally.
+
+---
+
+## 🗄️ Firebase Realtime Database
+
+Realtime Data Event Handling
+The app implements "Rapid Data Event Updates" via vocabService subscriptions.
+
+Listeners: The service attaches a .onValue() listener to the Firebase reference.
+
+Reactivity: When data changes on the server (e.g., an Admin fixes a typo), the new snapshot is immediately pushed to the client.
+
+UI Sync: The vocabService publishes this event. Active components (like FlashcardApp) subscribe to these updates and trigger a refresh() method, instantly updating the text on the screen without a page reload.
+
+### Structure
+The backend relies on a flat, JSON-like structure optimized for rapid retrieval and updates.
+
+### 1. `vocab` Node
+An array of objects serving as the master database for all learning content.
+```json
+[
+  {
+    "id": 0,
+    "ja": "洗剤",             // Japanese (Target)
+    "ja_furi": "せんざい",     // Furigana
+    "ja_roma": "senzai",      // Romaji
+    "en": "detergent",        // English (Origin)
+    "en_ex": "Use only...",   // English Example
+    "ko": "세제",             // Korean
+    "zh": "洗衣粉",            // Chinese
+    "category": "Household"   // Filter Category
+    // ...other languages (de, es, fr, etc.)
+  },
+  ...
+]
+
+### 2. `dictionary` Node
+```json
+[
+  {
+    "id": 1,
+    "s": "个",       // Simplified Chinese
+    "t": "个",       // Traditional Chinese
+    "p": "gè",       // Pinyin
+    "e": "piece...", // English Definition
+    "k": "낱 개"      // Korean Definition
+  },
+  ...
+]
+
+### 3. `users` Node
+```json
+{
+  "USER_UID_123": {
+    "stats": {
+      "2023-10-27": {
+        "quiz": 50,       // Points earned in Quiz
+        "flashcard": 10   // Points earned in Flashcards
+      }
+    },
+    "achievements": { ... }
+  }
+}

@@ -71,10 +71,12 @@ export class FinderApp {
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id)); // FIX: Added parseInt
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -187,21 +189,21 @@ export class FinderApp {
         this.container.querySelector('#find-prev-btn').addEventListener('click', () => this.prev());
         this.container.querySelector('#find-next-btn').addEventListener('click', () => this.next());
         
-        // Category Handlers
         this.container.querySelectorAll('.category-pill').forEach(btn => {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
+        // Navigation Logic
         const idInput = this.container.querySelector('#find-id-input');
         const goBtn = this.container.querySelector('#find-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
         idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.gotoId(idInput.value); });
+        idInput.addEventListener('click', (e) => e.stopPropagation());
 
         this.container.querySelectorAll('.find-choice').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            // Individual fit text
             this.container.querySelectorAll('.find-text').forEach(el => {
                 textService.fitText(el, 18, 55, false);
             });

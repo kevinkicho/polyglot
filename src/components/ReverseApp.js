@@ -71,10 +71,12 @@ export class ReverseApp {
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id)); // FIX: Added parseInt
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -206,10 +208,12 @@ export class ReverseApp {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
+        // Navigation Logic
         const idInput = this.container.querySelector('#rev-id-input');
         const goBtn = this.container.querySelector('#rev-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
         idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.gotoId(idInput.value); });
+        idInput.addEventListener('click', (e) => e.stopPropagation());
 
         this.container.querySelectorAll('.choice-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
         

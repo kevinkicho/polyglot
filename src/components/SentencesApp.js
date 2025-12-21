@@ -12,38 +12,15 @@ export class SentencesApp {
         this.builtIndices = [];
         this.isProcessing = false;
         this.wordPool = []; 
-        this.categories = [];
-        this.currentCategory = 'All';
     }
 
     mount(elementId) {
         this.container = document.getElementById(elementId);
-        this.updateCategories();
         this.random();
-    }
-
-    updateCategories() {
-        const all = vocabService.getAll();
-        const cats = new Set(all.map(i => i.category || 'Uncategorized'));
-        this.categories = ['All', ...cats];
-    }
-
-    setCategory(cat) {
-        this.currentCategory = cat;
-        this.random();
-    }
-
-    getFilteredList() {
-        const all = vocabService.getAll();
-        if (this.currentCategory === 'All') return all;
-        return all.filter(i => (i.category || 'Uncategorized') === this.currentCategory);
     }
 
     random() {
-        const list = this.getFilteredList();
-        if(list.length === 0) return;
-        const randItem = list[Math.floor(Math.random() * list.length)];
-        this.currentIndex = vocabService.findIndexById(randItem.id);
+        this.currentIndex = vocabService.getRandomIndex();
         this.loadGame();
     }
 
@@ -53,29 +30,25 @@ export class SentencesApp {
             const idx = vocabService.findIndexById(id);
             if (idx !== -1) this.currentIndex = idx;
         } else {
-            const list = this.getFilteredList();
-            const currentItem = vocabService.getAll()[this.currentIndex];
-            let listIdx = list.findIndex(i => i.id === currentItem.id);
-            listIdx = (listIdx + 1) % list.length;
-            this.currentIndex = vocabService.findIndexById(list[listIdx].id);
+            const list = vocabService.getAll();
+            this.currentIndex = (this.currentIndex + 1) % list.length;
         }
         this.loadGame();
     }
 
     prev() {
-        const list = this.getFilteredList();
-        const currentItem = vocabService.getAll()[this.currentIndex];
-        let listIdx = list.findIndex(i => i.id === currentItem.id);
-        listIdx = (listIdx - 1 + list.length) % list.length;
-        this.currentIndex = vocabService.findIndexById(list[listIdx].id);
+        const list = vocabService.getAll();
+        this.currentIndex = (this.currentIndex - 1 + list.length) % list.length;
         this.loadGame();
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id));
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -150,17 +123,6 @@ export class SentencesApp {
         const { item } = this.currentData;
         const originText = item.back.sentenceOrigin || item.back.main || item.back.definition;
 
-        // Pills HTML
-        const pillsHtml = `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar">
-                ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-pink-600 text-white border-pink-600' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
-                        ${cat}
-                    </button>
-                `).join('')}
-            </div>
-        `;
-
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2">
@@ -186,12 +148,12 @@ export class SentencesApp {
             </div>
 
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-4">
-                ${pillsHtml}
                 <div id="sent-question-box" class="bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-pink-200 group">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Arrange</span>
                     <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-1" data-fit="true">${textService.smartWrap(originText)}</h2>
                 </div>
 
-                <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 h-32 p-4 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar">
+                <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 min-h-[5rem] p-4 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar">
                     ${this.builtIndices.map((poolIdx, i) => `
                         <button class="bg-pink-500 text-white rounded-lg px-3 py-2 font-bold shadow-md active:scale-95 whitespace-nowrap text-xl" data-pos="${i}">${this.wordPool[poolIdx].word}</button>
                     `).join('')}
@@ -227,11 +189,6 @@ export class SentencesApp {
         this.container.querySelector('#sent-next-btn').addEventListener('click', () => this.next());
         this.container.querySelector('#sent-random-btn').addEventListener('click', () => this.random());
         
-        // Category Handlers
-        this.container.querySelectorAll('.category-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
-        });
-
         const idInput = this.container.querySelector('#sent-id-input');
         const goBtn = this.container.querySelector('#sent-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));

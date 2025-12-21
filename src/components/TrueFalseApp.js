@@ -72,10 +72,12 @@ export class TrueFalseApp {
     }
 
     gotoId(id) {
-        const idx = vocabService.findIndexById(id);
+        const idx = vocabService.findIndexById(parseInt(id)); // FIX: Added parseInt
         if (idx !== -1) {
             this.currentIndex = idx;
             this.loadGame();
+        } else {
+            alert("ID not found / IDが見つかりません");
         }
     }
 
@@ -238,10 +240,12 @@ export class TrueFalseApp {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
+        // Navigation Logic
         const idInput = this.container.querySelector('#tf-id-input');
         const goBtn = this.container.querySelector('#tf-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
         idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.gotoId(idInput.value); });
+        idInput.addEventListener('click', (e) => e.stopPropagation());
 
         requestAnimationFrame(() => {
             textService.fitText(this.container.querySelector('.question-text'), 20, 80);

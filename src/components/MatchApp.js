@@ -64,8 +64,9 @@ export class MatchApp {
         if (card.matched) return;
 
         if (settingsService.get().clickAudio !== false && card.text) {
-            const lang = card.type === 'target' ? settingsService.get().targetLang : settingsService.get().originLang;
-            audioService.speak(card.text, lang);
+            if (card.type === 'target') {
+                audioService.speak(card.text, settingsService.get().targetLang);
+            }
         }
 
         if (this.selectedCard && this.selectedCard.idx === idx) {
@@ -167,12 +168,10 @@ export class MatchApp {
                     `).join('')}
                 </div>
             </div>
-            <style>.shake{animation:shake 0.4s cubic-bezier(.36,.07,.19,.97) both}@keyframes shake{10%,90%{transform:translate3d(-1px,0,0)}20%,80%{transform:translate3d(2px,0,0)}30%,50%,70%{transform:translate3d(-4px,0,0)}40%,60%{transform:translate3d(4px,0,0)}}</style>
         `;
         this.container.querySelector('#match-close-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
         this.container.querySelector('#match-random-btn').addEventListener('click', () => this.startNewGame());
         
-        // Category Handlers
         this.container.querySelectorAll('.category-pill').forEach(btn => {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
@@ -181,7 +180,6 @@ export class MatchApp {
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            // Individual fit text
             this.container.querySelectorAll('.card-text').forEach(el => textService.fitText(el, 14, 60, false));
         });
     }

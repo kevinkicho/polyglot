@@ -83,12 +83,11 @@ export class ListeningApp {
 
     loadGame() {
         this.isProcessing = false;
-        const list = vocabService.getAll(); // Choices can come from full list for difficulty
+        const list = vocabService.getAll(); 
         if (!list || !list.length) return;
         
         const target = list[this.currentIndex];
         
-        // Distractors
         const others = list.filter(i => i.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
         const choices = [target, ...others].sort(() => 0.5 - Math.random());
         
@@ -101,9 +100,6 @@ export class ListeningApp {
         if (this.isProcessing) return;
         this.isProcessing = true;
         
-        const chosenItem = this.currentData.choices.find(c => c.id === id);
-        if (chosenItem) audioService.speak(chosenItem.front.main, settingsService.get().targetLang);
-
         const isCorrect = id === this.currentData.target.id;
         if (isCorrect) {
             el.classList.remove('bg-white', 'dark:bg-dark-card');
@@ -148,7 +144,8 @@ export class ListeningApp {
                 <div class="flex items-center gap-2">
                     <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full pl-1 pr-3 py-1 flex items-center shadow-sm">
                         <span class="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full mr-2">ID</span>
-                        <span class="font-bold text-gray-700 dark:text-white text-sm">${target.id}</span>
+                        <input type="number" id="listening-id-input" value="${target.id}" class="w-12 bg-transparent text-sm font-bold text-gray-700 dark:text-white outline-none text-center appearance-none m-0 p-0">
+                        <button id="listening-go-btn" class="ml-1 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center hover:bg-blue-200"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
                     </div>
                     <button class="game-edit-btn bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full w-8 h-8 flex items-center justify-center shadow-sm text-gray-500 hover:text-blue-500 active:scale-95 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
@@ -190,6 +187,17 @@ export class ListeningApp {
         this.bind('#listening-close-btn', 'click', () => window.dispatchEvent(new CustomEvent('router:home')));
         this.bind('#listening-random-btn', 'click', () => this.random());
         
+        // Navigation Logic
+        const idInput = this.container.querySelector('#listening-id-input');
+        if(idInput) {
+            idInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.next(parseInt(e.target.value)); });
+            idInput.addEventListener('click', (e) => e.stopPropagation());
+        }
+        this.bind('#listening-go-btn', 'click', () => {
+            const val = this.container.querySelector('#listening-id-input').value;
+            this.next(parseInt(val));
+        });
+
         this.container.querySelectorAll('.category-pill').forEach(btn => {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
