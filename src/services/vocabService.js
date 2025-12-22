@@ -4,15 +4,14 @@ import { settingsService } from './settingsService';
 class VocabService {
     constructor() {
         this.vocabList = [];
+        this.rawData = []; // NEW: Store raw data here to allow re-mapping later
         this.subscribers = [];
         this.isLoaded = false;
         this.unsubscribe = null;
     }
 
-    // UPDATED: Now returns a Promise that resolves ONLY when data arrives
     init() {
         return new Promise((resolve, reject) => {
-            // If already loaded/subscribed, resolve immediately
             if (this.unsubscribe && this.isLoaded) {
                 resolve();
                 return;
@@ -23,67 +22,89 @@ class VocabService {
             
             this.unsubscribe = onValue(dbRef, (snapshot) => {
                 if (snapshot.exists()) {
-                    this.processData(snapshot);
+                    this.processRawData(snapshot); // Changed to processRawData
                 } else {
                     console.warn("VocabService: No data found.");
+                    this.rawData = [];
                     this.vocabList = [];
                     this.notify();
                 }
                 
-                // Mark as loaded and resolve the promise on the first successful load
                 if (!this.isLoaded) {
                     this.isLoaded = true;
                     resolve(); 
                 }
             }, (error) => {
                 console.error("VocabService Error:", error);
-                // Only reject if it fails on the initial load
                 if (!this.isLoaded) reject(error);
             });
         });
     }
 
-    processData(snapshot) {
+    // 1. Process Snapshot into Raw Data (Don't map to Front/Back yet)
+    processRawData(snapshot) {
         const list = [];
         snapshot.forEach(childSnap => {
             const val = childSnap.val();
             if (val) {
                 val.firebaseKey = childSnap.key; 
+                if(val.id !== undefined) val.id = parseInt(val.id);
                 list.push(val);
             }
         });
+        
+        this.rawData = list.filter(item => item && item.id !== undefined);
+        
+        // 2. Immediately map using current settings
+        const settings = settingsService.get();
+        this.remapLanguages(settings.targetLang, settings.originLang);
+    }
 
-        this.vocabList = list
-            .filter(item => item && item.id !== undefined)
-            .map(item => {
-                const id = parseInt(item.id);
-                
-                let frontObj = item.front || {};
-                if (!frontObj.main) {
-                    const mainText = item.ja || item.zh || item.ko || item.ru || item.fr || item.de || item.es || item.it || item.pt || item.word || "???";
-                    const subText = item.ja_furi || item.furi || item.pinyin || item.roma || "";
-                    frontObj = { main: mainText, sub: subText };
-                }
+    // 3. NEW: The Surgeon! Dynamically builds front/back based on inputs
+    remapLanguages(targetCode, originCode) {
+        console.log(`VocabService: Remapping for Target: ${targetCode} -> Origin: ${originCode}`);
+        
+        this.vocabList = this.rawData.map(item => {
+            // -- LOGIC FOR FRONT (Target Language) --
+            // Dynamically fetch the field matching the code (e.g., item['es'], item['ja'])
+            const targetMain = item[targetCode] || "???";
+            
+            // Handle special sub-text fields (Furigana, Pinyin, etc.)
+            let targetSub = "";
+            if (targetCode === 'ja') targetSub = item.ja_furi || item.ja_roma || "";
+            else if (targetCode === 'zh') targetSub = item.zh_pin || "";
+            else if (targetCode === 'ko') targetSub = item.ko_roma || "";
+            else if (targetCode === 'ru') targetSub = item.ru_tr || "";
+            
+            const frontObj = { 
+                main: targetMain, 
+                sub: targetSub 
+            };
 
-                let backObj = item.back || {};
-                if (!backObj.main) {
-                    const def = item.en || item.meaning || "???";
-                    const sentT = item.ja_ex || item.zh_ex || item.ko_ex || item.de_ex || item.fr_ex || item.es_ex || item.it_ex || "";
-                    const sentO = item.en_ex || "";
-                    backObj = { main: def, definition: def, sentenceTarget: sentT, sentenceOrigin: sentO };
-                } else {
-                        if (!backObj.main) backObj.main = backObj.definition || item.en || "???";
-                }
+            // -- LOGIC FOR BACK (Origin Language) --
+            const originMain = item[originCode] || "???";
+            
+            // Try to find an example sentence for the specific target language
+            const targetSentence = item[`${targetCode}_ex`] || "";
+            
+            // Try to find the origin translation of the example
+            const originSentence = item[`${originCode}_ex`] || "";
 
-                return {
-                    ...item, 
-                    id: id,
-                    front: frontObj,
-                    back: backObj
-                };
-            });
+            const backObj = { 
+                main: originMain, 
+                definition: originMain, 
+                sentenceTarget: targetSentence, 
+                sentenceOrigin: originSentence
+            };
 
-        console.log(`VocabService: Updated ${this.vocabList.length} items.`);
+            return {
+                ...item, 
+                front: frontObj,
+                back: backObj
+            };
+        });
+
+        console.log(`VocabService: Remapped ${this.vocabList.length} items.`);
         this.notify();
     }
 
@@ -102,10 +123,8 @@ class VocabService {
         }
     }
 
-    // Legacy support for manual reload, just calls init
-    async reload() {
-        return this.init();
-    }
+    // Legacy support
+    async reload() { return this.init(); }
 
     hasData() { return this.isLoaded && this.vocabList.length > 0; }
     getAll() { return this.vocabList; }

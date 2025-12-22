@@ -19,6 +19,11 @@ export class SentencesApp {
         this.random();
     }
 
+    // NEW: Allows the app to reload data without changing the question ID
+    refresh() {
+        this.loadGame();
+    }
+
     random() {
         this.currentIndex = vocabService.getRandomIndex();
         this.loadGame();
@@ -196,7 +201,10 @@ export class SentencesApp {
         this.container.querySelectorAll('[data-index]').forEach(btn => btn.addEventListener('click', (e) => this.handlePoolClick(parseInt(e.currentTarget.dataset.index))));
         this.container.querySelectorAll('[data-pos]').forEach(btn => btn.addEventListener('click', (e) => this.handleBuiltClick(parseInt(e.currentTarget.dataset.pos))));
         
-        requestAnimationFrame(() => this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)));
+        // --- THIS is the critical update: passing 'false' at the end ---
+        requestAnimationFrame(() => {
+            this.container.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el, 14, 80, false));
+        });
     }
 }
 export const sentencesApp = new SentencesApp();

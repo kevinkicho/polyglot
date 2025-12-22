@@ -157,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- UPDATED VOCAB EDIT FIELDS ---
     window.renderVocabEditFields = (data) => {
         const container = document.getElementById('edit-vocab-fields');
         const idLabel = document.getElementById('edit-vocab-id');
@@ -170,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const isAdmin = currentUser && currentUser.email === 'kevinkicho@gmail.com';
         
-        // Full list of fields based on user request
         const fields = [
             'ja', 'ja_furi', 'ja_roma', 'ja_ex',
             'en', 'en_ex',
@@ -196,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- UPDATED DICTIONARY EDIT LOGIC ---
     window.populateDictionaryEdit = (text) => {
          const list = document.getElementById('edit-dict-list');
          if(!list) return;
@@ -205,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
          }
          
-         // Remove duplicates before lookup to be efficient
          const uniqueChars = Array.from(new Set(text.split(''))).join('');
          const results = dictionaryService.lookupText(uniqueChars);
          
@@ -218,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
          let html = '';
 
          results.forEach(entry => {
-             // Mapping entry.k based on user JSON
              const koVal = entry.k || ''; 
 
              if (isAdmin) {
@@ -264,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         audioService.speak(text, 'zh-CN');
     };
 
-    // --- SAVE LOGIC UPDATED FOR 'k' field ---
     const saveDictBtn = document.getElementById('btn-save-dict');
     if(saveDictBtn) {
         saveDictBtn.addEventListener('click', async () => {
@@ -278,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const key = row.dataset.fbKey;
                     if(key) {
                         const getVal = (f) => row.querySelector(`[data-field="${f}"]`).value;
-                        // Use 'k' instead of 'ko'
                         updates.push(dictionaryService.saveEntry(key, {
                             s: getVal('s'), t: getVal('t'), p: getVal('p'), e: getVal('e'), k: getVal('k')
                         }));
@@ -354,8 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeTimer = setTimeout(() => { if (currentActiveApp && currentActiveApp.render) currentActiveApp.render(); else document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el)); }, 100);
     });
 
-    // ... (Achievements & Score logic remains the same) ...
-    // Note: Kept short for brevity, assume the standard achievement/score code is here
+    // ... Achievements & Score ...
     const achPopup = document.getElementById('achievement-popup');
     window.addEventListener('achievement:unlocked', (e) => {
         const ach = e.detail; const t = document.getElementById('ach-popup-title'); const d = document.getElementById('ach-popup-desc'); const p = document.getElementById('ach-popup-pts');
@@ -399,23 +391,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let chartDataCache=null, showingWeeklyScore=false;
     scoreService.subscribe((s) => { document.querySelectorAll('.global-score-display').forEach(el=>el.textContent=s); });
     
-    // --- MAIN EDIT MODAL CLICK HANDLER & TEXT COLLECTOR ---
     document.addEventListener('click', (e) => {
         if(e.target.closest('#score-pill')) showScoreChart();
         if(e.target.closest('#home-settings-btn')) openSettings();
         if(e.target.closest('#modal-done-btn')) closeSettings();
         
-        // Handle Edit Button Click
         if (e.target.closest('.game-edit-btn')) {
             let app = currentActiveApp; 
             if (app) {
-                // 1. Resolve Current Vocab Item for Vocab Tab
                 let item = null;
                 if (app.currentData) {
                     item = app.currentData.target || app.currentData.item || (app.currentData.id ? app.currentData : null);
                 }
                 
-                // Fallback for array-based iteration if not structured above
                 if (!item && app.currentIndex !== undefined) {
                     const all = vocabService.getAll();
                     if(all.length > app.currentIndex) item = all[app.currentIndex];
@@ -430,46 +418,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         switchEditTab('vocab');
                         window.renderVocabEditFields(fullData); 
                         
-                        // 2. COLLECT ALL TEXT FOR DICTIONARY TAB
                         let combinedText = "";
-
                         const getText = (v) => {
                             if(!v) return "";
-                            // Extract relevant fields that may contain Chinese
                             return (v.zh||"") + (v.zh_ex||"") + (v.front?.main||"") + (v.back?.main||"") + (v.back?.definition||"");
                         };
 
                         if (app.currentData) {
-                            // Quiz, Listening, Reverse, Finder: Target + Choices
-                            if (app.currentData.target) {
-                                combinedText += getText(app.currentData.target);
-                            }
+                            if (app.currentData.target) combinedText += getText(app.currentData.target);
                             if (app.currentData.choices && Array.isArray(app.currentData.choices)) {
                                 app.currentData.choices.forEach(c => combinedText += getText(c));
                             }
-                            
-                            // TrueFalse: Item + Distractor text
                             if (app.currentData.item) combinedText += getText(app.currentData.item);
                             if (app.currentData.displayMeaning) combinedText += app.currentData.displayMeaning;
-
-                            // Sentences / Blanks: Sentence string
                             if (app.currentData.sentence) combinedText += app.currentData.sentence;
-
-                            // Constructor: Target Word
                             if (app.currentData.targetWord) combinedText += app.currentData.targetWord;
-                            
-                            // Flashcard: Current Data directly
-                            if (!app.currentData.target && !app.currentData.item && app.currentData.id) {
-                                combinedText += getText(app.currentData);
-                            }
+                            if (!app.currentData.target && !app.currentData.item && app.currentData.id) combinedText += getText(app.currentData);
                         }
                         
-                        // Match / Memory: All cards on board
                         if (app.cards && Array.isArray(app.cards)) {
                             app.cards.forEach(c => combinedText += (c.text || ""));
                         }
 
-                        // Writing App (usually just currentData vocab)
                         if (app.constructor.name === 'WritingApp' && app.currentData) {
                              combinedText += getText(app.currentData);
                         }
@@ -481,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    // ... (Score chart logic kept same as previous) ...
+
     if(scoreClose) scoreClose.addEventListener('click', ()=>{ if(scoreModal) { scoreModal.classList.add('opacity-0'); setTimeout(()=>scoreModal.classList.add('hidden'),200); }});
     const scoreTotalToggle = document.getElementById('score-total-toggle');
     if(scoreTotalToggle) scoreTotalToggle.addEventListener('click', ()=>{ showingWeeklyScore=!showingWeeklyScore; updateScoreDisplay(); });
@@ -501,7 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function showScoreChart() {
-        // ... (standard chart logic) ...
         if(!scoreModal) return;
         scoreModal.classList.remove('hidden'); setTimeout(()=>scoreModal.classList.remove('opacity-0'), 10);
         const container = document.getElementById('score-chart-container');
@@ -578,10 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error("Chart Error", e); if(container) container.innerHTML = `<div class="text-red-500 p-4 text-xs">Error</div>`; }
     }
 
-    // ... (Settings Modal Logic remains the same) ...
     const settingsModal = document.getElementById('settings-modal');
     const openSettings = () => { if(settingsModal){ loadSettingsToUI(); settingsModal.classList.remove('hidden'); setTimeout(()=>settingsModal.classList.remove('opacity-0'), 10); }};
     const closeSettings = () => { if(settingsModal){ settingsModal.classList.add('opacity-0'); setTimeout(()=>settingsModal.classList.add('hidden'), 200); }};
+    
     function loadSettingsToUI() {
         const s = settingsService.get();
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
@@ -591,8 +560,25 @@ document.addEventListener('DOMContentLoaded', () => {
         setChk('toggle-vocab', s.showVocab); setChk('toggle-sentence', s.showSentence); setChk('toggle-english', s.showEnglish);
         setChk('toggle-sent-anim', s.sentencesWinAnim !== false);
     }
+    
     function bindSetting(id, key, cb) { const el = document.getElementById(id); if(el) el.addEventListener('change', (e) => { settingsService.set(key, e.target.type==='checkbox'?e.target.checked:e.target.value); if(cb) cb(); }); }
-    bindSetting('target-select', 'targetLang', ()=>flashcardApp.refresh()); bindSetting('origin-select', 'originLang', ()=>flashcardApp.refresh());
+    
+    // UPDATED LANGUAGE HANDLER
+    const onLanguageChange = () => {
+        const s = settingsService.get();
+        vocabService.remapLanguages(s.targetLang, s.originLang);
+        // Instant update if possible
+        if (currentActiveApp && currentActiveApp.refresh) {
+            currentActiveApp.refresh();
+        } else if (currentActiveApp && currentActiveApp.render) {
+            // Fallback for simple apps
+            currentActiveApp.render();
+        }
+    };
+
+    bindSetting('target-select', 'targetLang', onLanguageChange); 
+    bindSetting('origin-select', 'originLang', onLanguageChange);
+
     bindSetting('toggle-dark', 'darkMode', () => document.documentElement.classList.toggle('dark')); bindSetting('volume-slider', 'volume'); bindSetting('font-family-select', 'fontFamily', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); bindSetting('font-weight-select', 'fontWeight', () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el))); bindSetting('toggle-vocab', 'showVocab', ()=>flashcardApp.refresh()); bindSetting('toggle-sentence', 'showSentence', ()=>flashcardApp.refresh()); bindSetting('toggle-english', 'showEnglish', ()=>flashcardApp.refresh()); bindSetting('toggle-sent-anim', 'sentencesWinAnim');
     [{btn:'display-accordion-btn',c:'display-options',a:'accordion-arrow-1'},{btn:'sent-accordion-btn',c:'sent-options',a:'accordion-arrow-sent'},{btn:'fonts-accordion-btn',c:'fonts-options',a:'accordion-arrow-fonts'}].forEach(o=>{ const b=document.getElementById(o.btn), c=document.getElementById(o.c), a=document.getElementById(o.a); if(b) b.addEventListener('click', ()=>{ c.classList.toggle('open'); a.classList.toggle('rotate'); }); });
 

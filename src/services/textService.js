@@ -16,13 +16,28 @@ class TextService {
 
         const originalSize = el.style.fontSize;
         
+        // Reset styles for measurement
         el.style.fontSize = `${min}px`;
         el.style.lineHeight = '1.1';
         el.style.display = 'inline-block';
         el.style.width = '100%';
         
-        el.style.whiteSpace = enforceNoWrap ? 'nowrap' : 'normal'; 
-        el.style.wordBreak = enforceNoWrap ? 'keep-all' : 'break-word';
+        // --- APPLY WRAPPING RULES ---
+        if (enforceNoWrap) {
+            // STRICT MODE: Force single lines (Shrink to fit)
+            // This ensures "LongWordPart1" inside a stack shrinks instead of wrapping.
+            el.style.whiteSpace = 'nowrap';
+            el.style.wordBreak = 'keep-all';
+            el.style.overflowWrap = 'normal';
+            el.style.wordWrap = 'normal';
+        } else {
+            // POLITE MODE: Allow polite wrapping
+            // This allows sentences to wrap at spaces naturally.
+            el.style.whiteSpace = 'normal';
+            el.style.wordBreak = 'normal'; 
+            el.style.overflowWrap = 'normal'; 
+            el.style.wordWrap = 'normal';
+        }
 
         let best = min;
         let low = min;
@@ -32,6 +47,7 @@ class TextService {
         while (low <= high && iterations < 15) {
             const mid = Math.floor((low + high) / 2);
             el.style.fontSize = `${mid}px`;
+            
             if (el.scrollWidth <= parentW && el.scrollHeight <= parentH) {
                 best = mid;
                 low = mid + 1;
@@ -47,33 +63,74 @@ class TextService {
 
     fitText(el, min = 10, max = 150, enforceNoWrap = true) {
         if (!el || !el.style) return;
-        const size = this._calculateBestFit(el, min, max, enforceNoWrap);
+        
+        // --- SMART DETECTION ---
+        // If the element contains divs, it was created by smartWrap (it's a stack).
+        // In that case, we MUST force 'nowrap' behavior so the text inside each stack item
+        // shrinks to fit the width, rather than wrapping to a new line.
+        const isSmartStack = el.querySelector('div') !== null;
+        
+        // If it's a stack, ignore the argument and Force No Wrap.
+        const effectiveNoWrap = isSmartStack ? true : enforceNoWrap;
+
+        const size = this._calculateBestFit(el, min, max, effectiveNoWrap);
         el.style.fontSize = `${size}px`;
         el.style.lineHeight = '1.1';
-        el.style.whiteSpace = enforceNoWrap ? 'nowrap' : 'normal';
-        el.style.wordBreak = enforceNoWrap ? 'keep-all' : 'break-word';
+        
+        // Apply the determined rules
+        if (effectiveNoWrap) {
+            el.style.whiteSpace = 'nowrap';
+            el.style.wordBreak = 'keep-all';
+            el.style.overflowWrap = 'normal';
+            el.style.wordWrap = 'normal';
+        } else {
+            el.style.whiteSpace = 'normal';
+            el.style.wordBreak = 'normal';
+            el.style.overflowWrap = 'normal';
+            el.style.wordWrap = 'normal';
+        }
     }
 
     fitGroup(elements, min = 10, max = 48, enforceNoWrap = true) {
         if (!elements || elements.length === 0) return;
         let minSizeFound = max;
+        
+        // 1. Calculate best fit for everyone
         elements.forEach(el => {
             if(el && el.style) { 
-                const bestForEl = this._calculateBestFit(el, min, max, enforceNoWrap);
+                // Check individually if this element is a stack
+                const isSmartStack = el.querySelector('div') !== null;
+                const effectiveNoWrap = isSmartStack ? true : enforceNoWrap;
+                
+                const bestForEl = this._calculateBestFit(el, min, max, effectiveNoWrap);
                 if (bestForEl < minSizeFound) minSizeFound = bestForEl;
             }
         });
+
+        // 2. Apply min size and correct wrapping rules to everyone
         elements.forEach(el => {
             if(el && el.style) { 
                 el.style.fontSize = `${minSizeFound}px`;
                 el.style.lineHeight = '1.1';
-                el.style.whiteSpace = enforceNoWrap ? 'nowrap' : 'normal';
-                el.style.wordBreak = enforceNoWrap ? 'keep-all' : 'break-word';
+                
+                const isSmartStack = el.querySelector('div') !== null;
+                const effectiveNoWrap = isSmartStack ? true : enforceNoWrap;
+
+                if (effectiveNoWrap) {
+                    el.style.whiteSpace = 'nowrap';
+                    el.style.wordBreak = 'keep-all';
+                    el.style.overflowWrap = 'normal';
+                    el.style.wordWrap = 'normal';
+                } else {
+                    el.style.whiteSpace = 'normal';
+                    el.style.wordBreak = 'normal';
+                    el.style.overflowWrap = 'normal';
+                    el.style.wordWrap = 'normal';
+                }
             }
         });
     }
 
-    // --- JAPANESE TOKENIZER (Restored as requested) ---
     tokenizeJapanese(text, vocab = '', applyPostProcessing = true) {
         if (typeof Intl === 'undefined' || !Intl.Segmenter) {
             return text.split('').filter(s => s.trim().length > 0);
@@ -95,7 +152,7 @@ class TextService {
         const isAllKanji = /^[\u4e00-\u9faf]+$/;
         const startsHiragana = /^[\u3040-\u309f]/;
         const specialWords = ['とても', 'たくさんの'];
-        const suffixes = ['さん', 'ちゃん', 'くん', 'さま', 'たち', '屋', 'さ', 'み', 'さく', 'い', 'げ', 'らしい', 'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'ですか', 'ですか', 'ですか', 'でした', 'だ', 'だろう', 'ろう', 'ます', 'ました', 'ませ', 'ません', 'ない', 'たい', 'て', 'いる', 'ある', 'れる', 'られる', 'でき', 'できな', 'できない', 'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので', 'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'];
+        const suffixes = ['さん', 'ちゃん', 'くん', 'さま', 'たち', '屋', 'さ', 'み', 'さく', 'い', 'げ', 'らしい', 'る', 'える', 'する', 'した', 'します', 'しました', 'です', 'てすか', 'ですか', 'ですか', 'ですか', 'ですか', 'ですか', 'でした', 'だ', 'だろう', 'ろう', 'ます', 'ました', 'ませ', 'ません', 'ない', 'たい', 'て', 'いる', 'ある', 'れる', 'られる', 'でき', 'できな', 'できない', 'の', 'には', 'では', 'がら', 'から', 'より', 'にして', 'どころ', 'ですが', 'けど', 'けれど', 'のに', 'ので', 'か', 'よ', 'ね', 'わ', 'ぜ', 'な', 'へ', 'に', 'が', 'で'];
 
         let processed = [...chunks];
         let changed = true;
@@ -127,24 +184,19 @@ class TextService {
         return processed;
     }
 
-    /**
-     * Replaces common separators with line breaks to ensure single-column text.
-     * UPDATED: Now handles separators for vertical stacking including special chars
-     */
     smartWrap(text) {
         if (!text) return "";
-        
-        // 1. Check for separators: / (slash), · (\u00B7), ・ (\u30FB), ･ (\uFF65), , (comma), 、 (\u3001), 。 (\u3002)
         const separatorRegex = /[\/·・･,、。]+/;
 
         if (separatorRegex.test(text)) {
+            // These DIVs create the structure.
+            // FitText will see them and force 'nowrap' on the content, ensuring proper stacking + shrinking.
             return text.split(separatorRegex)
                 .filter(part => part.trim().length > 0)
-                .map(part => `<div class="w-full whitespace-normal leading-tight my-1">${part.trim()}</div>`)
+                .map(part => `<div class="w-full my-1">${part.trim()}</div>`)
                 .join('');
         }
 
-        // 2. If it contains Japanese/Chinese characters, allow flexible wrapping for grid fitting
         if (/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(text)) {
             return text.split('').map(char => 
                 `<span class="inline-block">${char}</span>`
