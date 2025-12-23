@@ -64,6 +64,11 @@ export class GravityApp {
     }
 
     startGame() {
+        // --- FIX START: Clear the start screen overlay ---
+        const gameArea = this.container.querySelector('#grav-game-area');
+        if (gameArea) gameArea.innerHTML = '';
+        // --- FIX END ---
+
         this.isActive = true;
         this.score = 0;
         this.lives = 3;
@@ -304,4 +309,5 @@ export class GravityApp {
         });
     }
 }
+
 export const gravityApp = new GravityApp();
