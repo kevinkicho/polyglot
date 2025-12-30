@@ -1,143 +1,111 @@
-import { db, ref, onValue, update } from './firebase'; 
-import { settingsService } from './settingsService';
+import { db, ref, onValue } from './firebase';
 
 class VocabService {
     constructor() {
         this.vocabList = [];
-        this.rawData = []; // NEW: Store raw data here to allow re-mapping later
+        this.originalData = [];
         this.subscribers = [];
         this.isLoaded = false;
-        this.unsubscribe = null;
     }
 
     init() {
-        return new Promise((resolve, reject) => {
-            if (this.unsubscribe && this.isLoaded) {
-                resolve();
-                return;
-            }
-
-            console.log("VocabService: Subscribing to realtime updates...");
-            const dbRef = ref(db, 'vocab');
-            
-            this.unsubscribe = onValue(dbRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    this.processRawData(snapshot); // Changed to processRawData
-                } else {
-                    console.warn("VocabService: No data found.");
-                    this.rawData = [];
-                    this.vocabList = [];
-                    this.notify();
-                }
+        if (this.isLoaded) return;
+        const vocabRef = ref(db, 'vocabulary');
+        onValue(vocabRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert object to array if needed and filter out empty entries
+                this.originalData = Array.isArray(data) ? data.filter(i=>i) : Object.values(data).filter(i=>i);
                 
-                if (!this.isLoaded) {
-                    this.isLoaded = true;
-                    resolve(); 
-                }
-            }, (error) => {
-                console.error("VocabService Error:", error);
-                if (!this.isLoaded) reject(error);
-            });
-        });
-    }
-
-    // 1. Process Snapshot into Raw Data (Don't map to Front/Back yet)
-    processRawData(snapshot) {
-        const list = [];
-        snapshot.forEach(childSnap => {
-            const val = childSnap.val();
-            if (val) {
-                val.firebaseKey = childSnap.key; 
-                if(val.id !== undefined) val.id = parseInt(val.id);
-                list.push(val);
+                // Initial map based on saved settings or defaults
+                const saved = localStorage.getItem('polyglot_settings');
+                const s = saved ? JSON.parse(saved) : { targetLang: 'ja', originLang: 'en' };
+                this.remapLanguages(s.targetLang, s.originLang);
+                
+                this.isLoaded = true;
             }
         });
-        
-        this.rawData = list.filter(item => item && item.id !== undefined);
-        
-        // 2. Immediately map using current settings
-        const settings = settingsService.get();
-        this.remapLanguages(settings.targetLang, settings.originLang);
     }
 
-    // 3. NEW: The Surgeon! Dynamically builds front/back based on inputs
-    remapLanguages(targetCode, originCode) {
-        console.log(`VocabService: Remapping for Target: ${targetCode} -> Origin: ${originCode}`);
-        
-        this.vocabList = this.rawData.map(item => {
-            // -- LOGIC FOR FRONT (Target Language) --
-            // Dynamically fetch the field matching the code (e.g., item['es'], item['ja'])
-            const targetMain = item[targetCode] || "???";
+    remapLanguages(targetLang, originLang) {
+        if (!this.originalData.length) return;
+
+        this.vocabList = this.originalData.map(item => {
+            // Get Target Data
+            let frontMain = item.word || "";
+            let frontSub = item.reading || ""; // Default for JA/ZH
+
+            // Language specific mapping for "Front" (Question/Target)
+            if (targetLang === 'en') { frontMain = item.english; frontSub = ""; }
+            else if (targetLang === 'ko') { frontMain = item.korean; frontSub = ""; }
+            else if (targetLang === 'zh') { frontMain = item.chinese; frontSub = item.pinyin || ""; }
+            else if (targetLang === 'ja') { frontMain = item.word; frontSub = item.reading || ""; }
+            else if (targetLang === 'ru') { frontMain = item.russian; frontSub = ""; }
+            else if (targetLang === 'fr') { frontMain = item.french; frontSub = ""; }
+            else if (targetLang === 'it') { frontMain = item.italian; frontSub = ""; }
+            else if (targetLang === 'es') { frontMain = item.spanish; frontSub = ""; }
+            else if (targetLang === 'pt') { frontMain = item.portuguese; frontSub = ""; }
+            else if (targetLang === 'de') { frontMain = item.german; frontSub = ""; }
+
+            // Get Origin Data (Definition/Back)
+            let backMain = "";
+            let backDef = "";
             
-            // Handle special sub-text fields (Furigana, Pinyin, etc.)
-            let targetSub = "";
-            if (targetCode === 'ja') targetSub = item.ja_furi || item.ja_roma || "";
-            else if (targetCode === 'zh') targetSub = item.zh_pin || "";
-            else if (targetCode === 'ko') targetSub = item.ko_roma || "";
-            else if (targetCode === 'ru') targetSub = item.ru_tr || "";
-            
-            const frontObj = { 
-                main: targetMain, 
-                sub: targetSub 
+            // Helper to pick field based on lang code
+            const getField = (l) => {
+                if(l==='en') return item.english;
+                if(l==='ja') return item.word;
+                if(l==='ko') return item.korean;
+                if(l==='zh') return item.chinese;
+                if(l==='ru') return item.russian;
+                if(l==='fr') return item.french;
+                if(l==='it') return item.italian;
+                if(l==='es') return item.spanish;
+                if(l==='pt') return item.portuguese;
+                if(l==='de') return item.german;
+                return item.english;
             };
 
-            // -- LOGIC FOR BACK (Origin Language) --
-            const originMain = item[originCode] || "???";
-            
-            // Try to find an example sentence for the specific target language
-            const targetSentence = item[`${targetCode}_ex`] || "";
-            
-            // Try to find the origin translation of the example
-            const originSentence = item[`${originCode}_ex`] || "";
+            backDef = getField(originLang);
+            backMain = backDef; // Usually same for simple cards
 
-            const backObj = { 
-                main: originMain, 
-                definition: originMain, 
-                sentenceTarget: targetSentence, 
-                sentenceOrigin: originSentence
-            };
+            // Sentences (if available)
+            const sentenceTarget = item[`sentence_${targetLang}`] || "";
+            const sentenceOrigin = item[`sentence_${originLang}`] || "";
 
             return {
-                ...item, 
-                front: frontObj,
-                back: backObj
+                id: item.id,
+                category: item.category,
+                front: { main: frontMain, sub: frontSub },
+                back: { main: backMain, definition: backDef, sentenceTarget, sentenceOrigin },
+                original: item
             };
         });
-
-        console.log(`VocabService: Remapped ${this.vocabList.length} items.`);
+        
+        // FIX: Notify subscribers (like QuizApp) so they refresh immediately
         this.notify();
     }
 
-    async saveItem(firebaseKey, data) {
-        if (!firebaseKey) return;
-        try {
-            const updates = {};
-            Object.keys(data).forEach(field => {
-                updates[`vocab/${firebaseKey}/${field}`] = data[field];
-            });
-            await update(ref(db), updates);
-            console.log(`VocabService: Saved item ${firebaseKey}`);
-        } catch (e) {
-            console.error("VocabService: Save Failed", e);
-            throw e;
-        }
+    getAll() {
+        return this.vocabList;
     }
 
-    // Legacy support
-    async reload() { return this.init(); }
-
-    hasData() { return this.isLoaded && this.vocabList.length > 0; }
-    getAll() { return this.vocabList; }
-    findIndexById(id) { return this.vocabList.findIndex(item => item.id === id); }
     getRandomIndex() {
-        if (this.vocabList.length === 0) return 0;
         return Math.floor(Math.random() * this.vocabList.length);
     }
-    subscribe(callback) { 
-        this.subscribers.push(callback); 
-        if(this.isLoaded) callback(this.vocabList);
+    
+    findIndexById(id) {
+        return this.vocabList.findIndex(i => i.id === id);
     }
-    notify() { this.subscribers.forEach(cb => cb(this.vocabList)); }
+
+    subscribe(callback) {
+        this.subscribers.push(callback);
+        if (this.isLoaded) callback(this.vocabList);
+    }
+
+    notify() {
+        this.subscribers.forEach(cb => cb(this.vocabList));
+    }
 }
 
 export const vocabService = new VocabService();

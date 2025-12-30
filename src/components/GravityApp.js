@@ -14,7 +14,7 @@ export class GravityApp {
         this.fallSpeed = 1;
         this.lastSpawnTime = 0;
         this.asteroids = []; 
-        this.activeTargets = []; // Now holds 3 targets: [{item, meaning, slotIdx}, ...]
+        this.activeTargets = []; 
         this.animationFrameId = null;
         this.categories = [];
         this.currentCategory = 'All';
@@ -75,7 +75,7 @@ export class GravityApp {
         this.isActive = true;
         this.score = 0;
         this.lives = 3;
-        this.spawnRate = 2200; // Slightly slower start since managing 3 targets
+        this.spawnRate = 2200; 
         this.fallSpeed = 0.6; 
         this.asteroids = [];
         this.activeTargets = [];
@@ -83,7 +83,6 @@ export class GravityApp {
         
         this.updateStats();
         
-        // Fill all 3 slots
         this.fillTargetSlot(0);
         this.fillTargetSlot(1);
         this.fillTargetSlot(2);
@@ -130,7 +129,6 @@ export class GravityApp {
         const list = this.getFilteredList();
         if (list.length === 0) return;
         
-        // Ensure we don't pick a duplicate of what's already on screen
         let newItem;
         let attempts = 0;
         do {
@@ -140,7 +138,6 @@ export class GravityApp {
 
         const meaning = newItem.back.main || newItem.back.definition;
         
-        // Update data
         const existingIdx = this.activeTargets.findIndex(t => t.slotIdx === slotIdx);
         if (existingIdx !== -1) {
             this.activeTargets[existingIdx] = { item: newItem, meaning, slotIdx };
@@ -148,7 +145,6 @@ export class GravityApp {
             this.activeTargets.push({ item: newItem, meaning, slotIdx });
         }
 
-        // Update UI
         this.updateTargetDisplay(slotIdx);
     }
 
@@ -157,11 +153,9 @@ export class GravityApp {
         if (list.length === 0) return;
 
         let item;
-        // 50% chance to spawn a word matching ONE of the 3 active targets
-        // 50% chance to spawn a distractor
+        // 50% chance to spawn a target
         if (Math.random() < 0.5 && this.activeTargets.length > 0) {
             const target = this.activeTargets[Math.floor(Math.random() * this.activeTargets.length)];
-            // Don't spawn if this specific word is already falling
             if (this.asteroids.some(a => a.item.id === target.item.id)) {
                 item = list[Math.floor(Math.random() * list.length)];
             } else {
@@ -201,18 +195,14 @@ export class GravityApp {
     handleAsteroidClick(id, el) {
         if (!this.isActive) return;
 
-        // Check against ALL active targets
         const matchedTarget = this.activeTargets.find(t => t.item.id === id);
 
         if (matchedTarget) {
-            // Correct!
             this.score += 10;
             scoreService.addScore('gravity', 10);
             
-            // Visual feedback
             el.classList.add('scale-150', 'opacity-0', 'bg-green-500', 'border-green-300');
             
-            // Flash the corresponding target box
             const targetBox = document.getElementById(`grav-target-box-${matchedTarget.slotIdx}`);
             if(targetBox) {
                 targetBox.classList.add('bg-green-100', 'dark:bg-green-900');
@@ -233,19 +223,14 @@ export class GravityApp {
                 return;
             }
 
-            // Increase Difficulty
             if (this.score % 50 === 0) {
                 this.fallSpeed += 0.1;
                 this.spawnRate = Math.max(800, this.spawnRate - 100);
             }
 
             this.updateStats();
-            
-            // Replace ONLY the matched target
             this.fillTargetSlot(matchedTarget.slotIdx);
-
         } else {
-            // Wrong!
             el.classList.add('bg-red-500', 'border-red-400', 'shake');
             this.lives--;
             this.updateStats();
@@ -257,6 +242,35 @@ export class GravityApp {
                 }, 200);
             }
         }
+    }
+
+    // --- NEW: Visual laser effect to destroy distractors ---
+    shootTurretLaser(targetX, targetY) {
+        const gameArea = this.container.querySelector('#grav-game-area');
+        const startX = gameArea.clientWidth / 2;
+        const startY = gameArea.clientHeight;
+        
+        // Calculate angle
+        const deltaX = targetX - startX;
+        const deltaY = targetY - startY;
+        const length = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+        const laser = document.createElement('div');
+        laser.className = 'absolute bg-cyan-400 shadow-[0_0_10px_cyan] origin-left z-10 opacity-80';
+        laser.style.height = '4px';
+        laser.style.width = `${length}px`;
+        laser.style.left = `${startX}px`;
+        laser.style.top = `${startY}px`;
+        laser.style.transform = `rotate(${angle}deg)`;
+        
+        gameArea.appendChild(laser);
+
+        // Animate laser disappearing
+        setTimeout(() => {
+            laser.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+            setTimeout(() => laser.remove(), 200);
+        }, 100);
     }
 
     gameLoop(timestamp) {
@@ -275,20 +289,32 @@ export class GravityApp {
             ast.el.style.transform = `translateY(${ast.y}px)`;
 
             if (ast.y > floorY - 80) {
-                // Check if the falling word matches ANY active target
+                // Determine if this is a target or trash
                 const missedTarget = this.activeTargets.find(t => t.item.id === ast.item.id);
 
                 if (missedTarget) {
+                    // It was a target! User missed it.
                     this.lives--;
                     this.updateStats();
                     if (this.lives <= 0) this.gameOver();
                     
-                    // Visual Red Flash
+                    // Bad thing happened: Red Flash
                     gameArea.classList.add('bg-red-100', 'dark:bg-red-900/30');
                     setTimeout(() => gameArea.classList.remove('bg-red-100', 'dark:bg-red-900/30'), 200);
                     
-                    // Replace the target we missed
                     this.fillTargetSlot(missedTarget.slotIdx);
+                } else {
+                    // It was trash (distractor)! System defense triggered.
+                    // Visual: Laser shoots it
+                    this.shootTurretLaser(ast.x + 48, ast.y + 48); // Center of asteroid (96/2)
+                    
+                    // Create explosion at asteroid location
+                    const boom = document.createElement('div');
+                    boom.className = 'absolute w-24 h-24 bg-cyan-500 rounded-full opacity-50 animate-ping';
+                    boom.style.left = ast.el.style.left;
+                    boom.style.top = ast.el.style.top;
+                    gameArea.appendChild(boom);
+                    setTimeout(()=>boom.remove(), 300);
                 }
                 
                 ast.el.remove();
@@ -311,7 +337,7 @@ export class GravityApp {
         const el = document.getElementById(`grav-target-text-${slotIdx}`);
         if (el && target) {
             el.textContent = target.meaning;
-            textService.fitText(el, 14, 20); // Smaller font for 3-up view
+            textService.fitText(el, 14, 20); 
         }
     }
 
@@ -326,7 +352,6 @@ export class GravityApp {
             </div>
         `;
 
-        // 3-Column Footer Layout
         const footerHtml = `
             <div class="h-40 w-full bg-white dark:bg-dark-card border-t-4 border-indigo-500 z-30 p-2 flex gap-2 shadow-2xl relative">
                 <div class="absolute -top-6 left-0 right-0 flex justify-center"><span class="bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-md">Active Targets</span></div>

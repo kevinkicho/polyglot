@@ -154,30 +154,28 @@ export class SpeechApp {
 
     checkAnswer(transcript) {
         const target = this.currentData.front.main;
-        
-        // Normalize strings (remove punctuation, lowercase)
         const normalize = (str) => str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()。、？！]/g,"").replace(/\s{2,}/g," ");
-        
         const cleanTranscript = normalize(transcript);
         const cleanTarget = normalize(target);
-
-        // Simple fuzzy check: exact match OR target contains transcript (if long enough)
         const isCorrect = cleanTranscript === cleanTarget || (cleanTarget.length > 5 && cleanTarget.includes(cleanTranscript));
 
-        this.render(); // Re-render to show transcript
+        this.render(); 
 
         if (isCorrect) {
-            scoreService.addScore('speech', 20); // Higher points for speaking!
+            scoreService.addScore('speech', 20);
             const box = this.container.querySelector('#speech-status-box');
-            box.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
-            box.classList.remove('bg-gray-100', 'dark:bg-gray-800');
-            
-            // Auto advance
+            if(box) {
+                box.classList.remove('opacity-0', 'bg-gray-100', 'dark:bg-gray-800');
+                box.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+            }
             setTimeout(() => this.next(), 1500);
         } else {
             const box = this.container.querySelector('#speech-status-box');
-            box.classList.add('bg-red-100', 'border-red-500', 'text-red-700', 'shake');
-            setTimeout(() => box.classList.remove('shake'), 500);
+            if(box) {
+                box.classList.remove('opacity-0');
+                box.classList.add('bg-red-100', 'border-red-500', 'text-red-700', 'shake');
+                setTimeout(() => box.classList.remove('shake'), 500);
+            }
         }
     }
 
@@ -199,6 +197,12 @@ export class SpeechApp {
 
     playHint() {
         audioService.speak(this.currentData.front.main, settingsService.get().targetLang);
+        // Visual feedback for click
+        const box = this.container.querySelector('#speech-q-box');
+        if(box) {
+            box.classList.add('scale-95', 'ring-4', 'ring-indigo-200');
+            setTimeout(() => box.classList.remove('scale-95', 'ring-4', 'ring-indigo-200'), 150);
+        }
     }
 
     render() {
@@ -248,14 +252,10 @@ export class SpeechApp {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-6 items-center">
                 ${pillsHtml}
                 
-                <div id="speech-q-box" class="w-full bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border flex flex-col items-center justify-center gap-2" onclick="window.speechApp.playHint()">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Say this</span>
+                <div id="speech-q-box" class="w-full bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm text-center border-2 border-indigo-100 hover:border-indigo-300 dark:border-dark-border cursor-pointer transition-all active:scale-95 flex flex-col items-center justify-center gap-2 select-none">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tap to Listen</span>
                     <h2 class="text-4xl font-black text-gray-800 dark:text-white leading-tight" data-fit="true">${textService.smartWrap(item.front.main)}</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">${meaning}</p>
-                    <button class="mt-2 text-indigo-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
-                        Listen
-                    </button>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">${meaning}</p>
                 </div>
 
                 <div class="relative w-full flex-1 flex flex-col items-center justify-center">
@@ -267,7 +267,7 @@ export class SpeechApp {
                     <p class="mt-6 text-gray-400 font-bold uppercase tracking-widest text-sm">${this.isListening ? 'Listening...' : 'Tap to Speak'}</p>
                 </div>
 
-                <div id="speech-status-box" class="w-full min-h-[4rem] bg-gray-100 dark:bg-gray-800 rounded-2xl border-2 border-transparent p-4 text-center transition-all">
+                <div id="speech-status-box" class="w-full min-h-[4rem] bg-gray-100 dark:bg-gray-800 rounded-2xl border-2 border-transparent p-4 text-center transition-all ${this.lastTranscript ? '' : 'opacity-0'}">
                     <p class="text-sm font-bold text-gray-500 dark:text-gray-400">You said:</p>
                     <p class="text-xl font-black italic mt-1 dark:text-white">"${this.lastTranscript || '...'}"</p>
                 </div>
@@ -285,7 +285,6 @@ export class SpeechApp {
             </div>
         `;
 
-        // Expose instance for the inline onclick handler
         window.speechApp = this;
 
         this.container.querySelector('#speech-close-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
@@ -294,12 +293,12 @@ export class SpeechApp {
         this.container.querySelector('#speech-next-btn').addEventListener('click', () => this.next());
         
         this.container.querySelector('#mic-btn').addEventListener('click', () => this.toggleMic());
+        this.container.querySelector('#speech-q-box').addEventListener('click', () => this.playHint());
 
         this.container.querySelectorAll('.category-pill').forEach(btn => {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
-        // Navigation Logic
         const idInput = this.container.querySelector('#speech-id-input');
         const goBtn = this.container.querySelector('#speech-go-btn');
         goBtn.addEventListener('click', () => this.gotoId(idInput.value));
