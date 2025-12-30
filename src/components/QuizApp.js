@@ -23,7 +23,6 @@ export class QuizApp {
         else this.render(); 
     }
 
-    // ... (refresh, updateCategories, setCategory, getFilteredList, bind all unchanged) ...
     refresh() {
         if (this.currentData && this.currentData.target) {
             this.currentData = quizService.generateQuestion(this.currentData.target.id);
@@ -171,7 +170,7 @@ export class QuizApp {
         const { target, choices } = this.currentData;
         
         const pillsHtml = `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar">
+            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar shrink-0">
                 ${this.categories.map(cat => `
                     <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
                         ${cat}
@@ -205,16 +204,18 @@ export class QuizApp {
                 </div>
             </div>
             
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto flex flex-col gap-2">
+            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto flex flex-col gap-4">
                 ${pillsHtml}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                    <div id="quiz-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col items-center justify-center overflow-hidden">
+                
+                <div class="flex-1 flex flex-col gap-4 min-h-0">
+                    
+                    <div id="quiz-question-box" class="h-[35%] min-h-[150px] shrink-0 w-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col items-center justify-center overflow-hidden">
                         <span class="quiz-question-text font-black text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${textService.smartWrap(target.front.main)}</span>
                     </div>
                     
-                    <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-3">
+                    <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
                         ${choices.map(c => `
-                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 overflow-hidden h-full" data-id="${c.id}">
+                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 overflow-hidden w-full h-full" data-id="${c.id}">
                                 <div class="quiz-choice-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight w-full">${textService.smartWrap(c.back.definition)}</div>
                             </button>
                         `).join('')}
@@ -222,8 +223,8 @@ export class QuizApp {
                 </div>
             </div>
             
-            <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg">
-                <div class="max-w-md mx-auto flex gap-4">
+            <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg pointer-events-none">
+                <div class="max-w-md mx-auto flex gap-4 pointer-events-auto">
                     <button id="quiz-prev-btn" class="flex-1 h-16 bg-white border border-gray-200 rounded-3xl shadow-sm flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </button>
@@ -234,7 +235,7 @@ export class QuizApp {
             </div>
         `;
 
-        // ... (Bind methods same as before) ...
+        // ... [Binds remain identical] ...
         this.bind('#quiz-next-btn', 'click', () => this.next());
         this.bind('#quiz-prev-btn', 'click', () => this.prev());
         this.bind('#quiz-random-btn', 'click', () => this.random());
@@ -260,10 +261,10 @@ export class QuizApp {
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            // FIX: Reduced Max Font Size to 80 (was 130) to prevent aggressive start
-            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 80);
+            // fitText inside fixed 35% height container
+            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 90);
             this.container.querySelectorAll('.quiz-choice-text').forEach(el => {
-                textService.fitText(el, 18, 55); 
+                textService.fitText(el, 14, 55); 
             });
         });
 
