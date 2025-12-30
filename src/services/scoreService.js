@@ -1,5 +1,6 @@
 import { db, auth, ref, update, increment, onValue, get } from './firebase';
 import { achievementService } from './achievementService';
+import { comboManager } from '../managers/ComboManager'; // Ensure this import exists
 
 class ScoreService {
     constructor() {
@@ -42,10 +43,7 @@ class ScoreService {
             const data = snapshot.val();
             if (data) {
                 const games = ['flashcard', 'quiz', 'sentences', 'blanks', 'listening', 'match', 'memory', 'finder', 'constructor', 'writing', 'truefalse', 'reverse', 'speech', 'decoder', 'gravity'];
-                
-                // CRITICAL FIX: Ensure we only add numbers and ignore object properties like .constructor
                 this.todayScore = games.reduce((sum, g) => {
-                    // Check if the property exists on the data object specifically (not prototype) AND is a number
                     if (Object.prototype.hasOwnProperty.call(data, g) && typeof data[g] === 'number') {
                         return sum + data[g];
                     }
@@ -94,6 +92,9 @@ class ScoreService {
         if (!this.userId) return;
         const dateStr = this.getDateStr();
         
+        // CRITICAL: This line triggers the visual combo
+        if (points > 0) comboManager.increment();
+
         const updates = {};
         updates[`users/${this.userId}/stats/${dateStr}/${gameType}`] = increment(points);
         updates[`users/${this.userId}/stats/total/${gameType}`] = increment(points);

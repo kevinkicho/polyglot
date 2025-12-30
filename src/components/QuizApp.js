@@ -4,6 +4,7 @@ import { audioService } from '../services/audioService';
 import { settingsService } from '../services/settingsService';
 import { vocabService } from '../services/vocabService';
 import { scoreService } from '../services/scoreService';
+import { comboManager } from '../managers/ComboManager'; // ADDED
 
 export class QuizApp {
     constructor() { 
@@ -139,10 +140,12 @@ export class QuizApp {
         if (correct) {
             el.classList.add('bg-green-500', 'border-green-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
-            scoreService.addScore('quiz', 10);
+            scoreService.addScore('quiz', 10); // THIS TRIGGERS COMBO INCREMENT
         } else {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
+            
+            comboManager.reset(); // RESET COMBO ON MISS
         }
         if(correct) {
             const fullText = this.currentData.target.front.main;
@@ -258,7 +261,6 @@ export class QuizApp {
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            // INCREASED MAX FONT SIZE FROM 90 TO 130
             textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 130);
             this.container.querySelectorAll('.quiz-choice-text').forEach(el => {
                 textService.fitText(el, 18, 55); 

@@ -1,5 +1,6 @@
 import './services/firebase';
 import './styles/main.scss';
+import './styles/combo.scss'; // <--- CRITICAL: This imports the animations!
 import { settingsService } from './services/settingsService';
 import { vocabService } from './services/vocabService';
 import { dictionaryService } from './services/dictionaryService';

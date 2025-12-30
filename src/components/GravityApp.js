@@ -3,6 +3,7 @@ import { settingsService } from '../services/settingsService';
 import { audioService } from '../services/audioService';
 import { scoreService } from '../services/scoreService';
 import { textService } from '../services/textService';
+import { comboManager } from '../managers/ComboManager'; // ADDED
 
 export class GravityApp {
     constructor() {
@@ -95,6 +96,7 @@ export class GravityApp {
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.asteroids.forEach(a => a.el.remove());
         this.asteroids = [];
+        comboManager.fadeOut(); // Clean up combo UI
     }
 
     gameWin() {
@@ -153,7 +155,6 @@ export class GravityApp {
         if (list.length === 0) return;
 
         let item;
-        // 50% chance to spawn a target
         if (Math.random() < 0.5 && this.activeTargets.length > 0) {
             const target = this.activeTargets[Math.floor(Math.random() * this.activeTargets.length)];
             if (this.asteroids.some(a => a.item.id === target.item.id)) {
@@ -199,7 +200,7 @@ export class GravityApp {
 
         if (matchedTarget) {
             this.score += 10;
-            scoreService.addScore('gravity', 10);
+            scoreService.addScore('gravity', 10); // Hook handles combo
             
             el.classList.add('scale-150', 'opacity-0', 'bg-green-500', 'border-green-300');
             
@@ -231,9 +232,13 @@ export class GravityApp {
             this.updateStats();
             this.fillTargetSlot(matchedTarget.slotIdx);
         } else {
+            // MISSED
             el.classList.add('bg-red-500', 'border-red-400', 'shake');
             this.lives--;
             this.updateStats();
+            
+            comboManager.reset(); // RESET COMBO
+            
             if (this.lives <= 0) this.gameOver();
             else {
                 setTimeout(() => {
@@ -244,13 +249,11 @@ export class GravityApp {
         }
     }
 
-    // --- NEW: Visual laser effect to destroy distractors ---
     shootTurretLaser(targetX, targetY) {
         const gameArea = this.container.querySelector('#grav-game-area');
         const startX = gameArea.clientWidth / 2;
         const startY = gameArea.clientHeight;
         
-        // Calculate angle
         const deltaX = targetX - startX;
         const deltaY = targetY - startY;
         const length = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
@@ -265,8 +268,6 @@ export class GravityApp {
         laser.style.transform = `rotate(${angle}deg)`;
         
         gameArea.appendChild(laser);
-
-        // Animate laser disappearing
         setTimeout(() => {
             laser.classList.add('opacity-0', 'transition-opacity', 'duration-200');
             setTimeout(() => laser.remove(), 200);
@@ -289,26 +290,20 @@ export class GravityApp {
             ast.el.style.transform = `translateY(${ast.y}px)`;
 
             if (ast.y > floorY - 80) {
-                // Determine if this is a target or trash
                 const missedTarget = this.activeTargets.find(t => t.item.id === ast.item.id);
 
                 if (missedTarget) {
-                    // It was a target! User missed it.
                     this.lives--;
                     this.updateStats();
+                    comboManager.reset(); // RESET COMBO ON MISS
                     if (this.lives <= 0) this.gameOver();
                     
-                    // Bad thing happened: Red Flash
                     gameArea.classList.add('bg-red-100', 'dark:bg-red-900/30');
                     setTimeout(() => gameArea.classList.remove('bg-red-100', 'dark:bg-red-900/30'), 200);
                     
                     this.fillTargetSlot(missedTarget.slotIdx);
                 } else {
-                    // It was trash (distractor)! System defense triggered.
-                    // Visual: Laser shoots it
-                    this.shootTurretLaser(ast.x + 48, ast.y + 48); // Center of asteroid (96/2)
-                    
-                    // Create explosion at asteroid location
+                    this.shootTurretLaser(ast.x + 48, ast.y + 48); 
                     const boom = document.createElement('div');
                     boom.className = 'absolute w-24 h-24 bg-cyan-500 rounded-full opacity-50 animate-ping';
                     boom.style.left = ast.el.style.left;
