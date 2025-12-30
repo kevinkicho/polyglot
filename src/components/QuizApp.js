@@ -16,17 +16,14 @@ export class QuizApp {
         this.currentCategory = 'All';
     }
 
-    // ... (mount, refresh, updateCategories, setCategory, getFilteredList, bind, random, next, prev, renderError all Unchanged) ...
-
     mount(elementId) { 
         this.container = document.getElementById(elementId); 
         this.updateCategories();
         if(!this.currentData) this.random(); 
         else this.render(); 
     }
-    
-    // ... [KEEP PREVIOUS METHODS HERE] ...
 
+    // ... (refresh, updateCategories, setCategory, getFilteredList, bind all unchanged) ...
     refresh() {
         if (this.currentData && this.currentData.target) {
             this.currentData = quizService.generateQuestion(this.currentData.target.id);
@@ -120,8 +117,6 @@ export class QuizApp {
     handleOptionClick(id, el, choiceText) {
         if (this.isProcessing || window.wasLongPress) return;
         const settings = settingsService.get();
-        const isConfirmationClick = (settings.quizDoubleClick && this.selectedAnswerId === id);
-        
         if (settings.quizDoubleClick) {
             if (this.selectedAnswerId !== id) {
                 this.selectedAnswerId = id;
@@ -148,8 +143,6 @@ export class QuizApp {
         } else {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
-            
-            // UPDATED: Now drops rank by 1 instead of full reset
             comboManager.dropRank();
         }
         if(correct) {
@@ -215,13 +208,13 @@ export class QuizApp {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto flex flex-col gap-2">
                 ${pillsHtml}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                    <div id="quiz-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-2 flex flex-col items-center justify-center overflow-hidden">
-                        <span class="quiz-question-text font-black text-6xl text-gray-800 dark:text-white text-center leading-tight w-full" data-fit="true">${textService.smartWrap(target.front.main)}</span>
+                    <div id="quiz-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col items-center justify-center overflow-hidden">
+                        <span class="quiz-question-text font-black text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${textService.smartWrap(target.front.main)}</span>
                     </div>
                     
                     <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-3">
                         ${choices.map(c => `
-                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-1 overflow-hidden h-full" data-id="${c.id}">
+                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 overflow-hidden h-full" data-id="${c.id}">
                                 <div class="quiz-choice-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight w-full">${textService.smartWrap(c.back.definition)}</div>
                             </button>
                         `).join('')}
@@ -241,6 +234,7 @@ export class QuizApp {
             </div>
         `;
 
+        // ... (Bind methods same as before) ...
         this.bind('#quiz-next-btn', 'click', () => this.next());
         this.bind('#quiz-prev-btn', 'click', () => this.prev());
         this.bind('#quiz-random-btn', 'click', () => this.random());
@@ -266,7 +260,8 @@ export class QuizApp {
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 130);
+            // FIX: Reduced Max Font Size to 80 (was 130) to prevent aggressive start
+            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 80);
             this.container.querySelectorAll('.quiz-choice-text').forEach(el => {
                 textService.fitText(el, 18, 55); 
             });

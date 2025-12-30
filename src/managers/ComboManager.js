@@ -7,11 +7,8 @@ class ComboManager {
         this.fuseContainer = null;
         this.fuseBar = null;
         
-        // Timer Logic
         this.timer = null; 
         this.TIMER_DURATION = 5000;
-        
-        // Pause Logic
         this.remaining = 5000;
         this.startTick = 0;
         this.isPaused = false;
@@ -28,6 +25,7 @@ class ComboManager {
 
         window.addEventListener('audio:start', () => this.pauseTimer());
         window.addEventListener('audio:end', () => this.resumeTimer());
+        window.addEventListener('resize', () => this.ensureInBounds());
     }
 
     init() {
@@ -55,13 +53,18 @@ class ComboManager {
         }
 
         this.bindElements();
+        // Initial clamp
+        setTimeout(() => this.ensureInBounds(), 100);
     }
 
+    // --- NEW: RIGHT-ANCHORED DRAG LOGIC ---
     makeDraggable(el) {
         let isDragging = false;
-        let startX, startY, initialLeft, initialTop;
+        let startX, startY, initialRight, initialTop;
 
         const startDrag = (e) => {
+            if(!e.target.closest('.combo-rank') && !e.target.closest('.combo-text')) return;
+
             isDragging = true;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -70,25 +73,43 @@ class ComboManager {
             startY = clientY;
             
             const rect = el.getBoundingClientRect();
-            initialLeft = rect.left;
+            // Calculate distance from RIGHT edge of screen
+            initialRight = window.innerWidth - rect.right;
             initialTop = rect.top;
             
-            el.style.right = 'auto';
-            el.style.bottom = 'auto';
-            el.style.left = `${initialLeft}px`;
+            // Switch to RIGHT positioning to anchor the right side
+            el.style.left = 'auto';
+            el.style.right = `${initialRight}px`;
             el.style.top = `${initialTop}px`;
+            
             el.style.cursor = 'grabbing';
         };
 
         const onDrag = (e) => {
             if (!isDragging) return;
             e.preventDefault(); 
+            
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
             const dx = clientX - startX;
             const dy = clientY - startY;
-            el.style.left = `${initialLeft + dx}px`;
-            el.style.top = `${initialTop + dy}px`;
+            
+            // Moving mouse RIGHT (positive dx) means LESS right distance (closer to edge)
+            // Moving mouse LEFT (negative dx) means MORE right distance (further from edge)
+            let newRight = initialRight - dx; 
+            let newTop = initialTop + dy;
+
+            // Clamp bounds
+            const maxRight = window.innerWidth - el.offsetWidth;
+            const maxTop = window.innerHeight - el.offsetHeight;
+
+            // Keep it on screen (0 = right edge, maxRight = left edge)
+            newRight = Math.min(Math.max(0, newRight), maxRight);
+            newTop = Math.min(Math.max(0, newTop), maxTop);
+            
+            el.style.right = `${newRight}px`;
+            el.style.top = `${newTop}px`;
         };
 
         const stopDrag = () => { isDragging = false; el.style.cursor = 'grab'; };
@@ -99,6 +120,35 @@ class ComboManager {
         window.addEventListener('touchmove', onDrag, { passive: false });
         window.addEventListener('mouseup', stopDrag);
         window.addEventListener('touchend', stopDrag);
+    }
+
+    ensureInBounds() {
+        if (!this.container) return;
+        
+        const rect = this.container.getBoundingClientRect();
+        
+        // Calculate current right distance
+        let currentRight = window.innerWidth - rect.right;
+        let currentTop = rect.top;
+        let corrected = false;
+
+        // If off-screen right (negative distance)
+        if (currentRight < 0) { currentRight = 0; corrected = true; }
+        
+        // If off-screen left (distance > screen width - element width)
+        const maxRight = window.innerWidth - rect.width;
+        if (currentRight > maxRight) { currentRight = maxRight; corrected = true; }
+
+        // Vertical bounds
+        const maxTop = window.innerHeight - rect.height;
+        if (currentTop < 0) { currentTop = 0; corrected = true; }
+        if (currentTop > maxTop) { currentTop = maxTop; corrected = true; }
+
+        if (corrected) {
+            this.container.style.left = 'auto';
+            this.container.style.right = `${currentRight}px`;
+            this.container.style.top = `${currentTop}px`;
+        }
     }
 
     bindElements() {
@@ -123,6 +173,7 @@ class ComboManager {
         }
         if (this.fuseContainer) this.fuseContainer.classList.remove('active');
         this.streak = 0;
+        this.ensureInBounds();
     }
 
     increment() {
@@ -132,9 +183,7 @@ class ComboManager {
         this.startNewTimer();
     }
 
-    // FIX: Updated Downgrade Logic
     dropRank() {
-        // 1. Find Current Rank Index
         let currentRankIdx = -1;
         for (let i = this.ranks.length - 1; i >= 0; i--) {
             if (this.streak >= this.ranks[i].threshold) {
@@ -143,11 +192,9 @@ class ComboManager {
             }
         }
 
-        // 2. Drop to the threshold of the rank BELOW
         if (currentRankIdx > 0) {
             const prevRank = this.ranks[currentRankIdx - 1];
-            this.streak = prevRank.threshold; // Snap score to lower rank
-
+            this.streak = prevRank.threshold;
             if(this.rankEl) {
                 this.rankEl.classList.add('shake-text');
                 setTimeout(() => this.rankEl.classList.remove('shake-text'), 200);
@@ -155,7 +202,6 @@ class ComboManager {
             this.updateVisuals();
             this.startNewTimer();
         } else {
-            // If at lowest rank (D) or 0, full reset
             this.reset();
         }
     }
@@ -180,6 +226,9 @@ class ComboManager {
         if (this.fuseContainer) this.fuseContainer.classList.add('active');
 
         this.triggerRankEffects(rank.char);
+        
+        // Safety check: ensure expanded text didn't push us off screen
+        this.ensureInBounds();
     }
 
     triggerRankEffects(char) {
@@ -217,13 +266,10 @@ class ComboManager {
 
         if (char === 'SSS') {
              const emojis = ['🌞','🐷','🐸','🐧','🦊','🦋','🦄','🍻','🍥','🌈','🌍','🌎','🌏','🪐','💫','☄️','☃️','🦝','🐯','🎎','💸','💵','💴','💶','💷','💰','🧧'];
-             
-             // FIX: Pick ONE random emoji for this entire burst
              const selectedEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-
              for(let i=0; i<25; i++) {
                  const part = document.createElement('div');
-                 part.textContent = selectedEmoji; // Use the same one
+                 part.textContent = selectedEmoji;
                  part.className = 'gold-particle';
                  part.style.left = Math.random() * 100 + '%';
                  part.style.animationDuration = (Math.random() * 1.5 + 1) + 's';

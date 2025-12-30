@@ -4,7 +4,8 @@ class AudioService {
     constructor() {
         this.synth = window.speechSynthesis;
         this.voices = [];
-        this.isPlaying = false;
+        this.currentUtteranceId = null; // Track the unique ID of the active sound
+        
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             this.loadVoices();
             window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
@@ -26,6 +27,7 @@ class AudioService {
     sanitizeText(text, lang) {
         if (!text) return "";
         let clean = text;
+        // Remove special reading markers often found in Asian language learning sets
         clean = clean.split(/[・･\u30FB\uFF65\u00B7\u2022（(\[<]/)[0];
         return clean.trim();
     }
@@ -35,18 +37,23 @@ class AudioService {
             if (!this.synth) { resolve(); return; }
             
             const settings = settingsService.get();
+            // Don't play if it matches Origin Language (unless desired)
             if (lang === settings.originLang) { resolve(); return; }
 
+            // 1. Generate a unique ID for THIS specific speech request
+            const myId = Date.now() + Math.random();
+            this.currentUtteranceId = myId;
+
+            // 2. Stop previous audio
             this.synth.cancel();
-            this.isPlaying = true;
             
-            // NEW: Dispatch Global Pause Event
+            // 3. Dispatch Global Pause Event
+            // It is safe to fire this multiple times; the ComboManager just keeps it paused.
             window.dispatchEvent(new CustomEvent('audio:start'));
 
             const cleanText = this.sanitizeText(text, lang);
             if (!cleanText) { 
-                this.isPlaying = false;
-                window.dispatchEvent(new CustomEvent('audio:end'));
+                this.handleEnd(myId);
                 resolve(); 
                 return; 
             }
@@ -60,16 +67,13 @@ class AudioService {
             utter.rate = 1.0; 
 
             utter.onend = () => {
-                this.isPlaying = false;
-                // NEW: Dispatch Global Resume Event
-                window.dispatchEvent(new CustomEvent('audio:end'));
+                this.handleEnd(myId);
                 resolve();
             };
             
             utter.onerror = (e) => {
                 console.warn("Audio error:", e);
-                this.isPlaying = false;
-                window.dispatchEvent(new CustomEvent('audio:end'));
+                this.handleEnd(myId);
                 resolve(); 
             };
 
@@ -77,11 +81,21 @@ class AudioService {
         });
     }
 
+    // New Helper: Only resume timer if THIS was the last requested audio
+    handleEnd(id) {
+        if (this.currentUtteranceId === id) {
+            this.currentUtteranceId = null;
+            window.dispatchEvent(new CustomEvent('audio:end'));
+        }
+        // If IDs don't match, it means a NEW sound started before this one finished.
+        // We do NOT fire 'audio:end' in that case, keeping the timer paused.
+    }
+
     stop() {
         if (this.synth) {
             this.synth.cancel();
-            this.isPlaying = false;
-            // Ensure we unpause if forced stop
+            this.currentUtteranceId = null;
+            // Force resume if we explicitly stop everything
             window.dispatchEvent(new CustomEvent('audio:end'));
         }
     }
