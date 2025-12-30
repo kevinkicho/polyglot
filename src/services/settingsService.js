@@ -5,15 +5,11 @@ class SettingsService {
             originLang: 'en',
             darkMode: false,
             
-            // Audio Defaults (Always ON since UI removed)
+            // Audio Defaults
             autoPlay: true,
             waitForAudio: true,
             clickAudio: true,
             volume: 1.0,
-            
-            // Fonts
-            fontFamily: 'notosans',
-            fontWeight: 'normal',
             
             // Flashcard Display
             showVocab: true,
@@ -22,18 +18,18 @@ class SettingsService {
             
             // Dictionary
             dictEnabled: true,
-            dictClickAudio: true, // Still used internally
+            dictClickAudio: true, 
             
-            // Game Specifics (Defaults to ON for best experience)
+            // Game Specifics
             quizAnswerAudio: true,
             quizAutoPlayCorrect: true,
-            quizDoubleClick: false,
+            quizDoubleClick: false, // Explicitly false
             
             sentencesWordAudio: true,
             sentencesWinAnim: true,
             
             blanksAnswerAudio: true,
-            blanksDoubleClick: false
+            blanksDoubleClick: false // Explicitly false
         };
         this.settings = this.load();
     }
@@ -41,6 +37,8 @@ class SettingsService {
     load() {
         try {
             const saved = localStorage.getItem('polyglot_settings');
+            // Merge saved settings with defaults, but ensure unwanted keys (like old fonts) don't persist if we wanted to strip them
+            // For now, simple spread is fine, as unused keys will just be ignored by UI.
             return saved ? { ...this.defaults, ...JSON.parse(saved) } : { ...this.defaults };
         } catch (e) {
             return { ...this.defaults };

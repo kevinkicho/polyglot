@@ -26,12 +26,12 @@ class AudioService {
     sanitizeText(text, lang) {
         if (!text) return "";
         let clean = text;
-        // Clean text at separators
-        clean = clean.split(/[・･\u30FB\uFF65\u00B7\u2022（(\[<\/,]/)[0];
+        // UPDATED REGEX: Removed the comma (,) so sentences are not cut off.
+        // Still splits on separators like Middle Dot to avoid reading synonyms as one sentence.
+        clean = clean.split(/[・･\u30FB\uFF65\u00B7\u2022（(\[<]/)[0];
         return clean.trim();
     }
 
-    // UPDATED: Returns a Promise that resolves when audio ends
     speak(text, lang) {
         return new Promise((resolve, reject) => {
             if (!this.synth) { resolve(); return; }
@@ -69,7 +69,7 @@ class AudioService {
             utter.onerror = (e) => {
                 console.warn("Audio error:", e);
                 this.isPlaying = false;
-                resolve(); // Resolve anyway to not block app
+                resolve(); 
             };
 
             this.synth.speak(utter);

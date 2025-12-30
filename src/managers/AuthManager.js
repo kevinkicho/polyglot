@@ -11,6 +11,9 @@ class AuthManager {
     init(onLoginSuccess) {
         const iconOut = document.getElementById('icon-user-out'); 
         const iconIn = document.getElementById('icon-user-in'); 
+        // FIX: Add referrer policy to allow Google profile images to load
+        if (iconIn) iconIn.referrerPolicy = "no-referrer";
+        
         const loginBtn = document.getElementById('user-login-btn');
 
         onAuthStateChanged(auth, async (user) => {
@@ -18,7 +21,11 @@ class AuthManager {
             if (user) { 
                 if(!user.isAnonymous) {
                     if(iconOut) iconOut.classList.add('hidden'); 
-                    if(iconIn) { iconIn.classList.remove('hidden'); iconIn.src = user.photoURL; }
+                    if(iconIn) { 
+                        iconIn.classList.remove('hidden'); 
+                        // Use a fallback if photoURL is missing
+                        iconIn.src = user.photoURL || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjM2NmYxIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAtOCA0IDQgMCAwIDEgOCAweiIgLz48L3N2Zz4='; 
+                    }
                 }
                 if(onLoginSuccess) await onLoginSuccess(user);
             } else { 

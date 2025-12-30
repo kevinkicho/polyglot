@@ -118,7 +118,12 @@
                 <span class="text-xl filter drop-shadow-sm">🏆</span>
             </button>
         </div>
-        <div class="text-lg font-black tracking-tighter text-indigo-600 dark:text-dark-primary truncate text-center px-2">POLYGLOT<span class="text-gray-400 dark:text-gray-600">.AI</span></div>
+        
+        <div id="score-pill" class="cursor-pointer bg-gray-100 dark:bg-white/5 rounded-full px-4 py-1 flex items-center gap-2 border border-transparent hover:border-indigo-400 transition-all">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">XP</span>
+            <span class="text-lg font-black text-indigo-600 dark:text-white global-score-display">0</span>
+        </div>
+
         <div class="flex items-center gap-2">
             <button id="fullscreen-btn" class="header-icon-btn header-btn text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
@@ -150,7 +155,6 @@
                 <button id="menu-reverse-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-500 mb-2">Reverse Quiz</h2><p class="text-gray-500 dark:text-gray-400">Pick the word matching the definition.</p></button>
                 <button id="menu-speech-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-500 mb-2">Speech</h2><p class="text-gray-500 dark:text-gray-400">Practice your pronunciation.</p></button>
                 <button id="menu-decoder-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-blue-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-blue-500 mb-2">Decoder</h2><p class="text-gray-500 dark:text-gray-400">Listen and build words.</p></button>
-                
                 <button id="menu-gravity-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mb-2">Gravity</h2><p class="text-gray-500 dark:text-gray-400">Type matching words before they fall.</p></button>
             </div>
         </div>
@@ -170,7 +174,6 @@
     <div id="reverse-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
     <div id="speech-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
     <div id="decoder-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
-    
     <div id="gravity-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center opacity-0 transition-opacity duration-200">
@@ -193,24 +196,6 @@
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Dark Mode</span><input type="checkbox" id="toggle-dark" class="w-5 h-5"></div>
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Volume</span><input type="range" id="volume-slider" min="0" max="1" step="0.1" class="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"></div>
                 
-                <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
-                    <button id="fonts-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Fonts</span><span id="accordion-arrow-fonts" class="arrow">▼</span></button>
-                    <div id="fonts-options" class="settings-content space-y-4 px-2 pt-2">
-                        <div class="flex justify-between">
-                            <span class="text-sm dark:text-gray-300">Family</span>
-                            <select id="font-family-select" class="bg-gray-50 dark:bg-black p-1 rounded text-sm text-gray-800 dark:text-white">
-                                <option value="notosans">Noto Sans (CJK Safe)</option><option value="notoserif">Noto Serif (CJK Safe)</option><option value="mplus">M PLUS Rounded (JP)</option><option value="nanumgothic">Nanum Gothic (KO)</option><option value="nanummyeongjo">Nanum Myeongjo (KO)</option><option value="sawarabi">Sawarabi Mincho (JP)</option><option value="zcool">ZCOOL XiaoWei (ZH)</option><option value="merriweather">Merriweather</option><option value="roboto">Roboto</option><option value="system">System Default</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm dark:text-gray-300">Weight</span>
-                            <select id="font-weight-select" class="bg-gray-50 dark:bg-black p-1 rounded text-sm text-gray-800 dark:text-white">
-                                <option value="light">Light</option><option value="normal">Normal</option><option value="bold">Bold</option><option value="thick">Thick</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
                     <button id="display-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Card Visuals</span><span id="accordion-arrow-1" class="arrow">▼</span></button>
                     <div id="display-options" class="settings-content space-y-4 px-2 pt-2">

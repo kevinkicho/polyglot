@@ -22,10 +22,8 @@ export class QuizApp {
         else this.render(); 
     }
 
-    // --- SMART FIX: RELOAD DATA ON SETTINGS CHANGE ---
     refresh() {
         if (this.currentData && this.currentData.target) {
-            // Regenerate the SAME question ID to pull the new language data
             this.currentData = quizService.generateQuestion(this.currentData.target.id);
             this.render();
         } else {
@@ -258,10 +256,10 @@ export class QuizApp {
             this.handleOptionClick(parseInt(e.currentTarget.dataset.id), e.currentTarget, text);
         }));
         
-        // --- SMART FIT TEXT APPLIED ---
         requestAnimationFrame(() => {
             if(!this.container) return;
-            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 90);
+            // INCREASED MAX FONT SIZE FROM 90 TO 130
+            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 130);
             this.container.querySelectorAll('.quiz-choice-text').forEach(el => {
                 textService.fitText(el, 18, 55); 
             });

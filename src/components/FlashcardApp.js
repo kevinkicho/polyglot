@@ -16,8 +16,6 @@ export class FlashcardApp {
         this.container = document.getElementById(elementId);
         const list = vocabService.getAll();
         if (list && list.length > 0) {
-           // Only randomize if we haven't loaded data yet, 
-           // otherwise we might lose our place if unmounting/remounting
            if (!this.currentData) {
                this.currentIndex = vocabService.getRandomIndex();
            }
@@ -31,10 +29,7 @@ export class FlashcardApp {
         if (el) el.addEventListener(event, (e) => { e.stopPropagation(); handler(e); });
     }
 
-    // --- FIX IS HERE ---
     refresh() {
-        // BUG FIX: deeply reload the current item to get the new language data
-        // Previous version only called this.render(), which used stale data.
         if (this.container && !this.container.classList.contains('hidden')) {
             this.loadGame(this.currentIndex);
         }
@@ -45,10 +40,7 @@ export class FlashcardApp {
         if (!list || list.length === 0) {
             this.currentData = null;
         } else {
-            // Ensure index is within bounds (wrap around)
             this.currentIndex = (index + list.length) % list.length;
-            
-            // Fetch the NEW object from the service (which has the updated languages)
             this.currentData = list[this.currentIndex];
             this.isFlipped = false;
             
@@ -147,7 +139,7 @@ export class FlashcardApp {
                             </div>
                             
                             <div class="flex-grow w-full flex flex-col items-center justify-center p-2 overflow-hidden">
-                                <h2 class="fc-front-text font-black text-gray-800 dark:text-white text-center leading-tight whitespace-nowrap" data-fit="true">${textService.smartWrap(front.main)}</h2>
+                                <h2 class="fc-front-text opacity-0 transition-opacity duration-300 font-black text-gray-800 dark:text-white text-center leading-tight whitespace-nowrap" data-fit="true">${textService.smartWrap(front.main)}</h2>
                                 ${front.sub ? `<p class="fc-front-sub font-medium text-gray-500 dark:text-gray-400 mt-4 text-center whitespace-nowrap" data-fit="true">${front.sub}</p>` : ''}
                             </div>
 
@@ -161,11 +153,11 @@ export class FlashcardApp {
                             </div>
 
                             <div class="flex-grow w-full flex flex-col items-center justify-center text-center space-y-6 overflow-hidden">
-                                <h2 class="fc-back-text font-black text-indigo-600 dark:text-indigo-400 leading-none whitespace-nowrap" data-fit="true">${textService.smartWrap(back.definition)}</h2>
+                                <h2 class="fc-back-text opacity-0 transition-opacity duration-300 font-black text-indigo-600 dark:text-indigo-400 leading-none whitespace-nowrap" data-fit="true">${textService.smartWrap(back.definition)}</h2>
                                 
                                 ${back.sentenceTarget && s.showSentence ? `
                                     <div class="w-full p-4 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-dark-border">
-                                        <p class="fc-back-sent text-gray-700 dark:text-white font-bold mb-2 leading-tight whitespace-nowrap" data-fit="true">${back.sentenceTarget}</p>
+                                        <p class="fc-back-sent opacity-0 transition-opacity duration-300 text-gray-700 dark:text-white font-bold mb-2 leading-tight whitespace-nowrap" data-fit="true">${back.sentenceTarget}</p>
                                         ${back.sentenceOrigin && s.showEnglish ? `<p class="fc-back-sent-trans text-gray-500 dark:text-gray-400 font-medium leading-tight whitespace-nowrap" data-fit="true">${back.sentenceOrigin}</p>` : ''}
                                     </div>
                                 ` : ''}
@@ -209,10 +201,16 @@ export class FlashcardApp {
 
         setTimeout(() => {
             if (!this.container) return;
-            textService.fitText(this.container.querySelector('.fc-front-text'), 32, 130);
-            textService.fitText(this.container.querySelector('.fc-back-text'), 24, 90);
+            const ft = this.container.querySelector('.fc-front-text');
+            const bt = this.container.querySelector('.fc-back-text');
+            const bs = this.container.querySelector('.fc-back-sent');
+
+            if(ft) { textService.fitText(ft, 32, 130); ft.classList.remove('opacity-0'); }
+            if(bt) { textService.fitText(bt, 24, 90); bt.classList.remove('opacity-0'); }
+            
             this.container.querySelectorAll('.fc-front-sub').forEach(el => textService.fitText(el, 16, 36));
-            this.container.querySelectorAll('.fc-back-sent').forEach(el => textService.fitText(el, 16, 30));
+            
+            if(bs) { textService.fitText(bs, 16, 30); bs.classList.remove('opacity-0'); }
             this.container.querySelectorAll('.fc-back-sent-trans').forEach(el => textService.fitText(el, 14, 26));
         }, 50);
     }

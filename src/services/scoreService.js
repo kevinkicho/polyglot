@@ -41,9 +41,16 @@ class ScoreService {
         onValue(todayRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // ADDED 'decoder'
                 const games = ['flashcard', 'quiz', 'sentences', 'blanks', 'listening', 'match', 'memory', 'finder', 'constructor', 'writing', 'truefalse', 'reverse', 'speech', 'decoder', 'gravity'];
-                this.todayScore = games.reduce((sum, g) => sum + (data[g] || 0), 0);
+                
+                // CRITICAL FIX: Ensure we only add numbers and ignore object properties like .constructor
+                this.todayScore = games.reduce((sum, g) => {
+                    // Check if the property exists on the data object specifically (not prototype) AND is a number
+                    if (Object.prototype.hasOwnProperty.call(data, g) && typeof data[g] === 'number') {
+                        return sum + data[g];
+                    }
+                    return sum;
+                }, 0);
             } else {
                 this.todayScore = 0;
             }

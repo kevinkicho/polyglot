@@ -35,7 +35,8 @@ class UIManager {
             
             t.textContent = ach.title; 
             d.textContent = ach.desc; 
-            p.textContent = '+' + parseInt(ach.points || 0); // Fix applied here too
+            // Ensure we are displaying a number
+            p.textContent = '+' + (typeof ach.points === 'number' ? ach.points : 0); 
             achPopup.classList.remove('hidden'); 
             setTimeout(() => achPopup.classList.add('hidden'), 4000);
         });
@@ -60,7 +61,11 @@ class UIManager {
             try { unlockedMap = await achievementService.getUserAchievements(currentUser.uid) || {}; } catch(e){ console.error(e); }
         }
         
-        const totalPoints = Object.values(unlockedMap).reduce((sum, item) => { const achDef = ACHIEVEMENTS.find(a => a.title === item.title); return sum + (achDef ? achDef.points : 0);}, 0);
+        const totalPoints = Object.values(unlockedMap).reduce((sum, item) => { 
+            const achDef = ACHIEVEMENTS.find(a => a.title === item.title); 
+            return sum + (achDef && typeof achDef.points === 'number' ? achDef.points : 0);
+        }, 0);
+
         let html = `
         <div class="mb-8 flex flex-col items-center">
             <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">Total Score</div>
@@ -80,8 +85,17 @@ class UIManager {
 
     // --- SCORE CHART ---
     bindScore() {
-        scoreService.subscribe((s) => { document.querySelectorAll('.global-score-display').forEach(el=>el.textContent=s); });
-        document.addEventListener('click', (e) => { if(e.target.closest('#score-pill')) this.showScoreChart(); });
+        scoreService.subscribe((s) => { 
+            document.querySelectorAll('.global-score-display').forEach(el => {
+                // Double check to prevent "function" strings
+                el.textContent = (typeof s === 'number') ? s : 0; 
+            }); 
+        });
+        
+        // Bind to score pill (now added to HTML)
+        const scorePill = document.getElementById('score-pill');
+        if(scorePill) scorePill.addEventListener('click', () => this.showScoreChart());
+        
         const scoreClose = document.getElementById('score-close-btn');
         const scoreModal = document.getElementById('score-modal');
         if(scoreClose) scoreClose.addEventListener('click', ()=>{ if(scoreModal) { scoreModal.classList.add('opacity-0'); setTimeout(()=>scoreModal.classList.add('hidden'),200); }});
@@ -108,7 +122,7 @@ class UIManager {
             const snap = await get(statsRef); 
             const data = snap.exists() ? snap.val() : {};
             const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            const getVal = (obj, key) => (obj && typeof obj[key] === 'number') ? obj[key] : 0;
+            const getVal = (obj, key) => (obj && Object.prototype.hasOwnProperty.call(obj, key) && typeof obj[key] === 'number') ? obj[key] : 0;
 
             this.chartDataCache = weekDates.map((date, i) => {
                 const d = data[date] || {};
@@ -198,13 +212,8 @@ class UIManager {
         // Toggle Dark Mode
         document.getElementById('toggle-dark').addEventListener('change', () => document.documentElement.classList.toggle('dark')); 
         
-        // Font Updates
-        const updateFonts = () => document.querySelectorAll('[data-fit="true"]').forEach(el => textService.fitText(el));
-        
         this.bindSetting('toggle-dark', 'darkMode'); 
         this.bindSetting('volume-slider', 'volume'); 
-        this.bindSetting('font-family-select', 'fontFamily', updateFonts); 
-        this.bindSetting('font-weight-select', 'fontWeight', updateFonts); 
         this.bindSetting('toggle-vocab', 'showVocab'); 
         this.bindSetting('toggle-sentence', 'showSentence'); 
         this.bindSetting('toggle-english', 'showEnglish'); 
@@ -220,11 +229,10 @@ class UIManager {
         this.bindSetting('target-select', 'targetLang', onLanguageChange); 
         this.bindSetting('origin-select', 'originLang', onLanguageChange);
 
-        // Accordion Logic
+        // Accordion Logic (Fonts Removed)
         [
             {btn:'display-accordion-btn',c:'display-options',a:'accordion-arrow-1'},
             {btn:'sent-accordion-btn',c:'sent-options',a:'accordion-arrow-sent'},
-            {btn:'fonts-accordion-btn',c:'fonts-options',a:'accordion-arrow-fonts'},
             {btn:'quiz-accordion-btn',c:'quiz-options',a:'accordion-arrow-3'},
             {btn:'blanks-accordion-btn',c:'blanks-options',a:'accordion-arrow-blanks'}
         ].forEach(o=>{ const b=document.getElementById(o.btn), c=document.getElementById(o.c), a=document.getElementById(o.a); if(b) b.addEventListener('click', ()=>{ c.classList.toggle('open'); a.classList.toggle('rotate'); }); });
@@ -260,7 +268,7 @@ class UIManager {
         const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
         const setChk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
         setVal('target-select', s.targetLang); setVal('origin-select', s.originLang);
-        setChk('toggle-dark', s.darkMode); setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0); setVal('font-family-select', s.fontFamily); setVal('font-weight-select', s.fontWeight);
+        setChk('toggle-dark', s.darkMode); setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0);
         setChk('toggle-vocab', s.showVocab); setChk('toggle-sentence', s.showSentence); setChk('toggle-english', s.showEnglish);
         setChk('toggle-sent-anim', s.sentencesWinAnim !== false);
         setChk('toggle-quiz-double', s.quizDoubleClick);

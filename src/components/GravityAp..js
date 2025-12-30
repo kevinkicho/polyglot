@@ -13,11 +13,12 @@ export class GravityApp {
         this.spawnRate = 2000;
         this.fallSpeed = 1;
         this.lastSpawnTime = 0;
-        this.asteroids = []; // { id, word, x, y, el, item }
-        this.currentTarget = null; // { item, meaning }
+        this.asteroids = []; 
+        this.activeTargets = []; // Now holds 3 targets: [{item, meaning, slotIdx}, ...]
         this.animationFrameId = null;
         this.categories = [];
         this.currentCategory = 'All';
+        this.WIN_SCORE = 500;
     }
 
     mount(elementId) {
@@ -56,7 +57,11 @@ export class GravityApp {
             <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10 backdrop-blur-sm rounded-xl">
                 <div class="text-6xl mb-4">☄️</div>
                 <h2 class="text-3xl font-black text-white mb-2">GRAVITY</h2>
-                <p class="text-gray-200 mb-6 text-center max-w-xs">Tap the falling words that match the meaning below. Don't let them hit the ground!</p>
+                <p class="text-gray-200 mb-6 text-center max-w-xs">Match falling words to <br><strong>ANY of the 3 meanings</strong> below!</p>
+                <div class="flex gap-4 mb-6 text-sm font-bold text-gray-300">
+                    <span>Target: ${this.WIN_SCORE} pts</span>
+                    <span>Lives: 3</span>
+                </div>
                 <button id="grav-start-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xl shadow-lg transform hover:scale-105 transition-all">START GAME</button>
             </div>
         `;
@@ -64,21 +69,25 @@ export class GravityApp {
     }
 
     startGame() {
-        // --- FIX START: Clear the start screen overlay ---
         const gameArea = this.container.querySelector('#grav-game-area');
         if (gameArea) gameArea.innerHTML = '';
-        // --- FIX END ---
 
         this.isActive = true;
         this.score = 0;
         this.lives = 3;
-        this.spawnRate = 2500;
-        this.fallSpeed = 0.5; // Base speed
+        this.spawnRate = 2200; // Slightly slower start since managing 3 targets
+        this.fallSpeed = 0.6; 
         this.asteroids = [];
+        this.activeTargets = [];
         this.lastSpawnTime = performance.now();
         
         this.updateStats();
-        this.pickNewTarget();
+        
+        // Fill all 3 slots
+        this.fillTargetSlot(0);
+        this.fillTargetSlot(1);
+        this.fillTargetSlot(2);
+        
         this.gameLoop();
     }
 
@@ -87,6 +96,21 @@ export class GravityApp {
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.asteroids.forEach(a => a.el.remove());
         this.asteroids = [];
+    }
+
+    gameWin() {
+        this.stopGame();
+        const gameArea = this.container.querySelector('#grav-game-area');
+        gameArea.insertAdjacentHTML('beforeend', `
+            <div class="absolute inset-0 flex flex-col items-center justify-center bg-green-900/80 z-20 backdrop-blur-md rounded-xl animate-fade-in">
+                <div class="text-6xl mb-4">🏆</div>
+                <h2 class="text-4xl font-black text-white mb-2">YOU WIN!</h2>
+                <p class="text-xl text-green-200 mb-6">Score: ${this.score}</p>
+                <button id="grav-restart-btn" class="bg-white text-green-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors">PLAY AGAIN</button>
+            </div>
+        `);
+        this.container.querySelector('#grav-restart-btn').addEventListener('click', () => this.startGame());
+        audioService.speak("Congratulations", "en"); 
     }
 
     gameOver() {
@@ -102,34 +126,53 @@ export class GravityApp {
         this.container.querySelector('#grav-restart-btn').addEventListener('click', () => this.startGame());
     }
 
-    pickNewTarget() {
+    fillTargetSlot(slotIdx) {
         const list = this.getFilteredList();
         if (list.length === 0) return;
         
-        // Pick a random target
-        const item = list[Math.floor(Math.random() * list.length)];
-        const meaning = item.back.main || item.back.definition;
+        // Ensure we don't pick a duplicate of what's already on screen
+        let newItem;
+        let attempts = 0;
+        do {
+            newItem = list[Math.floor(Math.random() * list.length)];
+            attempts++;
+        } while (this.activeTargets.some(t => t.item.id === newItem.id) && attempts < 10);
+
+        const meaning = newItem.back.main || newItem.back.definition;
         
-        this.currentTarget = { item, meaning };
-        this.updateTargetDisplay();
+        // Update data
+        const existingIdx = this.activeTargets.findIndex(t => t.slotIdx === slotIdx);
+        if (existingIdx !== -1) {
+            this.activeTargets[existingIdx] = { item: newItem, meaning, slotIdx };
+        } else {
+            this.activeTargets.push({ item: newItem, meaning, slotIdx });
+        }
+
+        // Update UI
+        this.updateTargetDisplay(slotIdx);
     }
 
     spawnAsteroid() {
         const list = this.getFilteredList();
         if (list.length === 0) return;
 
-        // 40% chance to spawn the CORRECT answer, 60% random distractor
         let item;
-        if (Math.random() < 0.4 && this.currentTarget && !this.asteroids.some(a => a.item.id === this.currentTarget.item.id)) {
-            item = this.currentTarget.item;
+        // 50% chance to spawn a word matching ONE of the 3 active targets
+        // 50% chance to spawn a distractor
+        if (Math.random() < 0.5 && this.activeTargets.length > 0) {
+            const target = this.activeTargets[Math.floor(Math.random() * this.activeTargets.length)];
+            // Don't spawn if this specific word is already falling
+            if (this.asteroids.some(a => a.item.id === target.item.id)) {
+                item = list[Math.floor(Math.random() * list.length)];
+            } else {
+                item = target.item;
+            }
         } else {
             item = list[Math.floor(Math.random() * list.length)];
         }
 
         const gameArea = this.container.querySelector('#grav-game-area');
         const width = gameArea.clientWidth;
-        
-        // Random X position (padding 20px from edges)
         const x = Math.random() * (width - 100) + 10; 
         
         const el = document.createElement('button');
@@ -137,12 +180,12 @@ export class GravityApp {
         el.style.left = `${x}px`;
         el.innerHTML = `
             <span class="text-2xl select-none">🪨</span>
-            <span class="text-xs font-bold text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center px-1 pointer-events-none drop-shadow-md">${textService.smartWrap(item.front.main)}</span>
+            <span class="text-xs font-bold text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center px-1 pointer-events-none drop-shadow-md leading-tight">${textService.smartWrap(item.front.main)}</span>
         `;
         
-        // Click handler
-        el.addEventListener('mousedown', (e) => { e.stopPropagation(); this.handleAsteroidClick(item.id, el); });
-        el.addEventListener('touchstart', (e) => { e.stopPropagation(); this.handleAsteroidClick(item.id, el); });
+        const handler = (e) => { e.stopPropagation(); this.handleAsteroidClick(item.id, el); };
+        el.addEventListener('mousedown', handler);
+        el.addEventListener('touchstart', handler);
 
         gameArea.appendChild(el);
 
@@ -150,7 +193,7 @@ export class GravityApp {
             id: Date.now() + Math.random(),
             item: item,
             x: x,
-            y: -60,
+            y: -80,
             el: el
         });
     }
@@ -158,32 +201,49 @@ export class GravityApp {
     handleAsteroidClick(id, el) {
         if (!this.isActive) return;
 
-        // Check if correct
-        if (this.currentTarget && id === this.currentTarget.item.id) {
+        // Check against ALL active targets
+        const matchedTarget = this.activeTargets.find(t => t.item.id === id);
+
+        if (matchedTarget) {
             // Correct!
             this.score += 10;
             scoreService.addScore('gravity', 10);
             
-            // Explosion Effect
+            // Visual feedback
             el.classList.add('scale-150', 'opacity-0', 'bg-green-500', 'border-green-300');
+            
+            // Flash the corresponding target box
+            const targetBox = document.getElementById(`grav-target-box-${matchedTarget.slotIdx}`);
+            if(targetBox) {
+                targetBox.classList.add('bg-green-100', 'dark:bg-green-900');
+                setTimeout(()=>targetBox.classList.remove('bg-green-100', 'dark:bg-green-900'), 300);
+            }
+
             setTimeout(() => {
                 el.remove();
                 this.asteroids = this.asteroids.filter(a => a.el !== el);
             }, 200);
 
-            // Play Audio
             if (settingsService.get().clickAudio) {
-                audioService.speak(this.currentTarget.item.front.main, settingsService.get().targetLang);
+                audioService.speak(matchedTarget.item.front.main, settingsService.get().targetLang);
             }
 
-            // Increase difficulty
+            if (this.score >= this.WIN_SCORE) {
+                this.gameWin();
+                return;
+            }
+
+            // Increase Difficulty
             if (this.score % 50 === 0) {
                 this.fallSpeed += 0.1;
                 this.spawnRate = Math.max(800, this.spawnRate - 100);
             }
 
             this.updateStats();
-            this.pickNewTarget(); // Switch target immediately
+            
+            // Replace ONLY the matched target
+            this.fillTargetSlot(matchedTarget.slotIdx);
+
         } else {
             // Wrong!
             el.classList.add('bg-red-500', 'border-red-400', 'shake');
@@ -202,7 +262,6 @@ export class GravityApp {
     gameLoop(timestamp) {
         if (!this.isActive) return;
 
-        // Spawning Logic
         if (timestamp - this.lastSpawnTime > this.spawnRate) {
             this.spawnAsteroid();
             this.lastSpawnTime = timestamp;
@@ -211,28 +270,27 @@ export class GravityApp {
         const gameArea = this.container.querySelector('#grav-game-area');
         const floorY = gameArea.clientHeight;
 
-        // Move Asteroids
         this.asteroids.forEach((ast, index) => {
             ast.y += this.fallSpeed;
             ast.el.style.transform = `translateY(${ast.y}px)`;
 
-            // Hit Floor Check
-            if (ast.y > floorY - 60) {
-                // If it was the target word, lose a life
-                if (this.currentTarget && ast.item.id === this.currentTarget.item.id) {
+            if (ast.y > floorY - 80) {
+                // Check if the falling word matches ANY active target
+                const missedTarget = this.activeTargets.find(t => t.item.id === ast.item.id);
+
+                if (missedTarget) {
                     this.lives--;
                     this.updateStats();
                     if (this.lives <= 0) this.gameOver();
                     
-                    // Flash red
+                    // Visual Red Flash
                     gameArea.classList.add('bg-red-100', 'dark:bg-red-900/30');
                     setTimeout(() => gameArea.classList.remove('bg-red-100', 'dark:bg-red-900/30'), 200);
                     
-                    // Force new target since we missed this one
-                    this.pickNewTarget();
+                    // Replace the target we missed
+                    this.fillTargetSlot(missedTarget.slotIdx);
                 }
                 
-                // Remove from DOM and Array
                 ast.el.remove();
                 this.asteroids.splice(index, 1);
             }
@@ -248,16 +306,12 @@ export class GravityApp {
         if(livesEl) livesEl.innerHTML = '❤️'.repeat(this.lives);
     }
 
-    updateTargetDisplay() {
-        const el = this.container.querySelector('#grav-target-text');
-        if (el && this.currentTarget) {
-            el.textContent = this.currentTarget.meaning;
-            textService.fitText(el, 24, 80);
-            
-            // Subtle pulse to indicate change
-            const box = this.container.querySelector('#grav-target-box');
-            box.classList.add('scale-105', 'border-indigo-400');
-            setTimeout(() => box.classList.remove('scale-105', 'border-indigo-400'), 200);
+    updateTargetDisplay(slotIdx) {
+        const target = this.activeTargets.find(t => t.slotIdx === slotIdx);
+        const el = document.getElementById(`grav-target-text-${slotIdx}`);
+        if (el && target) {
+            el.textContent = target.meaning;
+            textService.fitText(el, 14, 20); // Smaller font for 3-up view
         }
     }
 
@@ -268,6 +322,19 @@ export class GravityApp {
                     <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
                         ${cat}
                     </button>
+                `).join('')}
+            </div>
+        `;
+
+        // 3-Column Footer Layout
+        const footerHtml = `
+            <div class="h-40 w-full bg-white dark:bg-dark-card border-t-4 border-indigo-500 z-30 p-2 flex gap-2 shadow-2xl relative">
+                <div class="absolute -top-6 left-0 right-0 flex justify-center"><span class="bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-md">Active Targets</span></div>
+                
+                ${[0, 1, 2].map(i => `
+                    <div id="grav-target-box-${i}" class="flex-1 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center p-2 text-center transition-colors duration-300">
+                        <h3 id="grav-target-text-${i}" class="text-sm font-black text-gray-800 dark:text-white leading-tight break-words">...</h3>
+                    </div>
                 `).join('')}
             </div>
         `;
@@ -286,16 +353,8 @@ export class GravityApp {
 
             <div class="w-full h-full pt-16 pb-0 flex flex-col relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-900">
                 ${pillsHtml}
-                
-                <div id="grav-game-area" class="flex-1 relative w-full overflow-hidden">
-                    </div>
-
-                <div class="h-32 w-full bg-white dark:bg-dark-card border-t-4 border-indigo-500 z-30 p-4 flex flex-col items-center justify-center shadow-2xl relative">
-                    <div class="absolute -top-6 bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-md">Target Meaning</div>
-                    <div id="grav-target-box" class="w-full max-w-md p-2 text-center transition-all duration-200 border-2 border-transparent rounded-xl">
-                        <h1 id="grav-target-text" class="text-3xl font-black text-gray-800 dark:text-white leading-tight">...</h1>
-                    </div>
-                </div>
+                <div id="grav-game-area" class="flex-1 relative w-full overflow-hidden"></div>
+                ${footerHtml}
             </div>
         `;
 
