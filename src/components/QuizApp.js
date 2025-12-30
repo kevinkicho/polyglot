@@ -4,7 +4,7 @@ import { audioService } from '../services/audioService';
 import { settingsService } from '../services/settingsService';
 import { vocabService } from '../services/vocabService';
 import { scoreService } from '../services/scoreService';
-import { comboManager } from '../managers/ComboManager'; // ADDED
+import { comboManager } from '../managers/ComboManager'; 
 
 export class QuizApp {
     constructor() { 
@@ -16,12 +16,16 @@ export class QuizApp {
         this.currentCategory = 'All';
     }
 
+    // ... (mount, refresh, updateCategories, setCategory, getFilteredList, bind, random, next, prev, renderError all Unchanged) ...
+
     mount(elementId) { 
         this.container = document.getElementById(elementId); 
         this.updateCategories();
         if(!this.currentData) this.random(); 
         else this.render(); 
     }
+    
+    // ... [KEEP PREVIOUS METHODS HERE] ...
 
     refresh() {
         if (this.currentData && this.currentData.target) {
@@ -140,12 +144,13 @@ export class QuizApp {
         if (correct) {
             el.classList.add('bg-green-500', 'border-green-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
-            scoreService.addScore('quiz', 10); // THIS TRIGGERS COMBO INCREMENT
+            scoreService.addScore('quiz', 10); 
         } else {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
             
-            comboManager.reset(); // RESET COMBO ON MISS
+            // UPDATED: Now drops rank by 1 instead of full reset
+            comboManager.dropRank();
         }
         if(correct) {
             const fullText = this.currentData.target.front.main;

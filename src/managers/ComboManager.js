@@ -44,17 +44,61 @@ class ComboManager {
                 </div>
             `;
             document.body.appendChild(this.container);
+            this.makeDraggable(this.container);
         }
 
         if (!document.getElementById('combo-effects-layer')) {
             const layer = document.createElement('div');
             layer.id = 'combo-effects-layer';
-            // Fixed layer for global effects
             layer.className = 'fixed inset-0 pointer-events-none z-[9998] overflow-hidden';
             document.body.appendChild(layer);
         }
 
         this.bindElements();
+    }
+
+    makeDraggable(el) {
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+
+        const startDrag = (e) => {
+            isDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            startX = clientX;
+            startY = clientY;
+            
+            const rect = el.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+            el.style.left = `${initialLeft}px`;
+            el.style.top = `${initialTop}px`;
+            el.style.cursor = 'grabbing';
+        };
+
+        const onDrag = (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); 
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+            el.style.left = `${initialLeft + dx}px`;
+            el.style.top = `${initialTop + dy}px`;
+        };
+
+        const stopDrag = () => { isDragging = false; el.style.cursor = 'grab'; };
+
+        el.addEventListener('mousedown', startDrag);
+        el.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('touchmove', onDrag, { passive: false });
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
     }
 
     bindElements() {
@@ -77,7 +121,6 @@ class ComboManager {
             this.rankEl.textContent = '';
             if(this.textEl) this.textEl.textContent = '';
         }
-        
         if (this.fuseContainer) this.fuseContainer.classList.remove('active');
         this.streak = 0;
     }
@@ -89,28 +132,36 @@ class ComboManager {
         this.startNewTimer();
     }
 
+    // FIX: Updated Downgrade Logic
     dropRank() {
-        if (this.streak > 0) {
-            this.streak--;
+        // 1. Find Current Rank Index
+        let currentRankIdx = -1;
+        for (let i = this.ranks.length - 1; i >= 0; i--) {
+            if (this.streak >= this.ranks[i].threshold) {
+                currentRankIdx = i;
+                break;
+            }
+        }
+
+        // 2. Drop to the threshold of the rank BELOW
+        if (currentRankIdx > 0) {
+            const prevRank = this.ranks[currentRankIdx - 1];
+            this.streak = prevRank.threshold; // Snap score to lower rank
+
             if(this.rankEl) {
-                // Subtle shake on the text ONLY, not the screen
                 this.rankEl.classList.add('shake-text');
                 setTimeout(() => this.rankEl.classList.remove('shake-text'), 200);
             }
-            if (this.streak === 0) {
-                this.reset();
-            } else {
-                this.updateVisuals();
-                this.startNewTimer();
-            }
+            this.updateVisuals();
+            this.startNewTimer();
         } else {
+            // If at lowest rank (D) or 0, full reset
             this.reset();
         }
     }
 
     updateVisuals() {
         if (!this.rankEl) return;
-        
         this.rankEl.style.transition = '';
         this.rankEl.style.transform = '';
         this.rankEl.style.opacity = '1';
@@ -135,15 +186,13 @@ class ComboManager {
         const layer = document.getElementById('combo-effects-layer');
         if (!layer) return;
 
-        // Rank A+: Subtle Flash (Opacity only, no scaling)
-        if (char === 'A' || char === 'S' || char === 'SS' || char === 'SSS') {
+        if (['A', 'S', 'SS', 'SSS'].includes(char)) {
              const flash = document.createElement('div');
-             flash.className = 'combo-flash'; // Defined in SCSS
+             flash.className = 'combo-flash'; 
              layer.appendChild(flash);
              setTimeout(() => flash.remove(), 400);
         }
 
-        // Rank S+: Paint Splatter
         if (['S', 'SS', 'SSS'].includes(char)) {
             for(let i=0; i<4; i++) {
                 const splat = document.createElement('div');
@@ -156,7 +205,6 @@ class ComboManager {
             }
         }
 
-        // Rank SS+: Dancers
         if (['SS', 'SSS'].includes(char)) {
             const dancer = document.createElement('div');
             dancer.textContent = Math.random() > 0.5 ? '💃' : '🕺';
@@ -167,21 +215,24 @@ class ComboManager {
             setTimeout(() => dancer.remove(), 2500);
         }
 
-        // Rank SSS: Gold Rain (No Shake!)
         if (char === 'SSS') {
-             for(let i=0; i<20; i++) {
-                 const gold = document.createElement('div');
-                 gold.textContent = '🪙'; // Gold Coin Emoji or use CSS shape
-                 gold.className = 'gold-particle';
-                 gold.style.left = Math.random() * 100 + '%';
-                 gold.style.animationDuration = (Math.random() * 1 + 1) + 's'; // 1-2s fall time
-                 layer.appendChild(gold);
-                 setTimeout(() => gold.remove(), 2000);
+             const emojis = ['🌞','🐷','🐸','🐧','🦊','🦋','🦄','🍻','🍥','🌈','🌍','🌎','🌏','🪐','💫','☄️','☃️','🦝','🐯','🎎','💸','💵','💴','💶','💷','💰','🧧'];
+             
+             // FIX: Pick ONE random emoji for this entire burst
+             const selectedEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+             for(let i=0; i<25; i++) {
+                 const part = document.createElement('div');
+                 part.textContent = selectedEmoji; // Use the same one
+                 part.className = 'gold-particle';
+                 part.style.left = Math.random() * 100 + '%';
+                 part.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
+                 layer.appendChild(part);
+                 setTimeout(() => part.remove(), 2500);
              }
         }
     }
 
-    // --- TIMER LOGIC (Unchanged) ---
     startNewTimer() {
         this.clearTimer();
         this.remaining = this.TIMER_DURATION;
@@ -190,23 +241,17 @@ class ComboManager {
 
     runTimer() {
         if (this.isPaused) return;
-
         this.startTick = Date.now();
-        
         if (this.fuseBar) {
             this.fuseBar.style.transition = 'none';
             this.fuseBar.style.width = (this.remaining / this.TIMER_DURATION * 100) + '%';
             void this.fuseBar.offsetWidth; 
             this.fuseBar.style.transition = `width ${this.remaining}ms linear`;
             this.fuseBar.style.width = '0%';
-            
             if(this.remaining < 2000) this.fuseBar.classList.add('critical');
             else this.fuseBar.classList.remove('critical');
         }
-
-        this.timer = setTimeout(() => {
-            this.dropRank();
-        }, this.remaining);
+        this.timer = setTimeout(() => this.dropRank(), this.remaining);
     }
 
     pauseTimer() {
@@ -214,7 +259,6 @@ class ComboManager {
         this.isPaused = true;
         clearTimeout(this.timer);
         this.remaining -= (Date.now() - this.startTick);
-        
         if (this.fuseBar) {
             const computedWidth = window.getComputedStyle(this.fuseBar).width;
             this.fuseBar.style.transition = 'none';

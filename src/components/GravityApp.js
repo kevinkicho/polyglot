@@ -3,7 +3,7 @@ import { settingsService } from '../services/settingsService';
 import { audioService } from '../services/audioService';
 import { scoreService } from '../services/scoreService';
 import { textService } from '../services/textService';
-import { comboManager } from '../managers/ComboManager'; // ADDED
+import { comboManager } from '../managers/ComboManager'; 
 
 export class GravityApp {
     constructor() {
@@ -22,6 +22,7 @@ export class GravityApp {
         this.WIN_SCORE = 500;
     }
 
+    // ... (Methods mount, refresh, updateCategories, setCategory, getFilteredList, showStartScreen, startGame, gameWin, gameOver, fillTargetSlot, spawnAsteroid, shootTurretLaser, gameLoop, updateStats, updateTargetDisplay, renderLayout all Unchanged) ...
     mount(elementId) {
         this.container = document.getElementById(elementId);
         this.updateCategories();
@@ -96,7 +97,7 @@ export class GravityApp {
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.asteroids.forEach(a => a.el.remove());
         this.asteroids = [];
-        comboManager.fadeOut(); // Clean up combo UI
+        comboManager.reset(); // Full reset on stop
     }
 
     gameWin() {
@@ -200,7 +201,7 @@ export class GravityApp {
 
         if (matchedTarget) {
             this.score += 10;
-            scoreService.addScore('gravity', 10); // Hook handles combo
+            scoreService.addScore('gravity', 10); 
             
             el.classList.add('scale-150', 'opacity-0', 'bg-green-500', 'border-green-300');
             
@@ -232,12 +233,13 @@ export class GravityApp {
             this.updateStats();
             this.fillTargetSlot(matchedTarget.slotIdx);
         } else {
-            // MISSED
+            // Miss logic
             el.classList.add('bg-red-500', 'border-red-400', 'shake');
             this.lives--;
             this.updateStats();
             
-            comboManager.reset(); // RESET COMBO
+            // UPDATED: Drops rank instead of full reset
+            comboManager.dropRank(); 
             
             if (this.lives <= 0) this.gameOver();
             else {
@@ -295,7 +297,7 @@ export class GravityApp {
                 if (missedTarget) {
                     this.lives--;
                     this.updateStats();
-                    comboManager.reset(); // RESET COMBO ON MISS
+                    comboManager.dropRank(); // Missed target also drops rank
                     if (this.lives <= 0) this.gameOver();
                     
                     gameArea.classList.add('bg-red-100', 'dark:bg-red-900/30');

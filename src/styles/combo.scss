@@ -2,26 +2,48 @@
 
 #combo-container {
     position: fixed;
-    top: 20%;
+    top: 12%; 
     right: 5%;
     z-index: 9999;
-    pointer-events: none;
+    
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     font-family: 'Anton', sans-serif;
     transform: skew(-10deg);
+    padding: 20px; 
+}
+
+#combo-container:active {
+    cursor: grabbing;
+}
+
+@media (max-width: 768px) {
+    #combo-container {
+        top: 10%;
+        right: 10px;
+        transform: skew(-10deg) scale(0.6); 
+        transform-origin: top right;
+    }
 }
 
 .combo-rank {
     font-size: 8rem;
-    line-height: 0.8;
-    font-weight: 900;
+    line-height: 1.1; 
+    
+    /* FIX: Reduced thickness from 900 to 700 */
+    font-weight: 700;
+    
     text-transform: uppercase;
     opacity: 0;
     transform-origin: center;
     -webkit-text-stroke: 2px rgba(0,0,0,0.5);
     filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.5));
+    background-size: cover; 
     
     &.animate-slam {
         animation: comboSlam 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -31,7 +53,6 @@
         animation: comboPulse 0.1s ease-in-out infinite alternate;
     }
     
-    /* Only shake the text, not the screen */
     &.shake-text {
         animation: textShake 0.2s linear;
     }
@@ -39,17 +60,22 @@
 
 .combo-text {
     font-size: 1.5rem;
-    font-weight: 700;
+    /* FIX: Removed font-weight: 700 to make it normal/lighter */
+    font-weight: normal; 
+    
     color: white;
     text-shadow: 2px 2px 0 #000;
     margin-right: 10px;
     letter-spacing: 2px;
     opacity: 0;
+    white-space: nowrap;
     
     &.animate-slide {
         animation: comboSlide 0.3s ease-out forwards;
     }
 }
+
+/* ... (Keep Fuse and Effect styles identical to previous version) ... */
 
 /* --- FUSE TIMER --- */
 .combo-fuse-container {
@@ -57,14 +83,12 @@
     width: 200px;
     height: 8px;
     background: rgba(0,0,0,0.5);
-    margin-top: 15px;
+    margin-top: 5px; 
     border-radius: 4px;
     opacity: 0;
     overflow: visible; 
-    
     &.active { opacity: 1; }
 }
-
 .combo-fuse-bar {
     position: absolute;
     top: 0; left: 0; height: 100%;
@@ -72,10 +96,8 @@
     box-shadow: 0 0 10px #f59e0b;
     border-radius: 4px;
     width: 100%;
-    
     &.critical { background: #ef4444; box-shadow: 0 0 15px red; }
 }
-
 .combo-fuse-spark {
     position: absolute;
     top: 50%; right: 0; width: 20px; height: 20px;
@@ -86,24 +108,17 @@
     z-index: 10;
     animation: sparkFlicker 0.1s infinite alternate;
 }
-
-/* --- EFFECTS --- */
-
-/* 1. Flash (Opacity Only - No Distortion) */
 .combo-flash {
     position: absolute;
     inset: 0;
     background: rgba(255, 255, 255, 0.15);
     animation: flashAnim 0.3s ease-out forwards;
 }
-
 @keyframes flashAnim {
     0% { opacity: 0; }
     20% { opacity: 1; }
     100% { opacity: 0; }
 }
-
-/* 2. Paint Splat */
 .paint-splat {
     position: absolute;
     width: 60px; height: 60px;
@@ -113,42 +128,33 @@
     filter: blur(0.5px);
     animation: splatAnim 0.6s ease-out forwards;
 }
-
 @keyframes splatAnim {
     0% { transform: scale(0); opacity: 0.8; }
     50% { transform: scale(1.5); opacity: 0.8; }
     100% { transform: scale(1.8); opacity: 0; }
 }
-
-/* 3. Dancer */
 .combo-dancer {
     position: absolute;
     font-size: 4rem;
     animation: dancerWalk 2s linear forwards;
     filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
 }
-
 @keyframes dancerWalk {
     0% { transform: translateX(-10vw) rotate(-10deg); opacity: 0; }
     10% { opacity: 1; }
     90% { opacity: 1; }
     100% { transform: translateX(110vw) rotate(10deg); opacity: 0; }
 }
-
-/* 4. Gold Rain (SSS Effect) */
 .gold-particle {
     position: absolute;
     top: -50px;
     font-size: 2rem;
     animation: goldFall linear forwards;
 }
-
 @keyframes goldFall {
     0% { transform: translateY(0) rotate(0deg); opacity: 1; }
     100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
 }
-
-/* Standard Ranks */
 .rank-d { color: #9ca3af; background: linear-gradient(to bottom, #d1d5db, #4b5563); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-c { color: #4ade80; background: linear-gradient(to bottom, #86efac, #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-b { color: #facc15; background: linear-gradient(to bottom, #fef08a, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -156,28 +162,23 @@
 .rank-s { color: #f87171; background: linear-gradient(to bottom, #fca5a5, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(220, 38, 38, 0.5); }
 .rank-ss { color: #c084fc; background: linear-gradient(to bottom, #e879f9, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(147, 51, 234, 0.6); }
 .rank-sss { color: #ffd700; background: linear-gradient(to bottom, #fff, #fbbf24, #b45309); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px gold); animation: sssShine 0.1s infinite alternate; }
-
 @keyframes comboSlam {
     0% { transform: scale(3); opacity: 0; }
     50% { opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
 }
-
 @keyframes comboSlide {
     0% { transform: translateX(50px); opacity: 0; }
     100% { transform: translateX(0); opacity: 1; }
 }
-
 @keyframes sssShine {
     from { filter: drop-shadow(0 0 5px orange); }
     to { filter: drop-shadow(0 0 20px yellow); }
 }
-
 @keyframes sparkFlicker {
     0% { transform: translate(50%, -50%) scale(1); opacity: 1; }
     100% { transform: translate(50%, -50%) scale(1.5); opacity: 0.8; }
 }
-
 @keyframes textShake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-10px) rotate(-5deg); }
