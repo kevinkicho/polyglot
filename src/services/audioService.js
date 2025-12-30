@@ -4,7 +4,7 @@ class AudioService {
     constructor() {
         this.synth = window.speechSynthesis;
         this.voices = [];
-        this.isPlaying = false; // Track state
+        this.isPlaying = false;
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             this.loadVoices();
             window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
@@ -26,8 +26,6 @@ class AudioService {
     sanitizeText(text, lang) {
         if (!text) return "";
         let clean = text;
-        // UPDATED REGEX: Removed the comma (,) so sentences are not cut off.
-        // Still splits on separators like Middle Dot to avoid reading synonyms as one sentence.
         clean = clean.split(/[・･\u30FB\uFF65\u00B7\u2022（(\[<]/)[0];
         return clean.trim();
     }
@@ -37,18 +35,18 @@ class AudioService {
             if (!this.synth) { resolve(); return; }
             
             const settings = settingsService.get();
-            // Don't play if it matches Origin Language
-            if (lang === settings.originLang) {
-                resolve(); 
-                return;
-            }
+            if (lang === settings.originLang) { resolve(); return; }
 
-            this.synth.cancel(); // Stop previous
+            this.synth.cancel();
             this.isPlaying = true;
+            
+            // NEW: Dispatch Global Pause Event
+            window.dispatchEvent(new CustomEvent('audio:start'));
 
             const cleanText = this.sanitizeText(text, lang);
             if (!cleanText) { 
                 this.isPlaying = false;
+                window.dispatchEvent(new CustomEvent('audio:end'));
                 resolve(); 
                 return; 
             }
@@ -63,12 +61,15 @@ class AudioService {
 
             utter.onend = () => {
                 this.isPlaying = false;
+                // NEW: Dispatch Global Resume Event
+                window.dispatchEvent(new CustomEvent('audio:end'));
                 resolve();
             };
             
             utter.onerror = (e) => {
                 console.warn("Audio error:", e);
                 this.isPlaying = false;
+                window.dispatchEvent(new CustomEvent('audio:end'));
                 resolve(); 
             };
 
@@ -80,6 +81,8 @@ class AudioService {
         if (this.synth) {
             this.synth.cancel();
             this.isPlaying = false;
+            // Ensure we unpause if forced stop
+            window.dispatchEvent(new CustomEvent('audio:end'));
         }
     }
 }

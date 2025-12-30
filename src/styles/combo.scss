@@ -1,4 +1,3 @@
-// DMC Style Ranks
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
 #combo-container {
@@ -25,11 +24,16 @@
     filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.5));
     
     &.animate-slam {
-        animation: comboSlam 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        animation: comboSlam 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
     
     &.animate-pulse {
         animation: comboPulse 0.1s ease-in-out infinite alternate;
+    }
+    
+    /* Only shake the text, not the screen */
+    &.shake-text {
+        animation: textShake 0.2s linear;
     }
 }
 
@@ -43,45 +47,115 @@
     opacity: 0;
     
     &.animate-slide {
-        animation: comboSlide 0.5s ease-out forwards;
+        animation: comboSlide 0.3s ease-out forwards;
     }
 }
 
-.combo-meter {
-    width: 100%;
-    height: 6px;
+/* --- FUSE TIMER --- */
+.combo-fuse-container {
+    position: relative;
+    width: 200px;
+    height: 8px;
     background: rgba(0,0,0,0.5);
-    margin-top: 10px;
+    margin-top: 15px;
     border-radius: 4px;
-    overflow: hidden;
     opacity: 0;
+    overflow: visible; 
     
-    &.visible { opacity: 1; transition: opacity 0.3s; }
-    
-    .bar {
-        height: 100%;
-        width: 0%;
-        background: white;
-        transition: width 0.2s ease-out;
-        box-shadow: 0 0 10px white;
-    }
+    &.active { opacity: 1; }
 }
 
-// Rank Colors & Gradients
-.rank-d { color: #888; background: linear-gradient(to bottom, #ddd, #666); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.combo-fuse-bar {
+    position: absolute;
+    top: 0; left: 0; height: 100%;
+    background: #fbbf24; 
+    box-shadow: 0 0 10px #f59e0b;
+    border-radius: 4px;
+    width: 100%;
+    
+    &.critical { background: #ef4444; box-shadow: 0 0 15px red; }
+}
+
+.combo-fuse-spark {
+    position: absolute;
+    top: 50%; right: 0; width: 20px; height: 20px;
+    transform: translate(50%, -50%); 
+    background: radial-gradient(circle, #fff 10%, #ff0 40%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(1px);
+    z-index: 10;
+    animation: sparkFlicker 0.1s infinite alternate;
+}
+
+/* --- EFFECTS --- */
+
+/* 1. Flash (Opacity Only - No Distortion) */
+.combo-flash {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.15);
+    animation: flashAnim 0.3s ease-out forwards;
+}
+
+@keyframes flashAnim {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* 2. Paint Splat */
+.paint-splat {
+    position: absolute;
+    width: 60px; height: 60px;
+    border-radius: 50% 40% 60% 30%;
+    transform: scale(0);
+    opacity: 0.8;
+    filter: blur(0.5px);
+    animation: splatAnim 0.6s ease-out forwards;
+}
+
+@keyframes splatAnim {
+    0% { transform: scale(0); opacity: 0.8; }
+    50% { transform: scale(1.5); opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* 3. Dancer */
+.combo-dancer {
+    position: absolute;
+    font-size: 4rem;
+    animation: dancerWalk 2s linear forwards;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
+}
+
+@keyframes dancerWalk {
+    0% { transform: translateX(-10vw) rotate(-10deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(110vw) rotate(10deg); opacity: 0; }
+}
+
+/* 4. Gold Rain (SSS Effect) */
+.gold-particle {
+    position: absolute;
+    top: -50px;
+    font-size: 2rem;
+    animation: goldFall linear forwards;
+}
+
+@keyframes goldFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}
+
+/* Standard Ranks */
+.rank-d { color: #9ca3af; background: linear-gradient(to bottom, #d1d5db, #4b5563); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-c { color: #4ade80; background: linear-gradient(to bottom, #86efac, #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-b { color: #facc15; background: linear-gradient(to bottom, #fef08a, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-a { color: #fb923c; background: linear-gradient(to bottom, #fdba74, #ea580c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-s { color: #f87171; background: linear-gradient(to bottom, #fca5a5, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(220, 38, 38, 0.5); }
 .rank-ss { color: #c084fc; background: linear-gradient(to bottom, #e879f9, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(147, 51, 234, 0.6); }
-.rank-sss { 
-    color: #ffd700; 
-    background: linear-gradient(to bottom, #fff, #fbbf24, #b45309); 
-    -webkit-background-clip: text; 
-    -webkit-text-fill-color: transparent; 
-    filter: drop-shadow(0 0 10px gold);
-    animation: sssShine 0.1s infinite alternate;
-}
+.rank-sss { color: #ffd700; background: linear-gradient(to bottom, #fff, #fbbf24, #b45309); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px gold); animation: sssShine 0.1s infinite alternate; }
 
 @keyframes comboSlam {
     0% { transform: scale(3); opacity: 0; }
@@ -97,4 +171,15 @@
 @keyframes sssShine {
     from { filter: drop-shadow(0 0 5px orange); }
     to { filter: drop-shadow(0 0 20px yellow); }
+}
+
+@keyframes sparkFlicker {
+    0% { transform: translate(50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(50%, -50%) scale(1.5); opacity: 0.8; }
+}
+
+@keyframes textShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px) rotate(-5deg); }
+    75% { transform: translateX(10px) rotate(5deg); }
 }
