@@ -209,14 +209,14 @@ export class QuizApp {
                 
                 <div class="flex-1 flex flex-col gap-4 min-h-0">
                     
-                    <div id="quiz-question-box" class="h-[35%] min-h-[150px] shrink-0 w-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col items-center justify-center overflow-hidden">
-                        <span class="quiz-question-text font-black text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${textService.smartWrap(target.front.main)}</span>
+                    <div id="quiz-question-box" class="h-[60%] min-h-[150px] shrink-0 w-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-1 flex flex-col items-center justify-center overflow-hidden">
+                        <span class="quiz-question-text font-semibold text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${textService.smartWrap(target.front.main)}</span>
                     </div>
                     
                     <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
                         ${choices.map(c => `
                             <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 overflow-hidden w-full h-full" data-id="${c.id}">
-                                <div class="quiz-choice-text text-lg font-bold text-gray-700 dark:text-white text-center leading-tight w-full">${textService.smartWrap(c.back.definition)}</div>
+                                <div class="quiz-choice-text text-lg font-normal text-gray-700 dark:text-white text-center leading-tight w-full">${textService.smartWrap(c.back.definition)}</div>
                             </button>
                         `).join('')}
                     </div>
@@ -235,7 +235,6 @@ export class QuizApp {
             </div>
         `;
 
-        // ... [Binds remain identical] ...
         this.bind('#quiz-next-btn', 'click', () => this.next());
         this.bind('#quiz-prev-btn', 'click', () => this.prev());
         this.bind('#quiz-random-btn', 'click', () => this.random());
@@ -261,8 +260,8 @@ export class QuizApp {
         
         requestAnimationFrame(() => {
             if(!this.container) return;
-            // fitText inside fixed 35% height container
-            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 90);
+            // FIX: Max Size increased to 120
+            textService.fitText(this.container.querySelector('.quiz-question-text'), 24, 150);
             this.container.querySelectorAll('.quiz-choice-text').forEach(el => {
                 textService.fitText(el, 14, 55); 
             });

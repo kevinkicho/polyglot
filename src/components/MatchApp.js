@@ -1,191 +1,177 @@
 import { vocabService } from '../services/vocabService';
-import { settingsService } from '../services/settingsService';
-import { audioService } from '../services/audioService';
 import { scoreService } from '../services/scoreService';
+import { audioService } from '../services/audioService';
+import { settingsService } from '../services/settingsService';
 import { textService } from '../services/textService';
+import { comboManager } from '../managers/ComboManager';
 
 export class MatchApp {
     constructor() {
         this.container = null;
         this.cards = [];
-        this.selectedCard = null;
+        this.flippedCards = [];
+        this.matchedCount = 0;
         this.isProcessing = false;
-        this.matchesFound = 0;
-        this.categories = [];
-        this.currentCategory = 'All';
     }
 
     mount(elementId) {
         this.container = document.getElementById(elementId);
-        this.updateCategories();
-        this.startNewGame();
+        this.startGame();
     }
 
-    refresh() {
-        this.startNewGame();
-    }
-
-    updateCategories() {
-        const all = vocabService.getAll();
-        const cats = new Set(all.map(i => i.category || 'Uncategorized'));
-        this.categories = ['All', ...cats];
-    }
-
-    setCategory(cat) {
-        this.currentCategory = cat;
-        this.startNewGame();
-    }
-
-    getFilteredList() {
-        const all = vocabService.getAll();
-        if (this.currentCategory === 'All') return all;
-        return all.filter(i => (i.category || 'Uncategorized') === this.currentCategory);
-    }
-
-    startNewGame() {
+    startGame() {
         this.isProcessing = false;
-        this.selectedCard = null;
-        this.matchesFound = 0;
+        this.flippedCards = [];
+        this.matchedCount = 0;
         
-        const list = this.getFilteredList();
-        if (list.length < 6) return; 
-
-        const gameItems = [...list].sort(() => 0.5 - Math.random()).slice(0, 6);
+        // Get 6 random items
+        const all = vocabService.getAll();
+        if (all.length < 6) {
+            this.container.innerHTML = '<div class="p-10 text-center">Need more vocabulary to play Match (6+).</div>';
+            return;
+        }
         
+        const items = [...all].sort(() => Math.random() - 0.5).slice(0, 6);
+        
+        // Create 12 cards (6 pairs)
         let deck = [];
-        gameItems.forEach(item => {
-            deck.push({ id: item.id, type: 'target', text: item.front.main, pairId: item.id });
-            deck.push({ id: item.id, type: 'origin', text: item.back.main || item.back.definition, pairId: item.id });
+        items.forEach(item => {
+            // Card A: Front (Target Lang)
+            deck.push({ 
+                id: item.id, 
+                type: 'front', 
+                text: item.front.main, 
+                pairId: item.id 
+            });
+            // Card B: Back (Native Lang)
+            deck.push({ 
+                id: item.id, 
+                type: 'back', 
+                text: item.back.definition, 
+                pairId: item.id 
+            });
         });
-
-        this.cards = deck.sort(() => 0.5 - Math.random());
+        
+        // Shuffle deck
+        deck.sort(() => Math.random() - 0.5);
+        this.cards = deck;
+        
         this.render();
     }
 
-    async handleCardClick(idx, el) {
+    handleCardClick(idx, el) {
         if (this.isProcessing) return;
-        const card = this.cards[idx];
-        if (card.matched) return;
-
-        if (settingsService.get().clickAudio !== false && card.text) {
-            if (card.type === 'target') {
-                audioService.speak(card.text, settingsService.get().targetLang);
-            }
+        if (this.flippedCards.includes(idx)) return; // Already flipped
+        if (el.classList.contains('matched')) return; // Already matched
+        
+        // Flip visual
+        el.classList.add('bg-indigo-100', 'dark:bg-indigo-900', 'border-indigo-500', 'scale-105');
+        el.classList.remove('bg-white', 'dark:bg-dark-card', 'border-gray-200');
+        
+        this.flippedCards.push(idx);
+        
+        const cardData = this.cards[idx];
+        if (settingsService.get().clickAudio && cardData.type === 'front') {
+            audioService.speak(cardData.text, settingsService.get().targetLang);
         }
 
-        if (this.selectedCard && this.selectedCard.idx === idx) {
-            el.classList.remove('ring-4', 'ring-indigo-400', 'scale-105', 'bg-indigo-50', 'dark:bg-indigo-900/30');
-            this.selectedCard = null;
-            return;
+        if (this.flippedCards.length === 2) {
+            this.checkMatch();
         }
+    }
 
-        el.classList.add('ring-4', 'ring-indigo-400', 'scale-105', 'bg-indigo-50', 'dark:bg-indigo-900/30');
+    checkMatch() {
+        this.isProcessing = true;
+        const [idx1, idx2] = this.flippedCards;
+        const card1 = this.cards[idx1];
+        const card2 = this.cards[idx2];
+        const el1 = this.container.querySelectorAll('.match-card')[idx1];
+        const el2 = this.container.querySelectorAll('.match-card')[idx2];
 
-        if (!this.selectedCard) {
-            this.selectedCard = { idx, ...card, el };
+        if (card1.pairId === card2.pairId) {
+            // MATCH!
+            setTimeout(() => {
+                el1.classList.add('matched', 'opacity-0', 'pointer-events-none', 'transition-opacity', 'duration-500');
+                el2.classList.add('matched', 'opacity-0', 'pointer-events-none', 'transition-opacity', 'duration-500');
+                
+                scoreService.addScore('match', 20);
+                comboManager.increment(); // Streak Up
+                
+                this.matchedCount += 2;
+                this.flippedCards = [];
+                this.isProcessing = false;
+                
+                if (this.matchedCount === this.cards.length) {
+                    setTimeout(() => this.startGame(), 800);
+                }
+            }, 500);
         } else {
-            this.isProcessing = true;
-            const first = this.selectedCard;
-            
-            if (first.pairId === card.pairId) {
-                this.matchesFound++;
-                scoreService.addScore('match', 10);
+            // MISMATCH
+            setTimeout(() => {
+                el1.classList.add('bg-red-100', 'shake');
+                el2.classList.add('bg-red-100', 'shake');
                 
-                first.el.classList.remove('ring-indigo-400'); el.classList.remove('ring-indigo-400');
-                first.el.classList.add('animate-celebrate', 'border-green-500', 'text-green-600');
-                el.classList.add('animate-celebrate', 'border-green-500', 'text-green-600');
+                // FIX: Drop 1 Rank instead of Reset
+                comboManager.dropRank();
 
-                this.cards[first.idx].matched = true;
-                this.cards[idx].matched = true;
-
-                await new Promise(r => setTimeout(r, 600));
-                first.el.classList.add('opacity-0', 'pointer-events-none');
-                el.classList.add('opacity-0', 'pointer-events-none');
-                
-                this.selectedCard = null;
-                this.isProcessing = false;
-                if (this.matchesFound === 6) setTimeout(() => this.startNewGame(), 500);
-
-            } else {
-                first.el.classList.remove('ring-indigo-400'); el.classList.remove('ring-indigo-400');
-                first.el.classList.add('bg-red-100', 'dark:bg-red-900/30', 'shake');
-                el.classList.add('bg-red-100', 'dark:bg-red-900/30', 'shake');
-
-                const partnerIdx = this.cards.findIndex(c => c.pairId === first.pairId && c.type !== first.type);
-                if(partnerIdx !== -1) {
-                    const partnerBtn = this.container.querySelector(`[data-index="${partnerIdx}"]`);
-                    if(partnerBtn) partnerBtn.classList.add('ring-4', 'ring-yellow-400');
-                }
-
-                await new Promise(r => setTimeout(r, 800)); 
-                
-                first.el.classList.remove('ring-4', 'scale-105', 'bg-indigo-50', 'dark:bg-indigo-900/30', 'bg-red-100', 'dark:bg-red-900/30', 'shake');
-                el.classList.remove('ring-4', 'scale-105', 'bg-indigo-50', 'dark:bg-indigo-900/30', 'bg-red-100', 'dark:bg-red-900/30', 'shake');
-                
-                if(partnerIdx !== -1) {
-                    const partnerBtn = this.container.querySelector(`[data-index="${partnerIdx}"]`);
-                    if(partnerBtn) partnerBtn.classList.remove('ring-4', 'ring-yellow-400');
-                }
-
-                this.selectedCard = null;
-                this.isProcessing = false;
-            }
+                setTimeout(() => {
+                    // Reset Styles
+                    el1.className = 'match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all';
+                    el2.className = 'match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all';
+                    
+                    this.flippedCards = [];
+                    this.isProcessing = false;
+                }, 800);
+            }, 500);
         }
     }
 
     render() {
         if (!this.container) return;
-
-        const pillsHtml = `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar">
-                ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}">
-                        ${cat}
-                    </button>
-                `).join('')}
-            </div>
-        `;
-
+        
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10">
                 <div class="flex items-center gap-2">
-                    <div class="text-xl font-black text-yellow-500 tracking-tighter">MATCH</div>
-                    <button id="match-random-btn" class="ml-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full w-8 h-8 flex items-center justify-center shadow-sm text-gray-500 hover:text-yellow-500 active:scale-95 transition-all">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                    </button>
+                    <span class="text-xl">🎴</span>
+                    <span class="font-bold text-gray-700 dark:text-white">Match</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="score-pill" class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full px-3 py-1 flex items-center gap-2 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <button id="score-pill" class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full px-3 py-1 flex items-center gap-2 shadow-sm">
                         <span class="text-base">🏆</span>
                         <span class="font-black text-gray-700 dark:text-white text-sm global-score-display">${scoreService.todayScore}</span>
                     </button>
-                    <button id="match-close-btn" class="header-icon-btn bg-red-50 text-red-500 rounded-full shadow-sm"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <button id="match-close-btn" class="header-icon-btn bg-red-50 text-red-500 rounded-full shadow-sm">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                 </div>
             </div>
-            <div class="w-full h-full pt-20 pb-10 px-4 max-w-lg mx-auto flex flex-col">
-                ${pillsHtml}
-                <div class="grid grid-cols-3 gap-2 flex-1 content-center">
-                    ${this.cards.map((c, i) => `
-                        <button class="match-card relative w-full aspect-square bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border rounded-xl shadow-sm flex flex-col items-center justify-center p-1 transition-all duration-200 overflow-hidden ${c.matched ? 'opacity-0 pointer-events-none' : 'hover:scale-105 active:scale-95'}" data-index="${i}">
-                            <span class="card-text font-bold text-gray-700 dark:text-white text-center leading-tight w-full" style="white-space:normal">${textService.smartWrap(c.text)}</span>
-                        </button>
+
+            <div class="w-full h-full pt-20 pb-10 px-4 max-w-2xl mx-auto">
+                <div class="grid grid-cols-3 gap-3">
+                    ${this.cards.map((card, idx) => `
+                        <div class="match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all active:scale-95" data-idx="${idx}">
+                            <span class="text-sm font-bold text-gray-700 dark:text-white text-center leading-tight pointer-events-none select-none">${textService.smartWrap(card.text)}</span>
+                        </div>
                     `).join('')}
                 </div>
             </div>
         `;
-        this.container.querySelector('#match-close-btn').addEventListener('click', () => window.dispatchEvent(new CustomEvent('router:home')));
-        this.container.querySelector('#match-random-btn').addEventListener('click', () => this.startNewGame());
+
+        this.container.querySelector('#match-close-btn').addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('router:home'));
+        });
         
-        this.container.querySelectorAll('.category-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
+        this.container.querySelectorAll('.match-card').forEach(el => {
+            el.addEventListener('click', (e) => this.handleCardClick(parseInt(e.currentTarget.dataset.idx), e.currentTarget));
         });
 
-        this.container.querySelectorAll('.match-card').forEach(btn => btn.addEventListener('click', (e) => this.handleCardClick(parseInt(e.currentTarget.dataset.index), e.currentTarget)));
-        
+        // Fit Text
         requestAnimationFrame(() => {
-            if(!this.container) return;
-            this.container.querySelectorAll('.card-text').forEach(el => textService.fitText(el, 14, 60, false));
+            this.container.querySelectorAll('.match-card span').forEach(span => {
+                textService.fitText(span, 12, 20);
+            });
         });
     }
 }
+
 export const matchApp = new MatchApp();

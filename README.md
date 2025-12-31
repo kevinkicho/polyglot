@@ -73,6 +73,30 @@ The app uses a custom single-page application (SPA) router managed by `src/manag
 
 ---
 
+### Combo System  Mechanics & Algorithms
+
+The ComboManager implements several specific behaviors to balance gameplay with study requirements.
+
+### 1. Decaying Fuse Timer
+The system uses a visual "Fuse Bar" to pressure the user.
+* **Duration**: The fuse lasts exactly 5000ms (5 seconds).
+* **Decay Logic**: If the timer runs out, the user doesn't lose their entire streak. Instead, `dropRank()` is called, reducing their streak to the start of the *previous* rank threshold (e.g., dropping from **A** back to **B+**).
+* **Audio Awareness**: The timer automatically pauses when the application emits `audio:start` events (during TTS playback) and resumes on `audio:end`. This ensures users are not punished for taking time to listen to pronunciation.
+
+### 2. Right-Anchored Drag Physics
+The Combo UI overlay is fully draggable but uses custom positioning logic to remain consistent across different device widths.
+* **Anchor Point**: Unlike standard drag-and-drop (which tracks `left`/`top`), this manager calculates and stores the element's position relative to the **Right** edge of the screen.
+* **Benefit**: If the browser window is resized or the mobile device is rotated, the combo counter stays pinned to its relative corner instead of floating off-screen or obscuring the center content.
+
+### 3. Progressive Particle Effects
+As the user climbs the 20 available ranks, the `triggerRankEffects` method unlocks increasingly complex visual rewards:
+* **Rank A+**: Screen flash.
+* **Rank S**: Random paint splats appear on screen.
+* **Rank SS**: Animated dancers cross the screen.
+* **Rank SSS+**: "Gold Rain" particle simulation.
+
+---
+
 ## 🗄️ Firebase Realtime Database
 
 Realtime Data Event Handling
@@ -197,6 +221,19 @@ Manages navigation and view rendering.
 * **`render(viewName)`**: Hides all view containers, mounts the requested game component, and manages browser history.
 * **`getActiveApp()`**: Returns the instance of the currently running game application component.
 
+### **`src/managers/ComboManager.js`**
+Manages the streak state, timer loop, and visual orchestration.
+* **`init()`**: Creates and injects the combo DOM structure and effects layer into the document body.
+* **`increment()`**: Increases the streak count, upgrades the rank, and resets the fuse timer.
+* **`dropRank()`**: Demotes the user to the previous rank tier when the timer expires.
+* **`reset()`**: Clears the streak and hides the combo UI (used on wrong answers).
+* **`makeDraggable(el)`**: Attaches mouse/touch listeners to handle the custom right-anchored dragging logic.
+* **`ensureInBounds()`**: Recalculates coordinates on window resize to keep the UI within the viewport.
+* **`updateVisuals()`**: Applies the appropriate CSS class and text label (e.g., "Smokin' Sexy Style!!") based on the current threshold.
+* **`triggerRankEffects(char)`**: Spawns temporary DOM elements (particles, emojis) based on the rank intensity.
+* **`startNewTimer()`**: Resets the internal countdown and CSS transition for the fuse bar.
+* **`pauseTimer()`**: Freezes the countdown (used during audio playback).
+* **`resumeTimer()`**: Unpauses the countdown.
 ---
 
 ## 🛠️ Services (`src/services/`)

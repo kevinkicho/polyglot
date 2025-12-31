@@ -13,7 +13,6 @@ class ComboManager {
         this.startTick = 0;
         this.isPaused = false;
         
-        // 20 DIVERSE LEVELS
         this.ranks = [
             { threshold: 1, char: 'D', text: 'Dull' },
             { threshold: 2, char: 'D+', text: 'Decent' },
@@ -70,13 +69,11 @@ class ComboManager {
         setTimeout(() => this.ensureInBounds(), 100);
     }
 
-    // --- RIGHT-ANCHORED DRAG LOGIC ---
     makeDraggable(el) {
         let isDragging = false;
         let startX, startY, initialRight, initialTop;
 
         const startDrag = (e) => {
-            // Only drag if clicking text or rank
             if(!e.target.closest('.combo-rank') && !e.target.closest('.combo-text')) return;
 
             isDragging = true;
@@ -87,11 +84,9 @@ class ComboManager {
             startY = clientY;
             
             const rect = el.getBoundingClientRect();
-            // Important: We track distance from RIGHT edge
             initialRight = window.innerWidth - rect.right;
             initialTop = rect.top;
             
-            // Lock positioning to right/top
             el.style.left = 'auto';
             el.style.bottom = 'auto';
             el.style.right = `${initialRight}px`;
@@ -110,12 +105,9 @@ class ComboManager {
             const dx = clientX - startX;
             const dy = clientY - startY;
             
-            // Drag Right (+dx) = Smaller Right Margin
-            // Drag Left (-dx) = Larger Right Margin
             let newRight = initialRight - dx; 
             let newTop = initialTop + dy;
 
-            // Strict Bounds
             const maxRight = window.innerWidth - el.offsetWidth;
             const maxTop = window.innerHeight - el.offsetHeight;
 
@@ -141,15 +133,11 @@ class ComboManager {
         
         const rect = this.container.getBoundingClientRect();
         
-        // Calculate current CSS values
         let currentRight = window.innerWidth - rect.right;
         let currentTop = rect.top;
         let corrected = false;
 
-        // Off-screen to right
         if (currentRight < 0) { currentRight = 0; corrected = true; }
-        
-        // Off-screen to left (Right margin too big)
         const maxRight = window.innerWidth - rect.width;
         if (currentRight > maxRight) { currentRight = maxRight; corrected = true; }
 
@@ -227,7 +215,7 @@ class ComboManager {
 
         const rank = this.getRank(this.streak);
         
-        // Add color class
+        // FIX: Use new getRankClass logic
         this.rankEl.className = 'combo-rank ' + this.getRankClass(rank); 
         
         void this.rankEl.offsetWidth; 
@@ -244,11 +232,15 @@ class ComboManager {
         this.ensureInBounds();
     }
 
+    // FIX: Map new thresholds to new CSS classes
     getRankClass(rank) {
-        // Reuse classes for new ranks
-        if (rank.threshold >= 60) return 'rank-sss'; // Polyglot
-        if (rank.threshold >= 40) return 'rank-sss'; // Immortal
-        if (rank.threshold >= 22) return 'rank-sss'; // SSS
+        if (rank.threshold >= 60) return 'rank-poly';
+        if (rank.threshold >= 50) return 'rank-g';
+        if (rank.threshold >= 40) return 'rank-i';
+        if (rank.threshold >= 35) return 'rank-m';
+        if (rank.threshold >= 30) return 'rank-l';
+        if (rank.threshold >= 26) return 'rank-h';
+        if (rank.threshold >= 22) return 'rank-sss';
         if (rank.threshold >= 15) return 'rank-ss';
         if (rank.threshold >= 10) return 'rank-s';
         if (rank.threshold >= 7) return 'rank-a';
@@ -261,18 +253,18 @@ class ComboManager {
         const layer = document.getElementById('combo-effects-layer');
         if (!layer) return;
 
-        // Threshold checks for effects
+        // Threshold checks
         const rankObj = this.getRank(this.streak);
         const t = rankObj.threshold;
 
-        if (t >= 7) { // A or higher
+        if (t >= 7) { 
              const flash = document.createElement('div');
              flash.className = 'combo-flash'; 
              layer.appendChild(flash);
              setTimeout(() => flash.remove(), 400);
         }
 
-        if (t >= 10) { // S or higher
+        if (t >= 10) { 
             for(let i=0; i<4; i++) {
                 const splat = document.createElement('div');
                 splat.className = 'paint-splat';
@@ -284,7 +276,7 @@ class ComboManager {
             }
         }
 
-        if (t >= 15) { // SS or higher
+        if (t >= 15) { 
             const dancer = document.createElement('div');
             dancer.textContent = Math.random() > 0.5 ? '💃' : '🕺';
             dancer.className = 'combo-dancer';
@@ -294,7 +286,7 @@ class ComboManager {
             setTimeout(() => dancer.remove(), 2500);
         }
 
-        if (t >= 22) { // SSS or higher
+        if (t >= 22) { 
              const emojis = ['🌞','🐷','🐸','🐧','🦊','🦋','🦄','🍻','🍥','🌈','🌍','🌎','🌏','🪐','💫','☄️','☃️','🦝','🐯','🎎','💸','💵','💴','💶','💷','💰','🧧'];
              const selectedEmoji = emojis[Math.floor(Math.random() * emojis.length)];
              for(let i=0; i<25; i++) {
