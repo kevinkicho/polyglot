@@ -1,0 +1,57 @@
+import { initializeApp } from 'firebase/app';
+import { 
+    getDatabase, 
+    ref, 
+    get, 
+    child, 
+    update, 
+    push, 
+    set, 
+    increment, 
+    onValue 
+} from 'firebase/database';
+import { 
+    getAuth, 
+    signInAnonymously, 
+    onAuthStateChanged, 
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    signOut 
+} from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCf-bliVUmDXtujsXhj35qAyXuYUDli_TM",
+  authDomain: "polyglot121725.firebaseapp.com",
+  databaseURL: "https://polyglot121725-default-rtdb.firebaseio.com",
+  projectId: "polyglot121725",
+  storageBucket: "polyglot121725.firebasestorage.app",
+  messagingSenderId: "847375215592",
+  appId: "1:847375215592:web:294ede3e908d11509ed25d"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+export { 
+    app,
+    db, 
+    auth, 
+    googleProvider,
+    // Auth Functions
+    signInAnonymously, 
+    signInWithPopup, 
+    signOut, 
+    onAuthStateChanged,
+    // Database Functions
+    ref, 
+    get, 
+    child, 
+    update, 
+    push, 
+    set, 
+    increment, 
+    onValue
+};

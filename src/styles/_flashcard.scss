@@ -1,0 +1,49 @@
+/* Essential 3D Flip Logic */
+.card-scene {
+  perspective: 1000px; /* Gives depth to the flip */
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d; /* Key: keeps children in 3D space */
+}
+
+/* This class applies the rotation when flipped */
+.card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* General face styling */
+.card-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden; /* Hides the back of the div when rotated */
+  -webkit-backface-visibility: hidden; /* Safari support */
+}
+
+/* The back face starts rotated 180deg so it faces "away" initially */
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Utility to ensure 3D style is applied */
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* Utility for hiding backface */
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Font specific adjustments for Japanese */
+.font-jp {
+  font-family: 'Noto Sans JP', sans-serif;
+}

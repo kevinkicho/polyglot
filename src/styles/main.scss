@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================
+   1. FLASHCARD 3D STYLES
+   ========================================= */
+.card-scene {
+    perspective: 1000px;
+}
+
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+
+.card-inner.is-flipped {
+    transform: rotateY(180deg);
+}
+
+.card-face {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+    transform: rotateY(180deg);
+}
+
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+
+.backface-hidden {
+    backface-visibility: hidden;
+}
+
+.font-jp {
+    font-family: 'Noto Sans JP', sans-serif;
+}
+
+/* =========================================
+   2. GLOBAL BODY STYLES
+   ========================================= */
+body {
+    font-family: 'Inter', sans-serif;
+    overflow: hidden; /* Prevent scrolling on main body */
+    touch-action: manipulation; /* Improves touch response */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+/* =========================================
+   3. CUSTOM SCROLLBAR
+   ========================================= */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(75, 85, 99, 0.5);
+}
+
+/* Utility to hide scrollbar but allow scrolling */
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+}
+
+/* =========================================
+   4. GAME UTILITIES & ANIMATIONS
+   ========================================= */
+
+/* Shake Animation */
+.shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Celebrate Animation */
+.animate-celebrate {
+    animation: celebrate 0.5s ease-out;
+}
+
+@keyframes celebrate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Fade In Animation */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Shimmer Animation (for Achievements) */
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+.animate-shimmer {
+    animation: shimmer 2s infinite;
+}
+
+.achievement-icon-glow {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+}
+
+/* Loader */
+.loader {
+    border: 3px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 3px solid #6366f1;
+    width: 24px;
+    height: 24px;
+    -webkit-animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================
+   5. TEXT FIT UTILITIES
+   ========================================= */
+[data-fit="true"] {
+    white-space: nowrap;
+    display: inline-block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: clip;
+}
+
+/* =========================================
+   6. PREFERS-REDUCED-MOTION
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+    .shake,
+    .animate-celebrate,
+    .animate-fade-in,
+    .animate-shimmer,
+    .animate-pulse,
+    .loader {
+        animation: none !important;
+    }
+
+    .card-inner {
+        transition: none !important;
+    }
+
+    * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* =========================================
+   7. RESPONSIVE UTILITIES
+   ========================================= */
+@media (min-width: 768px) {
+    .game-mode .fixed.bottom-0 .max-w-lg {
+        max-width: 36rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .game-mode .max-w-lg {
+        max-width: 40rem;
+    }
+}
+
+/* =========================================
+   8. TOAST NOTIFICATIONS
+   ========================================= */
+.toast-enter {
+    animation: toastIn 0.25s ease-out forwards;
+}
+.toast-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.toast-exit {
+    animation: toastOut 0.2s ease-in forwards;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+}
+
+/* Focus-visible styles for keyboard navigation */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.dark button:focus-visible,
+.dark input:focus-visible {
+    outline-color: #818cf8;
+}

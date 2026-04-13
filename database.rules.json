@@ -1,0 +1,40 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "vocab": {
+      ".read": "auth != null",
+      ".write": "auth.token.email === 'kevinkicho@gmail.com'",
+      ".indexOn": ["id"]
+    },
+    "dictionary": {
+      ".read": "auth != null",
+      ".write": "auth.token.email === 'kevinkicho@gmail.com'",
+      ".indexOn": ["s", "t"]
+    },
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        "stats": {
+          "$dateKey": {
+            "$gameType": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        },
+        "achievements": {
+          "$achId": {
+            ".validate": "newData.hasChildren(['unlockedAt', 'title'])"
+          }
+        },
+        "srs": {
+          "$vocabId": {
+            ".validate": "newData.hasChildren(['box', 'lastReview']) && newData.child('box').isNumber() && newData.child('lastReview').isNumber()"
+          }
+        }
+      }
+    }
+  }
+}

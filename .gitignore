@@ -1,0 +1,12 @@
+# Dependencies (The bulky files)
+node_modules/
+
+# Build Output (Webpack generates this)
+dist/
+
+# Firebase cache
+.firebase/
+
+# System Files (Junk files)
+.DS_Store
+Thumbs.db
