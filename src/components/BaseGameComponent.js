@@ -56,7 +56,12 @@ export class BaseGameComponent {
 
     refresh() {
         if (this.container && !this.container.classList.contains('hidden')) {
-            this.loadGame();
+            try {
+                this.loadGame();
+            } catch (e) {
+                console.error('[Game] refresh error:', e);
+                this._renderCrash(e);
+            }
         }
     }
 
@@ -102,15 +107,25 @@ export class BaseGameComponent {
     // --- Navigation ---
 
     random() {
-        const list = this.getFilteredList();
-        if (list.length === 0) return;
-        const randItem = srsService.weightedRandom(list);
-        this.currentIndex = vocabService.findIndexById(randItem.id);
-        this.loadGame();
+        try {
+            const list = this.getFilteredList();
+            if (list.length === 0) return;
+            const randItem = srsService.weightedRandom(list);
+            this.currentIndex = vocabService.findIndexById(randItem.id);
+            this.loadGame();
+        } catch (e) {
+            console.error('[Game] random error:', e);
+            this._renderCrash(e);
+        }
     }
 
     recordAnswer(vocabId, correct) {
         srsService.recordAnswer(vocabId, correct);
+        // Track session stats
+        if (!this._sessionStats) this._sessionStats = { correct: 0, wrong: 0, reviewed: new Set() };
+        if (correct) this._sessionStats.correct++;
+        else this._sessionStats.wrong++;
+        this._sessionStats.reviewed.add(vocabId);
     }
 
     next(id = null) {
@@ -160,7 +175,17 @@ export class BaseGameComponent {
     }
 
     closeGame() {
+        this._showSessionSummary();
         window.dispatchEvent(new CustomEvent('router:home'));
+    }
+
+    _showSessionSummary() {
+        if (!this._sessionStats || this._sessionStats.reviewed.size === 0) return;
+        const { correct, wrong, reviewed } = this._sessionStats;
+        const total = correct + wrong;
+        const pct = total ? Math.round((correct / total) * 100) : 0;
+        toast.info(`Session: ${reviewed.size} words, ${correct}/${total} correct (${pct}%)`, 4000);
+        this._sessionStats = null;
     }
 
     saveHistory(game, id) {
@@ -264,6 +289,24 @@ export class BaseGameComponent {
         this.bind(`#${prefix}-close-err`, 'click', () => this.closeGame());
     }
 
+    _renderCrash(error) {
+        if (!this.container) return;
+        this.container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full pt-20 px-6 text-center" role="alert">
+                <svg class="w-16 h-16 text-red-300 dark:text-red-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div class="text-lg font-bold text-gray-400 dark:text-gray-500 mb-2">Something went wrong</div>
+                <p class="text-sm text-gray-400 mb-4">${error?.message || 'Unknown error'}</p>
+                <div class="flex gap-3">
+                    <button class="crash-retry px-6 py-2 bg-indigo-600 text-white rounded-full font-bold hover:bg-indigo-700 active:scale-95 transition-all">Retry</button>
+                    <button class="crash-home px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full font-bold hover:bg-gray-300 active:scale-95 transition-all">Go Home</button>
+                </div>
+            </div>`;
+        this.bind('.crash-retry', 'click', () => { try { this.loadGame(); } catch (e) { this._renderCrash(e); } });
+        this.bind('.crash-home', 'click', () => this.closeGame());
+    }
+
     // --- Common Event Binding ---
 
     bindCommonEvents(prefix) {
@@ -288,12 +331,15 @@ export class BaseGameComponent {
             btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
         });
 
-        // Keyboard navigation (arrow keys)
+        // Keyboard navigation
         this._keyHandler = (e) => {
             // Don't intercept when user is typing in an input
             if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
             if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); this.prev(); }
+            else if (e.key === 'Escape') { e.preventDefault(); this.closeGame(); }
+            // Delegate to subclass handler if it exists
+            else if (this.handleKeyPress) { this.handleKeyPress(e); }
         };
         document.addEventListener('keydown', this._keyHandler);
     }

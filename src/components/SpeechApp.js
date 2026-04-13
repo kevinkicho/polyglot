@@ -1,4 +1,5 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { escapeHTML } from '../utils/sanitize';
 
 export class SpeechApp extends BaseGameComponent {
     constructor() {
@@ -147,7 +148,7 @@ export class SpeechApp extends BaseGameComponent {
                 <div id="speech-q-box" class="w-full bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm text-center border-2 border-indigo-100 hover:border-indigo-300 dark:border-dark-border cursor-pointer transition-all active:scale-95 flex flex-col items-center justify-center gap-2 select-none">
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tap to Listen</span>
                     <h2 class="text-4xl font-black text-gray-800 dark:text-white leading-tight" data-fit="true">${this.textService.smartWrap(item.front.main)}</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">${meaning}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">${escapeHTML(meaning)}</p>
                 </div>
 
                 <div class="relative w-full flex-1 flex flex-col items-center justify-center">
@@ -161,7 +162,7 @@ export class SpeechApp extends BaseGameComponent {
 
                 <div id="speech-status-box" class="w-full min-h-[4rem] bg-gray-100 dark:bg-gray-800 rounded-2xl border-2 border-transparent p-4 text-center transition-all ${this.lastTranscript ? '' : 'opacity-0'}">
                     <p class="text-sm font-bold text-gray-500 dark:text-gray-400">You said:</p>
-                    <p class="text-xl font-black italic mt-1 dark:text-white">"${this.lastTranscript || '...'}"</p>
+                    <p class="text-xl font-black italic mt-1 dark:text-white">"${escapeHTML(this.lastTranscript) || '...'}"</p>
                 </div>
             </div>
 

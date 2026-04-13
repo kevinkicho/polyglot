@@ -1,4 +1,5 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { escapeHTML } from '../utils/sanitize';
 
 export class FlashcardApp extends BaseGameComponent {
     constructor() {
@@ -69,6 +70,10 @@ export class FlashcardApp extends BaseGameComponent {
         this.goto(id);
     }
 
+    handleKeyPress(e) {
+        if (e.key === ' ') { e.preventDefault(); this.handleCardClick(); }
+    }
+
     handleCardClick() {
         this.isFlipped = !this.isFlipped;
         this.render();
@@ -122,7 +127,7 @@ export class FlashcardApp extends BaseGameComponent {
 
                             <div class="flex-1 w-full flex flex-col items-center justify-center overflow-hidden">
                                 <h2 class="fc-front-text opacity-0 transition-opacity duration-300 font-black text-gray-800 dark:text-white text-center leading-tight whitespace-nowrap" data-fit="true">${this.textService.smartWrap(front.main)}</h2>
-                                ${front.sub ? `<p class="fc-front-sub font-medium text-gray-500 dark:text-gray-400 mt-2 text-center whitespace-nowrap" data-fit="true">${front.sub}</p>` : ''}
+                                ${front.sub ? `<p class="fc-front-sub font-medium text-gray-500 dark:text-gray-400 mt-2 text-center whitespace-nowrap" data-fit="true">${escapeHTML(front.sub)}</p>` : ''}
                             </div>
 
                             <div class="text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Tap to Flip</div>
@@ -139,8 +144,8 @@ export class FlashcardApp extends BaseGameComponent {
 
                                 ${back.sentenceTarget && s.showSentence ? `
                                     <div class="w-full p-4 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-dark-border">
-                                        <p class="fc-back-sent opacity-0 transition-opacity duration-300 text-gray-700 dark:text-white font-bold mb-2 leading-tight whitespace-nowrap" data-fit="true">${back.sentenceTarget}</p>
-                                        ${back.sentenceOrigin && s.showEnglish ? `<p class="fc-back-sent-trans text-gray-500 dark:text-gray-400 font-medium leading-tight whitespace-nowrap" data-fit="true">${back.sentenceOrigin}</p>` : ''}
+                                        <p class="fc-back-sent opacity-0 transition-opacity duration-300 text-gray-700 dark:text-white font-bold mb-2 leading-tight whitespace-nowrap" data-fit="true">${escapeHTML(back.sentenceTarget)}</p>
+                                        ${back.sentenceOrigin && s.showEnglish ? `<p class="fc-back-sent-trans text-gray-500 dark:text-gray-400 font-medium leading-tight whitespace-nowrap" data-fit="true">${escapeHTML(back.sentenceOrigin)}</p>` : ''}
                                     </div>
                                 ` : ''}
                             </div>

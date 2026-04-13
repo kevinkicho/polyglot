@@ -1,4 +1,5 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { escapeHTML } from '../utils/sanitize';
 
 export class FinderApp extends BaseGameComponent {
     constructor() {
@@ -61,7 +62,7 @@ export class FinderApp extends BaseGameComponent {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-4">
                 ${this.renderCategoryPills({ color: 'rose' })}
                 <div class="bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border min-h-[4rem] flex items-center justify-center">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white leading-tight">${prompt}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white leading-tight">${escapeHTML(prompt)}</h2>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 flex-1">

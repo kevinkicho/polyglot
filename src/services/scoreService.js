@@ -1,10 +1,10 @@
 import { db, auth, ref, update, increment, onValue, get } from './firebase';
 import { achievementService } from './achievementService';
 import { comboManager } from '../managers/ComboManager';
+import { GAME_TYPES } from '../config/gameTypes';
+import { offlineQueue } from './offlineQueue';
 
-/**
- * @typedef {'flashcard'|'quiz'|'sentences'|'blanks'|'listening'|'match'|'memory'|'finder'|'constructor'|'writing'|'truefalse'|'reverse'|'speech'|'decoder'|'gravity'} GameType
- */
+/** @typedef {typeof GAME_TYPES[number]} GameType */
 
 /**
  * Manages user scores, daily tracking, and achievement triggers.
@@ -65,8 +65,7 @@ class ScoreService {
         const unsubscribe = onValue(todayRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const games = ['flashcard', 'quiz', 'sentences', 'blanks', 'listening', 'match', 'memory', 'finder', 'constructor', 'writing', 'truefalse', 'reverse', 'speech', 'decoder', 'gravity'];
-                this.todayScore = games.reduce((sum, g) => {
+                this.todayScore = GAME_TYPES.reduce((sum, g) => {
                     if (Object.prototype.hasOwnProperty.call(data, g) && typeof data[g] === 'number') {
                         return sum + data[g];
                     }
@@ -143,7 +142,10 @@ class ScoreService {
                     }
                 }, 2000);
             })
-            .catch(err => console.error("Score update failed", err));
+            .catch(err => {
+                console.error("Score update failed, queuing offline:", err);
+                offlineQueue.enqueue(updates);
+            });
     }
 
     subscribe(cb) {

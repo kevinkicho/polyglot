@@ -1,5 +1,6 @@
 import { BaseGameComponent } from './BaseGameComponent';
 import { blanksService } from '../services/blanksService';
+import { escapeHTML } from '../utils/sanitize';
 
 export class BlanksApp extends BaseGameComponent {
     constructor() {
@@ -120,7 +121,7 @@ export class BlanksApp extends BaseGameComponent {
             if (qBox) {
                 const pill = qBox.querySelector('.blank-pill');
                 if (pill) {
-                    pill.innerHTML = answerWord;
+                    pill.textContent = answerWord;
                     pill.classList.remove('border-dashed', 'bg-indigo-50', 'text-transparent', 'w-16', 'h-10');
                     pill.classList.add('text-indigo-600', 'dark:text-indigo-400', 'scale-110', 'px-2', 'h-auto');
                 }
@@ -154,7 +155,7 @@ export class BlanksApp extends BaseGameComponent {
         }
 
         const pillHtml = `<span class="blank-pill inline-flex items-center justify-center border-2 border-dashed border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700 rounded-lg mx-1 w-16 h-10 align-middle text-transparent transition-all duration-300 overflow-hidden select-none"><span class="text-indigo-300 dark:text-indigo-700 text-sm font-bold">?</span></span>`;
-        const displayHtml = rawSentence.replace(/_+/g, pillHtml);
+        const displayHtml = rawSentence.split(/_+/).map(part => escapeHTML(part)).join(pillHtml);
 
         const jaClass = s.targetLang === 'ja' ? 'text-ja-wrap' : '';
 
@@ -164,7 +165,7 @@ export class BlanksApp extends BaseGameComponent {
             <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <div class="w-full py-2 px-1 text-center flex-none min-h-[3rem] flex items-center justify-center">
-                        <span class="question-text text-sm font-bold text-gray-500 dark:text-gray-400">${translationText}</span>
+                        <span class="question-text text-sm font-bold text-gray-500 dark:text-gray-400">${escapeHTML(translationText)}</span>
                     </div>
                     <div class="flex-grow flex items-center justify-center p-4">
                         <div class="sentence-text text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full ${jaClass}">${displayHtml}</div>

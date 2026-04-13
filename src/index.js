@@ -5,44 +5,48 @@ import { settingsService } from './services/settingsService';
 import { vocabService } from './services/vocabService';
 import { scoreService } from './services/scoreService';
 import { srsService } from './services/srsService';
+import { offlineQueue } from './services/offlineQueue';
 import { viewManager } from './managers/ViewManager';
 import { authManager } from './managers/AuthManager';
 import { editorManager } from './managers/EditorManager';
 import { uiManager } from './managers/UIManager';
 
-// Game imports
-import { flashcardApp } from './components/FlashcardApp';
-import { quizApp } from './components/QuizApp';
-import { sentencesApp } from './components/SentencesApp';
-import { blanksApp } from './components/BlanksApp';
-import { listeningApp } from './components/ListeningApp';
-import { matchApp } from './components/MatchApp';
-import { memoryApp } from './components/MemoryApp';
-import { finderApp } from './components/FinderApp';
-import { constructorApp } from './components/ConstructorApp';
-import { writingApp } from './components/WritingApp';
-import { trueFalseApp } from './components/TrueFalseApp';
-import { reverseApp } from './components/ReverseApp';
-import { speechApp } from './components/SpeechApp';
-import { decoderApp } from './components/DecoderApp';
-import { gravityApp } from './components/GravityApp';
+// Game components are lazy-loaded by ViewManager on first navigation
 
-// Register all games
-viewManager.registerGame('flashcard', flashcardApp);
-viewManager.registerGame('quiz', quizApp);
-viewManager.registerGame('sentences', sentencesApp);
-viewManager.registerGame('blanks', blanksApp);
-viewManager.registerGame('listening', listeningApp);
-viewManager.registerGame('match', matchApp);
-viewManager.registerGame('memory', memoryApp);
-viewManager.registerGame('finder', finderApp);
-viewManager.registerGame('constructor', constructorApp);
-viewManager.registerGame('writing', writingApp);
-viewManager.registerGame('truefalse', trueFalseApp);
-viewManager.registerGame('reverse', reverseApp);
-viewManager.registerGame('speech', speechApp);
-viewManager.registerGame('decoder', decoderApp);
-viewManager.registerGame('gravity', gravityApp);
+function showOnboardingIfNew() {
+    if (localStorage.getItem('polyglot_onboarded')) return;
+    const overlay = document.getElementById('onboarding-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(() => overlay.classList.remove('opacity-0'));
+    document.getElementById('onboarding-dismiss').addEventListener('click', () => {
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+        localStorage.setItem('polyglot_onboarded', '1');
+    });
+}
+
+function updateSRSDashboard() {
+    const list = vocabService.getAll();
+    const dashboard = document.getElementById('srs-dashboard');
+    if (!list.length || !dashboard) return;
+
+    const { due, counts } = srsService.getDueItems(list);
+    const total = list.length;
+
+    dashboard.classList.remove('hidden');
+    document.getElementById('srs-new').textContent = counts.new;
+    document.getElementById('srs-learning').textContent = counts.learning;
+    document.getElementById('srs-mastered').textContent = counts.mastered;
+    document.getElementById('srs-due-badge').textContent = `${due.length} due`;
+
+    const pctNew = total ? (counts.new / total * 100) : 0;
+    const pctLearn = total ? (counts.learning / total * 100) : 0;
+    const pctMaster = total ? (counts.mastered / total * 100) : 0;
+    document.getElementById('srs-bar-new').style.width = `${pctNew}%`;
+    document.getElementById('srs-bar-learning').style.width = `${pctLearn}%`;
+    document.getElementById('srs-bar-mastered').style.width = `${pctMaster}%`;
+}
 
 // Polyfills or globals if needed
 window.wasLongPress = false;
@@ -75,10 +79,12 @@ function populateLanguageDropdowns() {
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Core Services
     try { scoreService.init(); } catch(e){ console.error("Score Init Error", e); }
+    offlineQueue.init();
     populateLanguageDropdowns();
 
     // 2. Initialize Managers
     viewManager.init();
+    window.addEventListener('view:home', () => updateSRSDashboard());
     uiManager.init();
     editorManager.init();
 
@@ -97,7 +103,9 @@ async function loadApplicationData() {
         if(saved.darkMode) document.documentElement.classList.add('dark');
 
         await vocabService.init();
-        srsService.load();
+        await srsService.load();
+        vocabService.subscribe(() => updateSRSDashboard());
+        updateSRSDashboard();
 
         if (!vocabService.hasData()) throw new Error("No vocabulary data.");
 
@@ -115,6 +123,7 @@ async function loadApplicationData() {
                 document.body.classList.remove('is-loading');
 
                 viewManager.render('home');
+                showOnboardingIfNew();
             };
         }
     } catch(e) {

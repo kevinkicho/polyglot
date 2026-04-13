@@ -107,6 +107,32 @@
         </div>
     </div>
 
+    <div id="onboarding-overlay" class="hidden fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 transition-opacity duration-300 opacity-0">
+        <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-gray-100 dark:border-gray-800">
+            <h2 class="text-2xl font-black text-indigo-600 dark:text-indigo-400 text-center mb-4">Welcome to Polyglot.AI!</h2>
+            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                <div class="flex items-start gap-3">
+                    <span class="text-lg mt-0.5">1</span>
+                    <p><strong class="text-gray-800 dark:text-white">Start with Flashcards</strong> to learn new words at your own pace.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-lg mt-0.5">2</span>
+                    <p><strong class="text-gray-800 dark:text-white">Test yourself with Quiz</strong> for rapid multiple-choice practice.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-lg mt-0.5">3</span>
+                    <p><strong class="text-gray-800 dark:text-white">Try all 15 modes</strong> — each targets a different skill (listening, spelling, speech, etc).</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-lg mt-0.5">4</span>
+                    <p><strong class="text-gray-800 dark:text-white">Smart repetition</strong> — words you get wrong appear more often.</p>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 text-center mt-4">Use the gear icon to change languages and settings.</p>
+            <button id="onboarding-dismiss" class="w-full mt-5 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all">Let's Go!</button>
+        </div>
+    </div>
+
     <div id="splash-screen" class="fixed inset-0 z-[60] bg-white dark:bg-dark-bg flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-4xl font-black text-indigo-600 dark:text-dark-primary mb-8 tracking-tighter animate-pulse">POLYGLOT.AI</div>
         <button id="start-app-btn" disabled class="px-8 py-4 bg-gray-200 dark:bg-gray-800 text-gray-400 font-bold rounded-2xl transition-all scale-95 opacity-50 cursor-not-allowed">Loading...</button>
@@ -140,6 +166,31 @@
 
     <div id="main-menu" class="fixed inset-0 z-30 pt-20 px-6 overflow-y-auto bg-gray-50 dark:bg-dark-bg transition-transform duration-300">
         <div class="flex flex-col items-center justify-center min-h-full pb-10">
+            <div id="srs-dashboard" class="w-full max-w-md mb-6 bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border p-4 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">Study Progress</h3>
+                    <span id="srs-due-badge" class="text-xs font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full"></span>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-1 text-center p-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                        <div id="srs-new" class="text-2xl font-black text-red-500">0</div>
+                        <div class="text-[10px] font-bold text-red-400 uppercase">New</div>
+                    </div>
+                    <div class="flex-1 text-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                        <div id="srs-learning" class="text-2xl font-black text-amber-500">0</div>
+                        <div class="text-[10px] font-bold text-amber-400 uppercase">Learning</div>
+                    </div>
+                    <div class="flex-1 text-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                        <div id="srs-mastered" class="text-2xl font-black text-emerald-500">0</div>
+                        <div class="text-[10px] font-bold text-emerald-400 uppercase">Mastered</div>
+                    </div>
+                </div>
+                <div class="mt-3 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
+                    <div id="srs-bar-new" class="bg-red-400 transition-all duration-500" style="width:0%"></div>
+                    <div id="srs-bar-learning" class="bg-amber-400 transition-all duration-500" style="width:0%"></div>
+                    <div id="srs-bar-mastered" class="bg-emerald-400 transition-all duration-500" style="width:0%"></div>
+                </div>
+            </div>
             <div class="grid grid-cols-1 gap-6 w-full max-w-md">
                 <button id="menu-flashcard-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-600 dark:text-dark-primary mb-2">Flashcards</h2><p class="text-gray-500 dark:text-gray-400">Master vocabulary with 3D cards.</p></button>
                 <button id="menu-quiz-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-purple-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-purple-600 dark:text-purple-400 mb-2">Quiz Mode</h2><p class="text-gray-500 dark:text-gray-400">Test your skills with rapid-fire questions.</p></button>

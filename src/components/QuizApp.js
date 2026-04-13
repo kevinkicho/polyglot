@@ -72,6 +72,20 @@ export class QuizApp extends BaseGameComponent {
         }
     }
 
+    handleKeyPress(e) {
+        if (this.isProcessing) return;
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 4) {
+            e.preventDefault();
+            const btns = this.container?.querySelectorAll('.quiz-option');
+            if (btns && btns[num - 1]) {
+                const btn = btns[num - 1];
+                const text = btn.querySelector('.quiz-choice-text')?.innerText || '';
+                this.handleOptionClick(parseInt(btn.dataset.id), btn, text);
+            }
+        }
+    }
+
     handleOptionClick(id, el, choiceText) {
         if (this.isProcessing || window.wasLongPress) return;
         const settings = this.settingsService.get();

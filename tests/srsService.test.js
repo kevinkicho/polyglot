@@ -80,4 +80,58 @@ describe('SrsService', () => {
     it('weightedRandom handles empty list', () => {
         expect(srsService.weightedRandom([])).toBeNull();
     });
+
+    it('weightedRandom gives time bonus to stale items', () => {
+        const now = Date.now();
+        // Both items box 3, but item 1 was reviewed 24h ago, item 2 just now
+        srsService.data[1] = { box: 3, lastReview: now - 86400000 };
+        srsService.data[2] = { box: 3, lastReview: now };
+
+        const list = [
+            { id: 1, front: { main: 'stale' } },
+            { id: 2, front: { main: 'fresh' } },
+        ];
+
+        const counts = { 1: 0, 2: 0 };
+        for (let i = 0; i < 1000; i++) {
+            counts[srsService.weightedRandom(list).id]++;
+        }
+
+        // Stale item should appear more often (2x weight vs 1x)
+        expect(counts[1]).toBeGreaterThan(counts[2]);
+    });
+
+    it('getDueItems returns items based on box intervals', () => {
+        const now = Date.now();
+        // Box 1 item (always due)
+        srsService.data[1] = { box: 1, lastReview: now };
+        // Box 5 item reviewed recently (not due — 7d interval)
+        srsService.data[2] = { box: 5, lastReview: now };
+        // Box 2 item reviewed 5 hours ago (due — 4h interval)
+        srsService.data[3] = { box: 2, lastReview: now - 5 * 3600000 };
+
+        const list = [{ id: 1 }, { id: 2 }, { id: 3 }];
+        const { due, counts } = srsService.getDueItems(list);
+
+        expect(due.map(i => i.id)).toContain(1);
+        expect(due.map(i => i.id)).toContain(3);
+        expect(due.map(i => i.id)).not.toContain(2);
+        expect(counts.new).toBe(1);       // box 1
+        expect(counts.learning).toBe(1);  // box 2
+        expect(counts.mastered).toBe(1);  // box 5
+    });
+
+    it('getDueItems counts categories correctly', () => {
+        srsService.data[1] = { box: 1, lastReview: 0 };
+        srsService.data[2] = { box: 3, lastReview: 0 };
+        srsService.data[3] = { box: 4, lastReview: 0 };
+        srsService.data[4] = { box: 5, lastReview: 0 };
+
+        const list = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+        const { counts } = srsService.getDueItems(list);
+
+        expect(counts.new).toBe(1);      // box 1
+        expect(counts.learning).toBe(1);  // box 2-3
+        expect(counts.mastered).toBe(2);  // box 4-5
+    });
 });

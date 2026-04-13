@@ -31,6 +31,12 @@ export class TrueFalseApp extends BaseGameComponent {
         this.render();
     }
 
+    handleKeyPress(e) {
+        if (this.isProcessing) return;
+        if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); this.handleGuess(true); }
+        else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); this.handleGuess(false); }
+    }
+
     playAudio() {
         this.audioService.speak(this.currentData.item.front.main, this.settingsService.get().targetLang);
     }

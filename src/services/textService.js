@@ -1,4 +1,5 @@
 import { settingsService } from './settingsService';
+import { escapeHTML } from '../utils/sanitize';
 
 class TextService {
     /**
@@ -78,18 +79,13 @@ class TextService {
         const separatorRegex = /[\/·・･,、。]+/;
 
         if (separatorRegex.test(text)) {
-            // These DIVs create the structure.
-            // TextService will resize the PARENT, so these children need to flow nicely.
-            // For "No Wrap" behavior on the whole card, we usually want these to stack 
-            // but the font size to be governed by the widest one.
             return text.split(separatorRegex)
                 .filter(part => part.trim().length > 0)
-                .map(part => `<div class="w-full my-1 whitespace-nowrap">${part.trim()}</div>`)
+                .map(part => `<div class="w-full my-1 whitespace-nowrap">${escapeHTML(part.trim())}</div>`)
                 .join('');
         }
-        
-        // Default return
-        return text;
+
+        return escapeHTML(text);
     }
 
     // --- Japanese Tokenizer Utilities (Unchanged but included for completeness) ---
