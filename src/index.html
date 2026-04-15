@@ -207,6 +207,7 @@
                 <button id="menu-speech-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-500 mb-2">Speech</h2><p class="text-gray-500 dark:text-gray-400">Practice your pronunciation.</p></button>
                 <button id="menu-decoder-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-blue-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-blue-500 mb-2">Decoder</h2><p class="text-gray-500 dark:text-gray-400">Listen and build words.</p></button>
                 <button id="menu-gravity-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mb-2">Gravity</h2><p class="text-gray-500 dark:text-gray-400">Type matching words before they fall.</p></button>
+                <button id="menu-chat-btn" class="group relative overflow-hidden bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border-2 border-violet-200 dark:border-violet-700 p-6 rounded-3xl shadow-xl hover:shadow-violet-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-violet-600 dark:text-violet-400 mb-2">AI Tutor</h2><p class="text-gray-500 dark:text-gray-400">Chat-powered language learning with AI.</p></button>
             </div>
         </div>
     </div>
@@ -226,6 +227,7 @@
     <div id="speech-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
     <div id="decoder-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
     <div id="gravity-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
+    <div id="chat-view" class="fixed inset-0 z-50 bg-gray-100 dark:bg-dark-bg hidden flex flex-col transition-colors duration-300"></div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center opacity-0 transition-opacity duration-200">
         <div id="modal-backdrop" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
@@ -295,6 +297,35 @@
                     <button id="effects-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Effects</span><span id="accordion-arrow-effects" class="arrow">▼</span></button>
                     <div id="effects-options" class="settings-content space-y-4 px-2 pt-2">
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Combo Streak Effects</span><input type="checkbox" id="toggle-combo-effects"></div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
+                    <button id="ai-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>AI Tutor</span><span id="accordion-arrow-ai" class="arrow">▼</span></button>
+                    <div id="ai-options" class="settings-content space-y-4 px-2 pt-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-1">API URL</label>
+                            <input type="text" id="llm-api-url" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="http://localhost:11434">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-1">API Key <span class="font-normal">(optional)</span></label>
+                            <input type="password" id="llm-api-key" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="sk-... or leave blank for local">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-1">Model</label>
+                            <input type="text" id="llm-model" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="llama3.1:8b" list="llm-model-list">
+                            <datalist id="llm-model-list">
+                                <option value="llama3.1:8b">
+                                <option value="llama3.2:3b">
+                                <option value="gemma2:9b">
+                                <option value="mistral:7b">
+                                <option value="qwen2.5:7b">
+                                <option value="phi3:mini">
+                                <option value="gpt-4o-mini">
+                                <option value="gpt-4o">
+                            </datalist>
+                        </div>
+                        <p class="text-[10px] text-gray-400 leading-tight">Works with Ollama, OpenAI, Groq, Together, or any OpenAI-compatible API. For Ollama, use http://localhost:11434 with no API key.</p>
                     </div>
                 </div>
             </div>

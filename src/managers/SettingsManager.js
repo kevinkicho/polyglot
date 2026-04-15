@@ -54,6 +54,18 @@ class SettingsManager {
         this.bindSetting('target-select', 'targetLang', onLanguageChange);
         this.bindSetting('origin-select', 'originLang', onLanguageChange);
 
+        // AI Tutor settings (text inputs — save on blur/change)
+        ['llm-api-url', 'llmApiUrl', 'llm-api-key', 'llmApiKey', 'llm-model', 'llmModel'].forEach((_, i, arr) => {
+            if (i % 2 !== 0) return;
+            const elId = arr[i], key = arr[i + 1];
+            const el = document.getElementById(elId);
+            if (el) {
+                const save = () => settingsService.set(key, el.value.trim());
+                el.addEventListener('change', save);
+                el.addEventListener('blur', save);
+            }
+        });
+
         // Accordion Logic
         [
             { btn: 'audio-accordion-btn', c: 'audio-options', a: 'accordion-arrow-audio' },
@@ -61,7 +73,8 @@ class SettingsManager {
             { btn: 'sent-accordion-btn', c: 'sent-options', a: 'accordion-arrow-sent' },
             { btn: 'quiz-accordion-btn', c: 'quiz-options', a: 'accordion-arrow-3' },
             { btn: 'blanks-accordion-btn', c: 'blanks-options', a: 'accordion-arrow-blanks' },
-            { btn: 'effects-accordion-btn', c: 'effects-options', a: 'accordion-arrow-effects' }
+            { btn: 'effects-accordion-btn', c: 'effects-options', a: 'accordion-arrow-effects' },
+            { btn: 'ai-accordion-btn', c: 'ai-options', a: 'accordion-arrow-ai' }
         ].forEach(o => {
             const b = document.getElementById(o.btn), c = document.getElementById(o.c), a = document.getElementById(o.a);
             if (b) b.addEventListener('click', () => { c.classList.toggle('open'); a.classList.toggle('rotate'); });
@@ -119,6 +132,11 @@ class SettingsManager {
         setChk('toggle-blanks-answer-audio', s.blanksAnswerAudio !== false);
         setChk('toggle-blanks-autoplay', s.blanksAutoPlayCorrect !== false);
         setChk('toggle-combo-effects', s.comboEffects !== false);
+
+        // AI Tutor
+        setVal('llm-api-url', s.llmApiUrl || '');
+        setVal('llm-api-key', s.llmApiKey || '');
+        setVal('llm-model', s.llmModel || '');
     }
 }
 

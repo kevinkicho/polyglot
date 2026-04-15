@@ -22,6 +22,7 @@ const GAME_LOADERS = {
     speech:      () => import(/* webpackChunkName: "game-speech" */      '../components/SpeechApp').then(m => m.speechApp),
     decoder:     () => import(/* webpackChunkName: "game-decoder" */     '../components/DecoderApp').then(m => m.decoderApp),
     gravity:     () => import(/* webpackChunkName: "game-gravity" */     '../components/GravityApp').then(m => m.gravityApp),
+    chat:        () => import(/* webpackChunkName: "game-chat" */       '../components/ChatApp').then(m => m.chatApp),
 };
 
 class ViewManager {
