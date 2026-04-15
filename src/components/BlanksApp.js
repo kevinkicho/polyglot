@@ -128,9 +128,9 @@ export class BlanksApp extends BaseGameComponent {
             }
             const s = this.settingsService.get();
             if (s.blanksAutoPlayCorrect) {
-                if (s.waitForAudio) { await this.audioService.speak(fullSentence, s.targetLang); this.next(); }
-                else { await this.audioService.speak(fullSentence, s.targetLang); this.setTimeout(() => this.next(), 500); }
-            } else { this.setTimeout(() => this.next(), 1000); }
+                if (s.waitForAudio) { await this.audioService.speak(fullSentence, s.targetLang); this.transitionTo(() => this.next()); }
+                else { await this.audioService.speak(fullSentence, s.targetLang); this.setTimeout(() => this.transitionTo(() => this.next()), 500); }
+            } else { this.setTimeout(() => this.transitionTo(() => this.next()), 1000); }
         } else {
             this.isProcessing = false;
             this.selectedAnswerId = null;
@@ -155,32 +155,46 @@ export class BlanksApp extends BaseGameComponent {
         }
 
         const pillHtml = `<span class="blank-pill inline-flex items-center justify-center border-2 border-dashed border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700 rounded-lg mx-1 w-16 h-10 align-middle text-transparent transition-all duration-300 overflow-hidden select-none"><span class="text-indigo-300 dark:text-indigo-700 text-sm font-bold">?</span></span>`;
-        const displayHtml = rawSentence.split(/_+/).map(part => escapeHTML(part)).join(pillHtml);
+
+        // Smart sentence breaking: split into phrase chunks at natural language boundaries
+        const chunks = this.textService.smartSentenceBreak(rawSentence);
+        const displayHtml = chunks.map(chunk => {
+            const hasBlank = /_+/.test(chunk);
+            let html;
+            if (hasBlank) {
+                html = chunk.split(/_+/).map(p => escapeHTML(p)).join(pillHtml);
+            } else {
+                html = escapeHTML(chunk);
+            }
+            return `<span class="phrase-chunk">${html}</span>`;
+        }).join(' ');
 
         const jaClass = s.targetLang === 'ja' ? 'text-ja-wrap' : '';
 
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'blanks', id: target.id, color: 'teal', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div id="blanks-question-box" class="w-full h-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                    <div class="w-full py-2 px-1 text-center flex-none min-h-[3rem] flex items-center justify-center">
-                        <span class="question-text text-sm font-bold text-gray-500 dark:text-gray-400">${escapeHTML(translationText)}</span>
-                    </div>
-                    <div class="flex-grow flex items-center justify-center p-4">
-                        <div class="sentence-text text-2xl md:text-3xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full ${jaClass}">${displayHtml}</div>
-                    </div>
-                </div>
-                <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-2">
-                    ${choices.map(c => `
-                        <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center p-2 overflow-hidden" data-id="${c.id}">
-                            <div class="option-text font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full" data-fit="true">${this.textService.smartWrap(c.front.main)}</div>
-                        </button>
-                    `).join('')}
-                </div>
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-4 landscape:gap-2">
+                ${this.renderSplitLayout(
+                    `<div id="blanks-question-box" class="w-full flex-1 bg-white dark:bg-dark-card rounded-[2rem] landscape:rounded-2xl shadow-xl border-2 border-indigo-100 dark:border-dark-border p-4 landscape:p-2 flex flex-col relative cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                        <div class="w-full py-2 px-1 text-center flex-none min-h-[2rem] flex items-center justify-center">
+                            <span class="question-text text-sm landscape:text-xs font-bold text-gray-500 dark:text-gray-400">${escapeHTML(translationText)}</span>
+                        </div>
+                        <div class="flex-grow flex items-center justify-center p-4 landscape:p-2">
+                            <div class="sentence-text text-2xl md:text-3xl landscape:text-xl font-medium text-gray-800 dark:text-white text-center leading-relaxed w-full ${jaClass}">${displayHtml}</div>
+                        </div>
+                    </div>`,
+                    `<div class="w-full flex-1 grid grid-cols-2 grid-rows-2 gap-2 landscape:gap-1.5 min-h-0">
+                        ${choices.map(c => `
+                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md flex items-center justify-center p-2 landscape:p-1 overflow-hidden" data-id="${c.id}">
+                                <div class="option-text font-bold text-gray-700 dark:text-white text-center leading-tight whitespace-nowrap w-full" data-fit="true">${this.textService.smartWrap(c.front.main)}</div>
+                            </button>
+                        `).join('')}
+                    </div>`
+                )}
             </div>
 
-            <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg"><div class="max-w-md mx-auto flex gap-4"><button id="blanks-prev-btn" class="flex-1 h-16 bg-white border border-gray-200 rounded-3xl shadow-sm flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button><button id="blanks-next-btn" class="flex-1 h-16 bg-indigo-600 text-white rounded-3xl shadow-xl flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button></div></div>
+            <div class="fixed bottom-0 left-0 right-0 p-6 landscape:p-1.5 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg"><div class="max-w-md mx-auto flex gap-4 landscape:gap-2"><button id="blanks-prev-btn" class="flex-1 h-16 landscape:h-9 bg-white border border-gray-200 rounded-3xl landscape:rounded-xl shadow-sm flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button><button id="blanks-next-btn" class="flex-1 h-16 landscape:h-9 bg-indigo-600 text-white rounded-3xl landscape:rounded-xl shadow-xl flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button></div></div>
         `;
 
         this.bindCommonEvents('blanks');
@@ -200,7 +214,7 @@ export class BlanksApp extends BaseGameComponent {
         this.raf(() => {
             if (!this.container) return;
             this.textService.fitText(this.container.querySelector('.question-text'), 12, 18);
-            this.textService.fitText(this.container.querySelector('.sentence-text'), 18, 42);
+            this.textService.fitSentence(this.container.querySelector('.sentence-text'), 14, 42);
             this.container.querySelectorAll('.option-text').forEach(el => {
                 this.textService.fitText(el, 16, 42);
             });

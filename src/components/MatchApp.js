@@ -1,5 +1,6 @@
 import { BaseGameComponent } from './BaseGameComponent';
 import { comboManager } from '../managers/ComboManager';
+import { settingsService } from '../services/settingsService';
 
 export class MatchApp extends BaseGameComponent {
     constructor() {
@@ -49,7 +50,7 @@ export class MatchApp extends BaseGameComponent {
         if (el.classList.contains('matched')) return;
 
         el.classList.add('bg-indigo-100', 'dark:bg-indigo-900', 'border-indigo-500', 'scale-105');
-        el.classList.remove('bg-white', 'dark:bg-dark-card', 'border-gray-200');
+        el.classList.remove('bg-white', 'dark:bg-dark-card', 'border-gray-200', 'dark:border-gray-700');
 
         this.flippedCards.push(idx);
 
@@ -61,6 +62,11 @@ export class MatchApp extends BaseGameComponent {
         if (this.flippedCards.length === 2) {
             this.checkMatch();
         }
+    }
+
+    _resetCard(el) {
+        el.classList.remove('bg-indigo-100', 'dark:bg-indigo-900', 'border-indigo-500', 'scale-105', 'bg-red-100', 'dark:bg-red-900/30', 'shake');
+        el.classList.add('bg-white', 'dark:bg-dark-card', 'border-gray-200', 'dark:border-gray-700');
     }
 
     checkMatch() {
@@ -77,7 +83,7 @@ export class MatchApp extends BaseGameComponent {
                 el2.classList.add('matched', 'opacity-0', 'pointer-events-none', 'transition-opacity', 'duration-500');
 
                 this.scoreService.addScore('match', 20);
-                comboManager.increment();
+                if (settingsService.get().comboEffects !== false) comboManager.increment();
 
                 this.matchedCount += 2;
                 this.flippedCards = [];
@@ -89,14 +95,14 @@ export class MatchApp extends BaseGameComponent {
             }, 500);
         } else {
             this.setTimeout(() => {
-                el1.classList.add('bg-red-100', 'shake');
-                el2.classList.add('bg-red-100', 'shake');
+                el1.classList.add('bg-red-100', 'dark:bg-red-900/30', 'shake');
+                el2.classList.add('bg-red-100', 'dark:bg-red-900/30', 'shake');
 
-                comboManager.dropRank();
+                if (settingsService.get().comboEffects !== false) comboManager.dropRank();
 
                 this.setTimeout(() => {
-                    el1.className = 'match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all';
-                    el2.className = 'match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all';
+                    this._resetCard(el1);
+                    this._resetCard(el2);
 
                     this.flippedCards = [];
                     this.isProcessing = false;
@@ -111,11 +117,11 @@ export class MatchApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'match', title: 'Match', color: 'indigo', showId: false, showRandom: false, showEdit: false })}
 
-            <div class="w-full h-full pt-20 pb-10 px-4 max-w-2xl mx-auto">
-                <div class="grid grid-cols-3 gap-3">
+            <div class="w-full h-full pt-[4.5rem] landscape:pt-[4rem] pb-3 landscape:pb-1 px-3 max-w-2xl md:max-w-4xl mx-auto flex flex-col overflow-hidden">
+                <div class="grid grid-cols-3 grid-rows-4 landscape:grid-cols-4 landscape:grid-rows-3 gap-2 landscape:gap-2.5 md:gap-3 w-full flex-1 min-h-0">
                     ${this.cards.map((card, idx) => `
-                        <div class="match-card w-full h-24 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-2 cursor-pointer transition-all active:scale-95" data-idx="${idx}">
-                            <span class="text-sm font-bold text-gray-700 dark:text-white text-center leading-tight pointer-events-none select-none">${this.textService.smartWrap(card.text)}</span>
+                        <div class="match-card w-full h-full min-h-0 bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm flex items-center justify-center p-1 cursor-pointer transition-all active:scale-95 overflow-hidden" data-idx="${idx}">
+                            <span class="match-text font-bold text-gray-700 dark:text-white text-center leading-tight pointer-events-none select-none w-full">${this.textService.smartWrap(card.text)}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -128,12 +134,9 @@ export class MatchApp extends BaseGameComponent {
             el.addEventListener('click', (e) => this.handleCardClick(parseInt(e.currentTarget.dataset.idx), e.currentTarget));
         });
 
-        this.raf(() => {
-            if (!this.container) return;
-            this.container.querySelectorAll('.match-card span').forEach(span => {
-                this.textService.fitText(span, 12, 20);
-            });
-        });
+        this.fitTexts([
+            ['.match-text', 14, 48]
+        ]);
     }
 }
 

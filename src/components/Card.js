@@ -20,7 +20,7 @@ export const Card = (item, isFlipped) => {
                     </span>
                 </div>
                 
-                ${item.front.sub ? `<div class="mt-4 text-xl text-indigo-500 dark:text-dark-primary font-bold opacity-80 select-none whitespace-nowrap" data-fit="true">${item.front.sub}</div>` : ''}
+                ${item.front.sub && settings.showReading !== false ? `<div class="mt-4 text-xl text-indigo-500 dark:text-dark-primary font-bold opacity-80 select-none whitespace-nowrap" data-fit="true">${item.front.sub}</div>` : ''}
                 
                 <div class="absolute bottom-6 text-gray-300 dark:text-gray-600 animate-bounce select-none">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 13l-7 7-7-7"></path></svg>

@@ -10,26 +10,25 @@ class SettingsService {
             waitForAudio: true,
             clickAudio: true,
             volume: 1.0,
-            
+
             // Flashcard Display
-            showVocab: true,
+            showReading: true,
             showSentence: true,
             showEnglish: true,
-            
-            // Dictionary
-            dictEnabled: true,
-            dictClickAudio: true, 
-            
+
             // Game Specifics
-            quizAnswerAudio: true,
             quizAutoPlayCorrect: true,
-            quizDoubleClick: false, // Explicitly false
-            
+            quizDoubleClick: false,
+
             sentencesWordAudio: true,
             sentencesWinAnim: true,
-            
+
             blanksAnswerAudio: true,
-            blanksDoubleClick: false // Explicitly false
+            blanksAutoPlayCorrect: true,
+            blanksDoubleClick: false,
+
+            // Effects
+            comboEffects: true
         };
         this.settings = this.load();
     }

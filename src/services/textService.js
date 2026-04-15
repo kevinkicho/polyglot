@@ -13,46 +13,55 @@ class TextService {
     fitText(el, min = 10, max = 100, enforceNoWrap = true) {
         if (!el) return;
 
-        // --- 1. PREPARATION ---
-        // If the element has internal structure (like the "smart stacks" from smartWrap),
-        // we need to target the containers slightly differently, but the logic is similar.
-        // For this specific 'No Wrap' request, we operate on the main element or its children.
-        
         // Ensure the parent has a width. If 0, the DOM isn't ready.
         if (el.clientWidth === 0 && el.parentElement?.clientWidth === 0) {
-            // Safety: if called too early, do nothing.
             return;
         }
 
-        const originalText = el.innerText;
-        
-        // Force these styles to ensure accurate measurement
+        // Detect smartWrap children (block divs with whitespace-nowrap)
+        const innerDivs = el.querySelectorAll(':scope > div');
+        const hasSmartWrapChildren = innerDivs.length > 0;
+
+        // Force styles on the outer element
         el.style.width = '100%';
-        el.style.display = 'block';     
-        el.style.whiteSpace = 'nowrap'; // CRITICAL: Never wrap
-        el.style.overflow = 'hidden';   // Hide overflow during calc
+        el.style.overflow = 'hidden';
         el.style.lineHeight = '1.2';
-        
-        // --- 2. THE MAXIMIZE-THEN-SHRINK LOOP ---
+
+        if (hasSmartWrapChildren) {
+            // smartWrap output: multiple child divs, each needs nowrap
+            el.style.display = 'flex';
+            el.style.flexDirection = 'column';
+            el.style.alignItems = 'center';
+            innerDivs.forEach(d => {
+                d.style.whiteSpace = 'nowrap';
+                d.style.overflow = 'hidden';
+            });
+        } else {
+            // Plain text: single element
+            el.style.display = 'block';
+            el.style.whiteSpace = 'nowrap';
+        }
+
+        // Shrink from max until everything fits
         let currentSize = max;
         el.style.fontSize = `${currentSize}px`;
 
-        // While the text sticks out (scrollWidth > clientWidth) AND we are above min size
-        // We also check scrollHeight to ensure it doesn't wrap vertically if container is short
-        while (
-            (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) && 
-            currentSize > min
-        ) {
+        const overflows = () => {
+            if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) return true;
+            // Also check each child div's content width
+            for (const d of innerDivs) {
+                if (d.scrollWidth > d.clientWidth) return true;
+            }
+            return false;
+        };
+
+        while (overflows() && currentSize > min) {
             currentSize--;
             el.style.fontSize = `${currentSize}px`;
         }
 
-        // --- 3. SAFETY CHECK ---
-        // If we hit the bottom and it still overflows, clamp it to min.
         if (currentSize <= min) {
             el.style.fontSize = `${min}px`;
-            // Optional: If you want ellipsis when it really doesn't fit:
-            // el.style.textOverflow = 'ellipsis';
         }
     }
 
@@ -86,6 +95,118 @@ class TextService {
         }
 
         return escapeHTML(text);
+    }
+
+    /**
+     * Splits a sentence into phrase chunks at natural language break points.
+     * Breaks after punctuation and before structural/conjunction words.
+     * Returns an array of phrase strings.
+     */
+    smartSentenceBreak(text) {
+        if (!text || text.trim().length < 15) return [text || ''];
+
+        const MARKER = '\u2060'; // word-joiner as split marker
+
+        let result = text;
+
+        // Break after punctuation + space (commas, semicolons, colons, dashes)
+        result = result.replace(/([,;:—–])\s+/g, `$1 ${MARKER}`);
+
+        // Break before structural words (conjunctions, relative pronouns, subordinators)
+        // Multilingual: English, French, Spanish, German, Italian, Portuguese
+        const structuralWords = [
+            // English
+            'who', 'whom', 'whose', 'which', 'that', 'where', 'when',
+            'while', 'because', 'since', 'although', 'though', 'if',
+            'unless', 'until', 'after', 'before', 'but', 'and', 'or',
+            'nor', 'yet', 'so', 'as', 'than', 'once', 'whereas',
+            'whether', 'whenever', 'wherever',
+            // French
+            'qui', 'que', 'dont', 'où', 'quand', 'parce', 'puisque',
+            'lorsque', 'mais', 'donc', 'car', 'puis', 'ensuite',
+            // Spanish
+            'quien', 'cuando', 'donde', 'porque', 'aunque', 'pero',
+            'sino', 'mientras', 'desde', 'hasta', 'según',
+            // German
+            'weil', 'wenn', 'dass', 'obwohl', 'aber', 'oder', 'und',
+            'während', 'nachdem', 'bevor', 'damit', 'sondern',
+            // Italian
+            'perché', 'quando', 'dove', 'mentre', 'anche', 'però',
+            'oppure', 'affinché', 'sebbene',
+            // Portuguese
+            'porque', 'quando', 'onde', 'enquanto', 'embora', 'porém',
+            'contudo', 'todavia'
+        ];
+
+        const wordPattern = structuralWords.join('|');
+        const breakBefore = new RegExp(
+            `(\\s)(${wordPattern})(\\s)`, 'gi'
+        );
+        result = result.replace(breakBefore, `${MARKER}$2$3`);
+
+        let chunks = result.split(MARKER).filter(s => s.length > 0);
+
+        // Merge very short leading/trailing chunks (< 4 chars) with neighbor
+        if (chunks.length > 1) {
+            const merged = [chunks[0]];
+            for (let i = 1; i < chunks.length; i++) {
+                if (chunks[i].trim().length < 4) {
+                    merged[merged.length - 1] += chunks[i];
+                } else {
+                    merged.push(chunks[i]);
+                }
+            }
+            chunks = merged;
+        }
+
+        return chunks;
+    }
+
+    /**
+     * Like fitText, but allows controlled wrapping between phrase chunks.
+     * Phrase chunks (span.phrase-chunk) stay on one line; breaks happen between them.
+     * Scales font to fit both width and height of the container.
+     */
+    fitSentence(el, min = 10, max = 100) {
+        if (!el) return;
+        if (el.clientWidth === 0 && el.parentElement?.clientWidth === 0) return;
+
+        const phraseChunks = el.querySelectorAll('.phrase-chunk');
+
+        el.style.width = '100%';
+        el.style.overflow = 'hidden';
+        el.style.lineHeight = '1.4';
+        el.style.display = 'block';
+        el.style.whiteSpace = 'normal';
+        el.style.textAlign = 'center';
+        el.style.wordBreak = 'normal';
+        el.style.overflowWrap = 'anywhere';
+
+        // Each phrase chunk stays on one line
+        phraseChunks.forEach(chunk => {
+            chunk.style.whiteSpace = 'nowrap';
+            chunk.style.display = 'inline';
+        });
+
+        let currentSize = max;
+        el.style.fontSize = `${currentSize}px`;
+
+        const overflows = () =>
+            el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1;
+
+        while (overflows() && currentSize > min) {
+            currentSize--;
+            el.style.fontSize = `${currentSize}px`;
+        }
+
+        if (currentSize <= min) {
+            el.style.fontSize = `${min}px`;
+            // At min size, allow emergency word breaks within chunks too
+            phraseChunks.forEach(chunk => {
+                chunk.style.whiteSpace = 'normal';
+            });
+        }
     }
 
     // --- Japanese Tokenizer Utilities (Unchanged but included for completeness) ---

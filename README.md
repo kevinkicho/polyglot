@@ -6,11 +6,12 @@
 
 ## Tech Stack
 
-- **Frontend**: Vanilla JS (ES Modules), Webpack 5, Tailwind CSS
+- **Frontend**: Vanilla JS (ES Modules), Webpack 5, Tailwind CSS 3.4
 - **Backend**: Firebase Realtime Database (v9+ modular SDK), Firebase Auth (Google + Anonymous)
 - **PWA**: Service Worker with cache-first strategy and offline vocab caching
 - **Testing**: Vitest + jsdom
 - **Deployment**: Firebase Hosting
+- **Responsive**: Portrait + landscape layouts for mobile, tablet, and desktop via custom `landscape:` Tailwind variant
 
 ---
 
@@ -30,7 +31,7 @@ The application uses a modular architecture with services handling business logi
 | | **`UIManager.js`** — Thin coordinator that delegates to ScoreChartManager, AchievementManager, and SettingsManager. |
 | | **`ScoreChartManager.js`** — Weekly score chart rendering, daily/weekly toggle, bar tooltips. |
 | | **`AchievementManager.js`** — Achievement popup notifications and achievement list modal. |
-| | **`SettingsManager.js`** — Settings modal, dark mode, volume, language selects, vocab export/import. |
+| | **`SettingsManager.js`** — Settings modal, dark mode, volume, language selects. Auto-saves on change. |
 | | **`EditorManager.js`** — Admin content editing with lazy-loaded dictionary service. |
 | | **`ComboManager.js`** — Streak state, fuse timer, draggable combo UI, rank effects. |
 | **`src/services/`** | Core business logic: |
@@ -61,6 +62,7 @@ All 15 game components extend `BaseGameComponent`, which provides:
 - **HTML rendering**: `renderHeader()`, `renderFooter()`, `renderCategoryPills()`, `renderError()`
 - **Event binding**: `bindCommonEvents(prefix)` wires up close/prev/next/random/keyboard/category
 - **Service accessors**: `vocabService`, `audioService`, `scoreService`, `settingsService`, `textService`, `toast`
+- **Responsive layout**: `renderSplitLayout()` stacks vertically in portrait, splits 50/50 in landscape
 
 ### Spaced Repetition (SRS)
 
@@ -126,8 +128,6 @@ Dynamically sizes text to fill its container:
 | **Game** | Double Click | First click selects, second submits (prevents mis-clicks). |
 | | Win Animation | Toggle Sentence game celebration. |
 | **Dictionary** | Enable Popup | Admin-only edit modal. |
-| **Data** | Export Vocab | Download vocab data as JSON backup. |
-| | Import Vocab | Restore vocab data from JSON file. |
 
 ---
 

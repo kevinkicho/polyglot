@@ -122,6 +122,19 @@ body {
     to { opacity: 1; transform: scale(1); }
 }
 
+/* Game transition (fade between questions) */
+.game-transition-out {
+    opacity: 0;
+    transition: opacity 0.12s ease-out;
+}
+.game-transition-in {
+    animation: gameTransitionIn 0.15s ease-out forwards;
+}
+@keyframes gameTransitionIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 /* Shimmer Animation (for Achievements) */
 @keyframes shimmer {
     0% { left: -100%; }

@@ -1,6 +1,7 @@
 import { BaseGameComponent } from './BaseGameComponent';
 import { quizService } from '../services/quizService';
 import { comboManager } from '../managers/ComboManager';
+import { settingsService } from '../services/settingsService';
 
 export class QuizApp extends BaseGameComponent {
     constructor() {
@@ -116,7 +117,7 @@ export class QuizApp extends BaseGameComponent {
         } else {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
-            comboManager.dropRank();
+            if (settingsService.get().comboEffects !== false) comboManager.dropRank();
         }
         if (correct) {
             const fullText = this.currentData.target.front.main;
@@ -124,13 +125,13 @@ export class QuizApp extends BaseGameComponent {
             if (s.quizAutoPlayCorrect) {
                 if (s.waitForAudio) {
                     await this.audioService.speak(fullText, s.targetLang);
-                    this.next();
+                    this.transitionTo(() => this.next());
                 } else {
                     this.audioService.speak(fullText, s.targetLang);
-                    this.setTimeout(() => this.next(), 1000);
+                    this.setTimeout(() => this.transitionTo(() => this.next()), 1000);
                 }
             } else {
-                this.setTimeout(() => this.next(), 1000);
+                this.setTimeout(() => this.transitionTo(() => this.next()), 1000);
             }
         } else {
             this.isProcessing = false;
@@ -146,31 +147,31 @@ export class QuizApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'quiz', id: target.id, color: 'purple', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-6xl mx-auto flex flex-col gap-4">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-4 landscape:gap-2">
                 ${this.renderCategoryPills({ color: 'indigo' })}
 
-                <div class="flex-1 flex flex-col gap-4 min-h-0">
-                    <div id="quiz-question-box" class="h-[60%] min-h-[150px] shrink-0 w-full bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border-2 border-indigo-100 dark:border-dark-border p-1 flex flex-col items-center justify-center overflow-hidden">
+                ${this.renderSplitLayout(
+                    `<div id="quiz-question-box" class="flex-1 min-h-[120px] w-full bg-white dark:bg-dark-card rounded-[2rem] landscape:rounded-2xl shadow-xl border-2 border-indigo-100 dark:border-dark-border p-1 flex flex-col items-center justify-center overflow-hidden">
                         <span class="quiz-question-text font-semibold text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${this.textService.smartWrap(target.front.main)}</span>
-                    </div>
-
-                    <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
+                    </div>`,
+                    `<div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 landscape:gap-1.5 min-h-0">
                         ${choices.map(c => `
-                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 overflow-hidden w-full h-full" data-id="${c.id}">
+                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 landscape:p-1 overflow-hidden w-full h-full" data-id="${c.id}">
                                 <div class="quiz-choice-text text-lg font-normal text-gray-700 dark:text-white text-center leading-tight w-full">${this.textService.smartWrap(c.back.definition)}</div>
                             </button>
                         `).join('')}
-                    </div>
-                </div>
+                    </div>`,
+                    { leftClass: 'portrait:h-[55%] landscape:justify-center' }
+                )}
             </div>
 
-            <div class="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg pointer-events-none">
-                <div class="max-w-md mx-auto flex gap-4 pointer-events-auto">
-                    <button id="quiz-prev-btn" class="flex-1 h-16 bg-white border border-gray-200 rounded-3xl shadow-sm flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            <div class="fixed bottom-0 left-0 right-0 p-6 landscape:p-1.5 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg pointer-events-none">
+                <div class="max-w-md mx-auto flex gap-4 landscape:gap-2 pointer-events-auto">
+                    <button id="quiz-prev-btn" class="flex-1 h-16 landscape:h-9 bg-white border border-gray-200 rounded-3xl landscape:rounded-xl shadow-sm flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <button id="quiz-next-btn" class="flex-1 h-16 bg-indigo-600 text-white rounded-3xl shadow-xl flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    <button id="quiz-next-btn" class="flex-1 h-16 landscape:h-9 bg-indigo-600 text-white rounded-3xl landscape:rounded-xl shadow-xl flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
             </div>

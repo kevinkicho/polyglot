@@ -93,7 +93,7 @@ export class SpeechApp extends BaseGameComponent {
                 box.classList.remove('opacity-0', 'bg-gray-100', 'dark:bg-gray-800');
                 box.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
             }
-            this.setTimeout(() => this.next(), 1500);
+            this.setTimeout(() => this.transitionTo(() => this.next()), 1500);
         } else {
             const box = this.container.querySelector('#speech-status-box');
             if (box) {
@@ -142,28 +142,29 @@ export class SpeechApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'speech', id: item.id, color: 'indigo', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-6 items-center">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-6 landscape:gap-2 items-center">
                 ${this.renderCategoryPills({ color: 'indigo' })}
 
-                <div id="speech-q-box" class="w-full bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm text-center border-2 border-indigo-100 hover:border-indigo-300 dark:border-dark-border cursor-pointer transition-all active:scale-95 flex flex-col items-center justify-center gap-2 select-none">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tap to Listen</span>
-                    <h2 class="text-4xl font-black text-gray-800 dark:text-white leading-tight" data-fit="true">${this.textService.smartWrap(item.front.main)}</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">${escapeHTML(meaning)}</p>
-                </div>
-
-                <div class="relative w-full flex-1 flex flex-col items-center justify-center">
-                    <div id="mic-ring" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-red-500 rounded-full opacity-20 animate-ping"></div>
-
-                    <button id="mic-btn" class="relative z-10 w-32 h-32 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white transition-all active:scale-95 hover:shadow-indigo-500/50">
-                        <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                    </button>
-                    <p class="mt-6 text-gray-400 font-bold uppercase tracking-widest text-sm">${this.isListening ? 'Listening...' : 'Tap to Speak'}</p>
-                </div>
-
-                <div id="speech-status-box" class="w-full min-h-[4rem] bg-gray-100 dark:bg-gray-800 rounded-2xl border-2 border-transparent p-4 text-center transition-all ${this.lastTranscript ? '' : 'opacity-0'}">
-                    <p class="text-sm font-bold text-gray-500 dark:text-gray-400">You said:</p>
-                    <p class="text-xl font-black italic mt-1 dark:text-white">"${escapeHTML(this.lastTranscript) || '...'}"</p>
-                </div>
+                ${this.renderSplitLayout(
+                    `<div id="speech-q-box" class="w-full bg-white dark:bg-dark-card p-4 landscape:p-3 rounded-3xl landscape:rounded-2xl shadow-sm text-center border-2 border-indigo-100 hover:border-indigo-300 dark:border-dark-border cursor-pointer transition-all active:scale-95 flex flex-col items-center justify-center select-none flex-1 min-h-0 overflow-hidden">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 opacity-20">Tap to Listen</span>
+                        <h2 class="speech-q-text font-black text-gray-800 dark:text-white leading-tight w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden">${this.textService.smartWrap(item.front.main)}</h2>
+                        <p class="text-sm landscape:text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium opacity-20">${escapeHTML(meaning)}</p>
+                    </div>`,
+                    `<div class="flex flex-col items-center justify-center gap-4 landscape:gap-2 flex-1">
+                        <div class="relative flex flex-col items-center justify-center flex-1">
+                            <div id="mic-ring" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 landscape:w-28 landscape:h-28 bg-red-500 rounded-full opacity-20 animate-ping"></div>
+                            <button id="mic-btn" class="relative z-10 w-32 h-32 landscape:w-20 landscape:h-20 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white transition-all active:scale-95 hover:shadow-indigo-500/50">
+                                <svg class="w-16 h-16 landscape:w-10 landscape:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                            </button>
+                            <p class="mt-4 landscape:mt-2 text-gray-400 font-bold uppercase tracking-widest text-sm landscape:text-xs opacity-20">${this.isListening ? 'Listening...' : 'Tap to Speak'}</p>
+                        </div>
+                        <div id="speech-status-box" class="w-full min-h-[3rem] bg-gray-100 dark:bg-gray-800 rounded-2xl border-2 border-transparent p-4 landscape:p-2 text-center transition-all ${this.lastTranscript ? '' : 'opacity-0'}">
+                            <p class="text-sm landscape:text-xs font-bold text-gray-500 dark:text-gray-400">You said:</p>
+                            <p class="text-xl landscape:text-base font-black italic mt-1 dark:text-white">"${escapeHTML(this.lastTranscript) || '...'}"</p>
+                        </div>
+                    </div>`
+                )}
             </div>
 
             ${this.renderFooter({ prefix: 'speech', color: 'indigo' })}
@@ -173,9 +174,18 @@ export class SpeechApp extends BaseGameComponent {
         this.bind('#mic-btn', 'click', () => this.toggleMic());
         this.bind('#speech-q-box', 'click', () => this.playHint());
 
-        this.fitTexts([
-            ['[data-fit="true"]', 24, 70]
-        ]);
+        this.raf(() => {
+            if (!this.container) return;
+            const qText = this.container.querySelector('.speech-q-text');
+            if (qText && qText.parentElement) {
+                qText.style.height = qText.parentElement.clientHeight + 'px';
+                this.textService.fitText(qText, 16, 80);
+                qText.style.display = 'flex';
+                qText.style.flexDirection = 'column';
+                qText.style.alignItems = 'center';
+                qText.style.justifyContent = 'center';
+            }
+        });
     }
 }
 export const speechApp = new SpeechApp();

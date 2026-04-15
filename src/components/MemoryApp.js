@@ -97,9 +97,9 @@ export class MemoryApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'mem', title: 'MEMORY', color: 'purple', showRandom: true, showId: false })}
 
-            <div class="w-full h-full pt-20 pb-4 px-4 max-w-lg mx-auto flex flex-col">
+            <div class="w-full h-full pt-[4.5rem] landscape:pt-[4rem] pb-3 landscape:pb-1 px-3 max-w-2xl md:max-w-4xl mx-auto flex flex-col overflow-hidden">
                 ${this.renderCategoryPills({ color: 'purple' })}
-                <div class="grid grid-cols-3 grid-rows-4 gap-2 w-full h-full">
+                <div class="grid grid-cols-3 grid-rows-4 landscape:grid-cols-4 landscape:grid-rows-3 gap-2 landscape:gap-2.5 md:gap-3 w-full flex-1 min-h-0">
                     ${this.cards.map((c, i) => {
                         const isFlipped = this.flippedIndices.includes(i) || c.matched;
 
@@ -115,7 +115,7 @@ export class MemoryApp extends BaseGameComponent {
                             : '';
 
                         return `
-                        <button class="mem-card relative w-full h-full ${bg} ${txt} border-2 rounded-xl shadow-sm flex items-center justify-center p-0 transition-all duration-300 transform ${isFlipped ? 'rotate-y-180' : ''} active:scale-95 overflow-hidden perspective" data-index="${i}">
+                        <button class="mem-card relative w-full h-full min-h-0 ${bg} ${txt} border-2 rounded-xl shadow-sm flex items-center justify-center p-0 transition-all duration-300 transform ${isFlipped ? 'rotate-y-180' : ''} active:scale-95 overflow-hidden perspective" data-index="${i}">
                             ${content}
                         </button>
                     `;

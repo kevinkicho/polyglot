@@ -29,7 +29,7 @@ class ViewManager {
         this.views = {};
         this.currentActiveApp = null;
         this.savedHistory = {};
-        this.gameRegistry = {};  // cache of loaded instances
+        this.gameRegistry = Object.create(null);  // cache of loaded instances
         this.gameNames = Object.keys(GAME_LOADERS);
         try { this.savedHistory = JSON.parse(localStorage.getItem('polyglot_history') || '{}'); } catch (e) {}
 

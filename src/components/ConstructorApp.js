@@ -103,7 +103,7 @@ export class ConstructorApp extends BaseGameComponent {
             }
             const zone = this.container.querySelector('#const-slots');
             if (zone) zone.classList.add('animate-celebrate', 'border-green-500', 'bg-green-50', 'dark:bg-green-900/20');
-            this.setTimeout(() => this.next(), 1000);
+            this.setTimeout(() => this.transitionTo(() => this.next()), 1000);
         }
     }
 
@@ -126,25 +126,25 @@ export class ConstructorApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'const', id: item.id, color: 'emerald', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-6">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-6 landscape:gap-2">
                 ${this.renderCategoryPills({ color: 'emerald' })}
-                <div id="const-question-box" class="bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-emerald-200 group flex flex-col h-32 justify-center items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Build</span>
-                    <h2 class="font-bold text-gray-800 dark:text-white w-full text-center flex-1 flex items-center justify-center whitespace-nowrap" data-fit="true">${this.textService.smartWrap(originText)}</h2>
-                </div>
-
-                <div id="const-slots" class="flex flex-wrap justify-center gap-2 min-h-[4rem] p-3 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all">
-                </div>
-
-                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <div class="grid gap-1 pb-4 content-start" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
-                        ${this.charPool.map((c, i) => `
-                            <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square font-black text-gray-700 dark:text-white shadow-sm hover:border-emerald-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
-                                <span class="tile-text w-full text-center leading-none whitespace-nowrap">${c.char}</span>
-                            </button>
-                        `).join('')}
+                ${this.renderSplitLayout(
+                    `<div id="const-question-box" class="bg-white dark:bg-dark-card p-4 landscape:p-2 rounded-3xl landscape:rounded-2xl shadow-sm border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-emerald-200 group flex flex-col h-32 landscape:h-auto landscape:flex-none justify-center items-center">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 opacity-20">Build</span>
+                        <h2 class="font-bold text-gray-800 dark:text-white w-full text-center flex-1 flex items-center justify-center whitespace-nowrap" data-fit="true">${this.textService.smartWrap(originText)}</h2>
                     </div>
-                </div>
+                    <div id="const-slots" class="flex flex-wrap justify-center gap-2 landscape:gap-1 min-h-[4rem] landscape:min-h-[3rem] p-3 landscape:p-2 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all flex-1">
+                    </div>`,
+                    `<div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                        <div class="grid gap-1 pb-4 landscape:pb-1 content-start" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
+                            ${this.charPool.map((c, i) => `
+                                <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square font-black text-gray-700 dark:text-white shadow-sm hover:border-emerald-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
+                                    <span class="tile-text w-full text-center leading-none whitespace-nowrap">${c.char}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>`
+                )}
             </div>
 
             ${this.renderFooter({ prefix: 'const', color: 'emerald' })}

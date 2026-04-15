@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Polyglot Flashcards</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700;900&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <style>
@@ -39,7 +40,7 @@
     </div>
 
     <div id="ach-list-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity duration-200 opacity-0">
-        <div class="bg-white dark:bg-gray-900 w-full max-w-md h-[70vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800">
+        <div class="bg-white dark:bg-gray-900 w-full max-w-md md:max-w-2xl h-[70vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-black text-orange-500 flex items-center gap-2"><span>🏆</span> Achievements</h3>
                 <button id="ach-list-close" class="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
@@ -51,7 +52,7 @@
     </div>
 
     <div id="score-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity duration-200 opacity-0">
-        <div class="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800">
+        <div class="bg-white dark:bg-gray-900 w-full max-w-sm md:max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-black text-indigo-600 dark:text-indigo-400">Weekly Progress</h3>
                 <button id="score-close-btn" class="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
@@ -107,29 +108,28 @@
         </div>
     </div>
 
-    <div id="onboarding-overlay" class="hidden fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 transition-opacity duration-300 opacity-0">
-        <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-gray-100 dark:border-gray-800">
-            <h2 class="text-2xl font-black text-indigo-600 dark:text-indigo-400 text-center mb-4">Welcome to Polyglot.AI!</h2>
-            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-                <div class="flex items-start gap-3">
-                    <span class="text-lg mt-0.5">1</span>
+    <div id="onboarding-overlay" class="hidden fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
+        <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-sm md:max-w-md w-full p-5 landscape:p-4 border border-gray-100 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl landscape:text-lg font-black text-indigo-600 dark:text-indigo-400 text-center mb-3 landscape:mb-2">Welcome to Polyglot.AI!</h2>
+            <div class="space-y-2 text-sm landscape:text-xs text-gray-600 dark:text-gray-400">
+                <div class="flex items-start gap-2">
+                    <span class="font-black text-indigo-500 shrink-0">1.</span>
                     <p><strong class="text-gray-800 dark:text-white">Start with Flashcards</strong> to learn new words at your own pace.</p>
                 </div>
-                <div class="flex items-start gap-3">
-                    <span class="text-lg mt-0.5">2</span>
+                <div class="flex items-start gap-2">
+                    <span class="font-black text-indigo-500 shrink-0">2.</span>
                     <p><strong class="text-gray-800 dark:text-white">Test yourself with Quiz</strong> for rapid multiple-choice practice.</p>
                 </div>
-                <div class="flex items-start gap-3">
-                    <span class="text-lg mt-0.5">3</span>
+                <div class="flex items-start gap-2">
+                    <span class="font-black text-indigo-500 shrink-0">3.</span>
                     <p><strong class="text-gray-800 dark:text-white">Try all 15 modes</strong> — each targets a different skill (listening, spelling, speech, etc).</p>
                 </div>
-                <div class="flex items-start gap-3">
-                    <span class="text-lg mt-0.5">4</span>
+                <div class="flex items-start gap-2">
+                    <span class="font-black text-indigo-500 shrink-0">4.</span>
                     <p><strong class="text-gray-800 dark:text-white">Smart repetition</strong> — words you get wrong appear more often.</p>
                 </div>
             </div>
-            <p class="text-xs text-gray-400 text-center mt-4">Use the gear icon to change languages and settings.</p>
-            <button id="onboarding-dismiss" class="w-full mt-5 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all">Let's Go!</button>
+            <button id="onboarding-dismiss" class="w-full mt-3 py-2.5 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all">Let's Go!</button>
         </div>
     </div>
 
@@ -166,7 +166,7 @@
 
     <div id="main-menu" class="fixed inset-0 z-30 pt-20 px-6 overflow-y-auto bg-gray-50 dark:bg-dark-bg transition-transform duration-300">
         <div class="flex flex-col items-center justify-center min-h-full pb-10">
-            <div id="srs-dashboard" class="w-full max-w-md mb-6 bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border p-4 hidden">
+            <div id="srs-dashboard" class="w-full max-w-md md:max-w-3xl mb-6 bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border p-4 hidden">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-sm font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">Study Progress</h3>
                     <span id="srs-due-badge" class="text-xs font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full"></span>
@@ -191,7 +191,7 @@
                     <div id="srs-bar-mastered" class="bg-emerald-400 transition-all duration-500" style="width:0%"></div>
                 </div>
             </div>
-            <div class="grid grid-cols-1 gap-6 w-full max-w-md">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 w-full max-w-md md:max-w-3xl">
                 <button id="menu-flashcard-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-indigo-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-indigo-600 dark:text-dark-primary mb-2">Flashcards</h2><p class="text-gray-500 dark:text-gray-400">Master vocabulary with 3D cards.</p></button>
                 <button id="menu-quiz-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-purple-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-purple-600 dark:text-purple-400 mb-2">Quiz Mode</h2><p class="text-gray-500 dark:text-gray-400">Test your skills with rapid-fire questions.</p></button>
                 <button id="menu-sentences-btn" class="group relative overflow-hidden bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border p-6 rounded-3xl shadow-xl hover:shadow-pink-500/30 transition-all active:scale-95 text-left transform hover:-translate-y-1"><h2 class="text-2xl font-black text-pink-600 dark:text-pink-400 mb-2">Sentences</h2><p class="text-gray-500 dark:text-gray-400">Construct sentences from jumbled words.</p></button>
@@ -229,7 +229,8 @@
 
     <div id="settings-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center opacity-0 transition-opacity duration-200">
         <div id="modal-backdrop" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-        <div class="relative bg-white dark:bg-dark-card rounded-3xl shadow-2xl w-full max-w-sm mx-6 p-6 transform scale-95 transition-transform duration-200 max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-dark-border custom-scrollbar">
+        <div class="relative z-10 bg-white dark:bg-dark-card rounded-3xl shadow-2xl w-full max-w-sm md:max-w-md mx-6 p-6 transform scale-95 transition-transform duration-200 max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-dark-border custom-scrollbar">
+            <button id="modal-close-x" class="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Settings</h2>
             <div class="space-y-6">
                 <div>
@@ -246,11 +247,20 @@
                 </div>
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Dark Mode</span><input type="checkbox" id="toggle-dark" class="w-5 h-5"></div>
                 <div class="flex justify-between items-center"><span class="font-bold dark:text-white">Volume</span><input type="range" id="volume-slider" min="0" max="1" step="0.1" class="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"></div>
-                
+
+                <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
+                    <button id="audio-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Audio</span><span id="accordion-arrow-audio" class="arrow">▼</span></button>
+                    <div id="audio-options" class="settings-content space-y-4 px-2 pt-2">
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Auto-Play on Load</span><input type="checkbox" id="toggle-autoplay"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Wait for Audio</span><input type="checkbox" id="toggle-wait-audio"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Play on Click</span><input type="checkbox" id="toggle-click-audio"></div>
+                    </div>
+                </div>
+
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
                     <button id="display-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Card Visuals</span><span id="accordion-arrow-1" class="arrow">▼</span></button>
                     <div id="display-options" class="settings-content space-y-4 px-2 pt-2">
-                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Show Vocab</span><input type="checkbox" id="toggle-vocab"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Show Reading</span><input type="checkbox" id="toggle-reading"></div>
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Show Sentence</span><input type="checkbox" id="toggle-sentence"></div>
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Show English</span><input type="checkbox" id="toggle-english"></div>
                     </div>
@@ -260,35 +270,35 @@
                     <button id="quiz-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Quiz Settings</span><span id="accordion-arrow-3" class="arrow">▼</span></button>
                     <div id="quiz-options" class="settings-content space-y-4 px-2 pt-2">
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Double Click</span><input type="checkbox" id="toggle-quiz-double"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Auto-Play Correct</span><input type="checkbox" id="toggle-quiz-autoplay"></div>
                     </div>
                 </div>
-                
+
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
                     <button id="sent-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Sentence Settings</span><span id="accordion-arrow-sent" class="arrow">▼</span></button>
                     <div id="sent-options" class="settings-content space-y-4 px-2 pt-2">
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Win Animation</span><input type="checkbox" id="toggle-sent-anim"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Word Audio on Tap</span><input type="checkbox" id="toggle-sent-word-audio"></div>
                     </div>
                 </div>
-                
+
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
                     <button id="blanks-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Blanks Settings</span><span id="accordion-arrow-blanks" class="arrow">▼</span></button>
                     <div id="blanks-options" class="settings-content space-y-4 px-2 pt-2">
                         <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Double Click</span><input type="checkbox" id="toggle-blanks-double"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Answer Audio</span><input type="checkbox" id="toggle-blanks-answer-audio"></div>
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Auto-Play Correct</span><input type="checkbox" id="toggle-blanks-autoplay"></div>
                     </div>
                 </div>
-            </div>
+
                 <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
-                    <label class="block text-xs font-bold text-gray-400 mb-3 uppercase">Data</label>
-                    <div class="flex gap-3">
-                        <button id="btn-export-vocab" class="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all text-sm">Export Vocab</button>
-                        <label class="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all text-sm text-center cursor-pointer">
-                            Import Vocab
-                            <input type="file" id="btn-import-vocab" accept=".json" class="hidden">
-                        </label>
+                    <button id="effects-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>Effects</span><span id="accordion-arrow-effects" class="arrow">▼</span></button>
+                    <div id="effects-options" class="settings-content space-y-4 px-2 pt-2">
+                        <div class="flex justify-between"><span class="text-sm dark:text-gray-300">Combo Streak Effects</span><input type="checkbox" id="toggle-combo-effects"></div>
                     </div>
                 </div>
             </div>
-            <button id="modal-done-btn" class="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-transform">Done</button>
+            </div>
         </div>
     </div>
 </body>

@@ -115,11 +115,11 @@ export class FlashcardApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'fc', id, color: 'indigo', showRandom: false, showScore: false })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 flex flex-col items-center justify-center">
-                <div class="w-full max-w-lg h-full max-h-[75vh] relative perspective group cursor-pointer" id="flashcard-container">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 flex flex-col items-center justify-center">
+                <div class="w-full max-w-lg md:max-w-2xl h-full max-h-[75vh] relative perspective group cursor-pointer" id="flashcard-container">
                     <div id="flashcard-card" class="card-inner w-full h-full duration-500 transform-style-3d relative ${this.isFlipped ? 'rotate-y-180' : ''}">
 
-                        <div class="card-face absolute inset-0 backface-hidden bg-white dark:bg-dark-card rounded-3xl shadow-2xl border border-gray-100 dark:border-dark-border flex flex-col p-4">
+                        <div class="card-face absolute inset-0 backface-hidden bg-white dark:bg-dark-card rounded-3xl shadow-2xl border border-gray-100 dark:border-dark-border flex flex-col p-4 landscape:p-3">
                             <div class="flex justify-between items-center">
                                 <span class="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-700/10 uppercase tracking-wider">${s.targetLang}</span>
                                 <button class="audio-btn p-2 text-gray-400 hover:text-indigo-500 transition-colors bg-gray-50 dark:bg-gray-800 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg></button>
@@ -127,13 +127,13 @@ export class FlashcardApp extends BaseGameComponent {
 
                             <div class="flex-1 w-full flex flex-col items-center justify-center overflow-hidden">
                                 <h2 class="fc-front-text opacity-0 transition-opacity duration-300 font-black text-gray-800 dark:text-white text-center leading-tight whitespace-nowrap" data-fit="true">${this.textService.smartWrap(front.main)}</h2>
-                                ${front.sub ? `<p class="fc-front-sub font-medium text-gray-500 dark:text-gray-400 mt-2 text-center whitespace-nowrap" data-fit="true">${escapeHTML(front.sub)}</p>` : ''}
+                                ${front.sub && s.showReading !== false ? `<p class="fc-front-sub font-medium text-gray-500 dark:text-gray-400 mt-2 text-center whitespace-nowrap" data-fit="true">${escapeHTML(front.sub)}</p>` : ''}
                             </div>
 
                             <div class="text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Tap to Flip</div>
                         </div>
 
-                        <div class="card-face absolute inset-0 backface-hidden rotate-y-180 bg-gray-50 dark:bg-dark-bg rounded-3xl shadow-xl border border-gray-200 dark:border-dark-border flex flex-col p-4">
+                        <div class="card-face absolute inset-0 backface-hidden rotate-y-180 bg-gray-50 dark:bg-dark-bg rounded-3xl shadow-xl border border-gray-200 dark:border-dark-border flex flex-col p-4 landscape:p-3">
                              <div class="flex justify-between items-center mb-2">
                                 <span class="inline-flex items-center rounded-md bg-purple-50 dark:bg-purple-900/30 px-2 py-1 text-xs font-bold text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-700/10 uppercase tracking-wider">${s.originLang}</span>
                                 <button class="audio-btn p-2 text-gray-400 hover:text-purple-500 transition-colors bg-white dark:bg-dark-card rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg></button>

@@ -130,8 +130,10 @@ export class SentencesApp extends BaseGameComponent {
             }
 
             const zone = this.container.querySelector('#sent-slots');
-            if (zone) zone.classList.add('animate-celebrate', 'border-green-500', 'bg-green-50', 'dark:bg-green-900/20');
-            this.setTimeout(() => this.next(), 500);
+            if (this.settingsService.get().sentencesWinAnim) {
+                if (zone) zone.classList.add('animate-celebrate', 'border-green-500', 'bg-green-50', 'dark:bg-green-900/20');
+            }
+            this.setTimeout(() => this.transitionTo(() => this.next()), 500);
         }
     }
 
@@ -155,23 +157,23 @@ export class SentencesApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'sent', id: item.id, color: 'pink', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-4">
-                <div id="sent-question-box" class="bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-pink-200 group">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-1" data-fit="true">${this.textService.smartWrap(originText)}</h2>
-                </div>
-
-                <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 min-h-[5rem] p-4 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar">
-                </div>
-
-                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <div class="flex flex-wrap justify-center gap-2 pb-4">
-                        ${this.wordPool.map((w, i) => `
-                            <button class="flex-grow bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl ${padding} ${btnHeight} ${textSize} font-bold text-gray-700 dark:text-white shadow-sm hover:border-pink-400 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center ${w.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
-                                <span class="w-full text-center">${w.word}</span>
-                            </button>
-                        `).join('')}
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-4 landscape:gap-2">
+                ${this.renderSplitLayout(
+                    `<div id="sent-question-box" class="bg-white dark:bg-dark-card p-4 landscape:p-2 rounded-3xl landscape:rounded-2xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-pink-200 group">
+                        <h2 class="text-xl landscape:text-base font-bold text-gray-800 dark:text-white mt-1" data-fit="true">${this.textService.smartWrap(originText)}</h2>
                     </div>
-                </div>
+                    <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 landscape:gap-1 min-h-[5rem] landscape:min-h-[3rem] p-4 landscape:p-2 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar flex-1">
+                    </div>`,
+                    `<div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                        <div class="flex flex-wrap justify-center gap-2 landscape:gap-1 pb-4 landscape:pb-1">
+                            ${this.wordPool.map((w, i) => `
+                                <button class="flex-grow bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl ${padding} ${btnHeight} landscape:min-h-0 landscape:py-1 ${textSize} landscape:text-base font-bold text-gray-700 dark:text-white shadow-sm hover:border-pink-400 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center ${w.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
+                                    <span class="w-full text-center">${w.word}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>`
+                )}
             </div>
 
             ${this.renderFooter({ prefix: 'sent', color: 'pink' })}

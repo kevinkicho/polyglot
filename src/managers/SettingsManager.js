@@ -1,12 +1,13 @@
 import { settingsService } from '../services/settingsService';
 import { vocabService } from '../services/vocabService';
-import { toast } from '../services/toastService';
+
 
 class SettingsManager {
     init() {
         document.addEventListener('click', (e) => {
             if (e.target.closest('#home-settings-btn')) this.open();
-            if (e.target.closest('#modal-done-btn')) this.close();
+            if (e.target.closest('#modal-close-x')) this.close();
+            if (e.target.id === 'modal-backdrop') this.close();
         });
 
         // Toggle Dark Mode
@@ -14,12 +15,36 @@ class SettingsManager {
 
         this.bindSetting('toggle-dark', 'darkMode');
         this.bindSetting('volume-slider', 'volume');
-        this.bindSetting('toggle-vocab', 'showVocab');
+
+        // Audio
+        this.bindSetting('toggle-autoplay', 'autoPlay');
+        this.bindSetting('toggle-wait-audio', 'waitForAudio');
+        this.bindSetting('toggle-click-audio', 'clickAudio');
+
+        // Card Visuals
+        this.bindSetting('toggle-reading', 'showReading');
         this.bindSetting('toggle-sentence', 'showSentence');
         this.bindSetting('toggle-english', 'showEnglish');
+
+        // Game-specific
         this.bindSetting('toggle-sent-anim', 'sentencesWinAnim');
+        this.bindSetting('toggle-sent-word-audio', 'sentencesWordAudio');
         this.bindSetting('toggle-quiz-double', 'quizDoubleClick');
+        this.bindSetting('toggle-quiz-autoplay', 'quizAutoPlayCorrect');
         this.bindSetting('toggle-blanks-double', 'blanksDoubleClick');
+        this.bindSetting('toggle-blanks-answer-audio', 'blanksAnswerAudio');
+        this.bindSetting('toggle-blanks-autoplay', 'blanksAutoPlayCorrect');
+        this.bindSetting('toggle-combo-effects', 'comboEffects', () => {
+            const comboEl = document.getElementById('combo-container');
+            const effectsEl = document.getElementById('combo-effects-layer');
+            if (!settingsService.get().comboEffects) {
+                if (comboEl) comboEl.style.display = 'none';
+                if (effectsEl) effectsEl.style.display = 'none';
+            } else {
+                if (comboEl) comboEl.style.display = '';
+                if (effectsEl) effectsEl.style.display = '';
+            }
+        });
 
         // Language Selects
         const onLanguageChange = () => {
@@ -29,19 +54,14 @@ class SettingsManager {
         this.bindSetting('target-select', 'targetLang', onLanguageChange);
         this.bindSetting('origin-select', 'originLang', onLanguageChange);
 
-        // Export / Import
-        const exportBtn = document.getElementById('btn-export-vocab');
-        if (exportBtn) exportBtn.addEventListener('click', () => this.exportVocab());
-
-        const importInput = document.getElementById('btn-import-vocab');
-        if (importInput) importInput.addEventListener('change', (e) => this.importVocab(e));
-
         // Accordion Logic
         [
+            { btn: 'audio-accordion-btn', c: 'audio-options', a: 'accordion-arrow-audio' },
             { btn: 'display-accordion-btn', c: 'display-options', a: 'accordion-arrow-1' },
             { btn: 'sent-accordion-btn', c: 'sent-options', a: 'accordion-arrow-sent' },
             { btn: 'quiz-accordion-btn', c: 'quiz-options', a: 'accordion-arrow-3' },
-            { btn: 'blanks-accordion-btn', c: 'blanks-options', a: 'accordion-arrow-blanks' }
+            { btn: 'blanks-accordion-btn', c: 'blanks-options', a: 'accordion-arrow-blanks' },
+            { btn: 'effects-accordion-btn', c: 'effects-options', a: 'accordion-arrow-effects' }
         ].forEach(o => {
             const b = document.getElementById(o.btn), c = document.getElementById(o.c), a = document.getElementById(o.a);
             if (b) b.addEventListener('click', () => { c.classList.toggle('open'); a.classList.toggle('rotate'); });
@@ -79,70 +99,26 @@ class SettingsManager {
         const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
         setVal('target-select', s.targetLang); setVal('origin-select', s.originLang);
         setChk('toggle-dark', s.darkMode); setVal('volume-slider', s.volume !== undefined ? s.volume : 1.0);
-        setChk('toggle-vocab', s.showVocab); setChk('toggle-sentence', s.showSentence); setChk('toggle-english', s.showEnglish);
+
+        // Audio
+        setChk('toggle-autoplay', s.autoPlay !== false);
+        setChk('toggle-wait-audio', s.waitForAudio !== false);
+        setChk('toggle-click-audio', s.clickAudio !== false);
+
+        // Card Visuals
+        setChk('toggle-reading', s.showReading !== false);
+        setChk('toggle-sentence', s.showSentence);
+        setChk('toggle-english', s.showEnglish);
+
+        // Game-specific
         setChk('toggle-sent-anim', s.sentencesWinAnim !== false);
+        setChk('toggle-sent-word-audio', s.sentencesWordAudio !== false);
         setChk('toggle-quiz-double', s.quizDoubleClick);
+        setChk('toggle-quiz-autoplay', s.quizAutoPlayCorrect !== false);
         setChk('toggle-blanks-double', s.blanksDoubleClick);
-    }
-    exportVocab() {
-        const data = vocabService.getAll();
-        if (!data.length) { toast.warning('No vocabulary to export'); return; }
-
-        // Export raw data (without computed front/back) for clean reimport
-        const raw = data.map(item => {
-            const copy = { ...item };
-            delete copy.front;
-            delete copy.back;
-            return copy;
-        });
-
-        const blob = new Blob([JSON.stringify(raw, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `polyglot-vocab-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success(`Exported ${raw.length} items`);
-    }
-
-    async importVocab(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-
-            if (!Array.isArray(data) || data.length === 0) {
-                toast.error('Invalid file: expected a JSON array');
-                return;
-            }
-
-            const confirmed = await toast.confirm(`Import ${data.length} vocab items? This will update existing entries and add new ones.`);
-            if (!confirmed) return;
-
-            let updated = 0;
-            for (const item of data) {
-                if (item.firebaseKey) {
-                    const fields = {};
-                    Object.keys(item).forEach(k => {
-                        if (k !== 'firebaseKey' && k !== 'id' && k !== 'front' && k !== 'back') {
-                            fields[k] = item[k];
-                        }
-                    });
-                    await vocabService.saveItem(item.firebaseKey, fields);
-                    updated++;
-                }
-            }
-            toast.success(`Imported ${updated} items`);
-        } catch (err) {
-            console.error('Import error:', err);
-            toast.error('Import failed: invalid JSON file');
-        }
-
-        // Reset input so same file can be selected again
-        e.target.value = '';
+        setChk('toggle-blanks-answer-audio', s.blanksAnswerAudio !== false);
+        setChk('toggle-blanks-autoplay', s.blanksAutoPlayCorrect !== false);
+        setChk('toggle-combo-effects', s.comboEffects !== false);
     }
 }
 

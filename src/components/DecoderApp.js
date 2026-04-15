@@ -105,7 +105,7 @@ export class DecoderApp extends BaseGameComponent {
                 qBox.innerHTML = `<h2 class="text-4xl font-black text-indigo-600 dark:text-white animate-celebrate">${this.currentData.item.front.main}</h2>`;
             }
 
-            this.setTimeout(() => this.next(), 1200);
+            this.setTimeout(() => this.transitionTo(() => this.next()), 1200);
         }
     }
 
@@ -119,30 +119,30 @@ export class DecoderApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'dec', id: item.id, color: 'blue', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-6">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-6 landscape:gap-2">
                 ${this.renderCategoryPills({ color: 'blue' })}
 
-                <div id="dec-q-box" class="bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-blue-200 group flex flex-col h-40 justify-center items-center">
-                    <div id="dec-q-box-content" class="flex flex-col items-center gap-3">
-                        <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-500 animate-pulse">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                ${this.renderSplitLayout(
+                    `<div id="dec-q-box" class="bg-white dark:bg-dark-card p-4 landscape:p-2 rounded-3xl landscape:rounded-2xl shadow-sm border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-blue-200 group flex flex-col h-40 landscape:h-auto landscape:flex-none justify-center items-center">
+                        <div id="dec-q-box-content" class="flex flex-col items-center gap-3 landscape:gap-1">
+                            <div class="w-16 h-16 landscape:w-10 landscape:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-500 animate-pulse">
+                                <svg class="w-8 h-8 landscape:w-5 landscape:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                            </div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest opacity-20">Tap to Replay</span>
                         </div>
-                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Tap to Replay</span>
                     </div>
-                </div>
-
-                <div id="dec-slots" class="flex flex-wrap justify-center gap-2 min-h-[4rem] p-3 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all">
-                </div>
-
-                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <div class="grid gap-1 pb-4 content-start" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
-                        ${this.charPool.map((c, i) => `
-                            <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square font-black text-gray-700 dark:text-white shadow-sm hover:border-blue-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
-                                <span class="tile-text w-full text-center leading-none whitespace-nowrap">${c.char}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
+                    <div id="dec-slots" class="flex flex-wrap justify-center gap-2 landscape:gap-1 min-h-[4rem] landscape:min-h-[3rem] p-3 landscape:p-2 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all flex-1">
+                    </div>`,
+                    `<div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                        <div class="grid gap-1 pb-4 landscape:pb-1 content-start" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
+                            ${this.charPool.map((c, i) => `
+                                <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square font-black text-gray-700 dark:text-white shadow-sm hover:border-blue-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
+                                    <span class="tile-text w-full text-center leading-none whitespace-nowrap">${c.char}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>`
+                )}
             </div>
 
             ${this.renderFooter({ prefix: 'dec', color: 'blue' })}
@@ -154,9 +154,18 @@ export class DecoderApp extends BaseGameComponent {
 
         this.updateSlots();
 
-        this.fitTexts([
-            ['.tile-text', 28, 64]
-        ]);
+        this.raf(() => {
+            if (!this.container) return;
+            this.container.querySelectorAll('.tile-text').forEach(el => {
+                if (el.parentElement) {
+                    el.style.height = el.parentElement.clientHeight + 'px';
+                    this.textService.fitText(el, 28, 64);
+                    el.style.display = 'flex';
+                    el.style.alignItems = 'center';
+                    el.style.justifyContent = 'center';
+                }
+            });
+        });
     }
 }
 export const decoderApp = new DecoderApp();

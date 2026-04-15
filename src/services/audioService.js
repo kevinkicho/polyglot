@@ -72,9 +72,12 @@ class AudioService {
             };
             
             utter.onerror = (e) => {
-                console.warn("Audio error:", e);
+                // 'interrupted' is expected when we cancel previous speech — not a real error
+                if (e.error !== 'interrupted') {
+                    console.warn("Audio error:", e);
+                }
                 this.handleEnd(myId);
-                resolve(); 
+                resolve();
             };
 
             this.synth.speak(utter);

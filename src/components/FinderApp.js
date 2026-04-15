@@ -40,7 +40,7 @@ export class FinderApp extends BaseGameComponent {
             el.classList.remove('bg-white', 'dark:bg-dark-card');
             el.classList.add('bg-green-500', 'text-white', 'border-green-600');
             this.scoreService.addScore('finder', 10);
-            this.setTimeout(() => this.next(), 1000);
+            this.setTimeout(() => this.transitionTo(() => this.next()), 1000);
         } else {
             el.classList.add('bg-red-100', 'dark:bg-red-900', 'shake');
             this.setTimeout(() => el.classList.remove('bg-red-100', 'dark:bg-red-900', 'shake'), 500);
@@ -59,19 +59,20 @@ export class FinderApp extends BaseGameComponent {
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'find', id: target.id, color: 'rose', showRandom: true })}
 
-            <div class="w-full h-full pt-20 pb-28 px-4 max-w-lg mx-auto flex flex-col gap-4">
+            <div class="w-full h-full pt-20 landscape:pt-12 pb-28 landscape:pb-14 px-4 landscape:px-3 max-w-6xl mx-auto flex flex-col gap-4 landscape:gap-2">
                 ${this.renderCategoryPills({ color: 'rose' })}
-                <div class="bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border min-h-[4rem] flex items-center justify-center">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white leading-tight">${escapeHTML(prompt)}</h2>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 flex-1">
-                    ${choices.map(c => `
-                        <button class="find-choice bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:border-rose-300 active:scale-95 transition-all p-1 flex items-center justify-center overflow-hidden" data-id="${c.id}">
-                            <span class="find-text w-full text-center font-bold text-gray-700 dark:text-white leading-none">${this.textService.smartWrap(c.front.main.replace(/\.$/, ''))}</span>
-                        </button>
-                    `).join('')}
-                </div>
+                ${this.renderSplitLayout(
+                    `<div class="bg-white dark:bg-dark-card p-3 landscape:p-2 rounded-2xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border flex items-center justify-center flex-1 min-h-0 overflow-hidden">
+                        <h2 class="find-prompt font-bold text-gray-800 dark:text-white leading-tight w-full h-full flex items-center justify-center overflow-hidden">${this.textService.smartWrap(prompt)}</h2>
+                    </div>`,
+                    `<div class="grid grid-cols-3 grid-rows-3 gap-2 landscape:gap-1.5 flex-1 min-h-0">
+                        ${choices.map(c => `
+                            <button class="find-choice bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:border-rose-300 active:scale-95 transition-all p-1 flex items-center justify-center overflow-hidden min-h-0" data-id="${c.id}">
+                                <span class="find-text w-full text-center font-bold text-gray-700 dark:text-white leading-none">${this.textService.smartWrap(c.front.main.replace(/\.$/, ''))}</span>
+                            </button>
+                        `).join('')}
+                    </div>`
+                )}
             </div>
 
             ${this.renderFooter({ prefix: 'find', color: 'rose' })}
@@ -81,7 +82,8 @@ export class FinderApp extends BaseGameComponent {
         this.container.querySelectorAll('.find-choice').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
 
         this.fitTexts([
-            ['.find-text', 18, 55]
+            ['.find-prompt', 16, 48],
+            ['.find-text', 10, 42]
         ]);
     }
 }

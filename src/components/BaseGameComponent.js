@@ -163,6 +163,27 @@ export class BaseGameComponent {
         }
     }
 
+    // Smooth transition between questions — fades out, calls cb, fades in
+    transitionTo(cb) {
+        if (!this.container) { cb(); return; }
+        let fired = false;
+        this.container.classList.add('game-transition-out');
+        const afterFade = () => {
+            if (fired) return;
+            fired = true;
+            this.container.removeEventListener('transitionend', afterFade);
+            cb();
+            this.container.classList.remove('game-transition-out');
+            this.container.classList.add('game-transition-in');
+            this.container.addEventListener('animationend', () => {
+                this.container?.classList.remove('game-transition-in');
+            }, { once: true });
+        };
+        this.container.addEventListener('transitionend', afterFade, { once: true });
+        // Fallback in case transitionend doesn't fire
+        this.setTimeout(() => afterFade(), 200);
+    }
+
     // Override in subclass
     loadGame() {}
 
@@ -235,9 +256,9 @@ export class BaseGameComponent {
             </button>` : '';
 
         return `
-            <div class="fixed top-0 left-0 right-0 h-16 z-40 px-4 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10" role="toolbar" aria-label="${title || 'Game'} toolbar">
+            <div class="fixed top-0 left-0 right-0 h-16 landscape:h-11 z-40 px-4 landscape:px-3 flex justify-between items-center bg-gray-100/90 dark:bg-dark-bg/90 backdrop-blur-sm border-b border-white/10" role="toolbar" aria-label="${title || 'Game'} toolbar">
                 <div class="flex items-center gap-2">
-                    ${title ? `<div class="text-xl font-black text-${color}-500 tracking-tighter">${title}</div>` : ''}
+                    ${title ? `<div class="text-xl landscape:text-sm font-black text-${color}-500 tracking-tighter">${title}</div>` : ''}
                     ${idHtml}
                     ${editHtml}
                     ${showRandom ? randomHtml : ''}
@@ -253,13 +274,13 @@ export class BaseGameComponent {
 
     renderFooter({ prefix, color = 'indigo' }) {
         return `
-            <div class="fixed bottom-0 left-0 right-0 p-4 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg">
-                <div class="max-w-lg mx-auto flex gap-4">
-                    <button id="${prefix}-prev-btn" class="flex-1 h-14 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all" aria-label="Previous">
-                        <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            <div class="fixed bottom-0 left-0 right-0 p-4 landscape:p-1.5 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg">
+                <div class="max-w-lg mx-auto flex gap-4 landscape:gap-2">
+                    <button id="${prefix}-prev-btn" class="flex-1 h-14 landscape:h-9 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-2xl landscape:rounded-xl shadow-sm flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all" aria-label="Previous">
+                        <svg class="h-8 w-8 landscape:h-5 landscape:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <button id="${prefix}-next-btn" class="flex-1 h-14 bg-${color}-500 text-white rounded-2xl shadow-lg shadow-${color}-500/30 flex items-center justify-center font-bold tracking-wide active:scale-95 transition-all" aria-label="Next">
-                        <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    <button id="${prefix}-next-btn" class="flex-1 h-14 landscape:h-9 bg-${color}-500 text-white rounded-2xl landscape:rounded-xl shadow-lg shadow-${color}-500/30 flex items-center justify-center font-bold tracking-wide active:scale-95 transition-all" aria-label="Next">
+                        <svg class="h-8 w-8 landscape:h-5 landscape:w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
             </div>`;
@@ -267,13 +288,20 @@ export class BaseGameComponent {
 
     renderCategoryPills({ color = 'indigo' } = {}) {
         return `
-            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 flex gap-2 no-scrollbar" role="tablist" aria-label="Category filter">
+            <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 landscape:pb-1 landscape:mb-1 flex gap-2 landscape:gap-1 no-scrollbar" role="tablist" aria-label="Category filter">
                 ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 rounded-full text-sm font-bold border ${this.currentCategory === cat ? `bg-${color}-500 text-white border-${color}-500` : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}" role="tab" aria-selected="${this.currentCategory === cat}">
+                    <button class="category-pill px-4 py-1 landscape:px-2 landscape:py-0.5 landscape:text-xs rounded-full text-sm font-bold border ${this.currentCategory === cat ? `bg-${color}-500 text-white border-${color}-500` : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}" role="tab" aria-selected="${this.currentCategory === cat}">
                         ${cat}
                     </button>
                 `).join('')}
             </div>`;
+    }
+
+    renderSplitLayout(leftHtml, rightHtml, { leftClass = '', rightClass = '' } = {}) {
+        return `<div class="flex flex-col landscape:flex-row gap-3 landscape:gap-2 flex-1 min-h-0 w-full">
+            <div class="landscape:w-1/2 landscape:h-full min-h-0 flex flex-col ${leftClass}">${leftHtml}</div>
+            <div class="landscape:w-1/2 landscape:h-full flex-1 min-h-0 flex flex-col ${rightClass}">${rightHtml}</div>
+        </div>`;
     }
 
     renderError(message = 'Not enough vocabulary in this category.', prefix = '') {

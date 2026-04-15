@@ -49,6 +49,7 @@ module.exports = {
     }),
     new CopyPlugin({
       patterns: [
+        { from: "src/favicon.svg", to: "favicon.svg" },
         { from: "src/manifest.json", to: "manifest.json" },
         { from: "src/sw.js", to: "sw.js" },
         { from: "src/icons", to: "icons", noErrorOnMissing: true },

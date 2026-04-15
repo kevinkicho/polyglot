@@ -3,6 +3,7 @@ import { achievementService } from './achievementService';
 import { comboManager } from '../managers/ComboManager';
 import { GAME_TYPES } from '../config/gameTypes';
 import { offlineQueue } from './offlineQueue';
+import { settingsService } from './settingsService';
 
 /** @typedef {typeof GAME_TYPES[number]} GameType */
 
@@ -117,7 +118,7 @@ class ScoreService {
         if (!this.userId) return;
         const dateStr = this.getDateStr();
 
-        if (points > 0) comboManager.increment();
+        if (points > 0 && settingsService.get().comboEffects !== false) comboManager.increment();
 
         const updates = {};
         updates[`users/${this.userId}/stats/${dateStr}/${gameType}`] = increment(points);
