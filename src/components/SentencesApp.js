@@ -1,15 +1,28 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { aiService } from '../services/aiService';
+import { generateSentenceExercise, getStrugglingWords } from '../services/aiContentService';
+import { escapeHTML } from '../utils/sanitize';
 
 export class SentencesApp extends BaseGameComponent {
     constructor() {
         super();
         this.builtIndices = [];
         this.wordPool = [];
+        this.aiSentence = null;
+        this.aiTranslation = '';
+        this.aiHint = '';
+        this._abortCtrl = null;
     }
 
     mount(elementId) {
         super.mount(elementId);
         this.random();
+    }
+
+    unmount() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        super.unmount();
     }
 
     random() {
@@ -19,6 +32,8 @@ export class SentencesApp extends BaseGameComponent {
 
     next(id = null) {
         this.isProcessing = false;
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         if (id !== null) {
             const idx = this.vocabService.findIndexById(id);
             if (idx !== -1) this.currentIndex = idx;
@@ -30,17 +45,31 @@ export class SentencesApp extends BaseGameComponent {
     }
 
     prev() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         const list = this.vocabService.getAll();
         this.currentIndex = (this.currentIndex - 1 + list.length) % list.length;
         this.loadGame();
     }
 
-    loadGame() {
+    async loadGame() {
         this.isProcessing = false;
+        this.builtIndices = [];
+        this.aiSentence = null;
+        this.aiTranslation = '';
+        this.aiHint = '';
         const list = this.vocabService.getAll();
         if (!list.length) return;
-        const item = list[this.currentIndex];
 
+        if (aiService.isAvailable()) {
+            await this.loadAIGame(list);
+        } else {
+            this.loadLocalGame(list);
+        }
+    }
+
+    loadLocalGame(list) {
+        const item = list[this.currentIndex];
         let sentence = item.back.sentenceTarget || item.front.main;
 
         let parts;
@@ -56,6 +85,75 @@ export class SentencesApp extends BaseGameComponent {
         this.builtIndices = [];
         this.currentData = { item, parts, sentence };
         this.render();
+    }
+
+    async loadAIGame(list) {
+        this._abortCtrl = new AbortController();
+        const ctrl = this._abortCtrl;
+        const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+        this.renderLoading();
+
+        const struggling = getStrugglingWords(list);
+        if (!struggling.length) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            this.loadLocalGame(list);
+            return;
+        }
+
+        const targetWord = struggling[Math.floor(Math.random() * struggling.length)];
+        const s = this.settingsService.get();
+
+        try {
+            const result = await generateSentenceExercise(targetWord, s.targetLang, {
+                originLang: s.originLang,
+                signal: ctrl.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (this._abortCtrl !== ctrl) return;
+            this._abortCtrl = null;
+
+            if (!result) {
+                this.loadLocalGame(list);
+                return;
+            }
+
+            const item = list[this.currentIndex] || list[0];
+
+            let parts;
+            if (s.targetLang === 'ja') {
+                parts = this.textService.tokenizeJapanese(result.sentence);
+            } else if (result.words.length > 0) {
+                parts = [...result.words];
+            } else {
+                parts = result.sentence.split(/([\s,.!?、。]+)/).filter(s2 => s2.trim().length > 0);
+            }
+            parts = parts.filter(p => !/^[\.,、。!?]+$/.test(p.trim()));
+
+            this.wordPool = parts.map((word, i) => ({ word, id: i, used: false })).sort(() => 0.5 - Math.random());
+            this.builtIndices = [];
+            this.aiSentence = result.sentence;
+            this.aiTranslation = result.translation || '';
+            this.aiHint = result.hint || '';
+            this.currentData = { item, parts, sentence: result.sentence };
+            this.render();
+        } catch (err) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            this.loadLocalGame(list);
+        }
+    }
+
+    renderLoading() {
+        if (!this.container) return;
+        this.container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full pt-20 px-6 text-center">
+                <div class="w-10 h-10 border-4 border-pink-200 dark:border-pink-800 border-t-pink-600 dark:border-t-pink-400 rounded-full animate-spin mb-4"></div>
+                <div class="text-sm font-bold text-gray-400 dark:text-gray-500">Generating sentence...</div>
+            </div>`;
     }
 
     handlePoolClick(poolIdx) {
@@ -106,7 +204,7 @@ export class SentencesApp extends BaseGameComponent {
             const sizeClass = isLong ? 'text-lg px-2 py-1' : 'text-xl px-3 py-2';
 
             slotContainer.innerHTML = this.builtIndices.map((poolIdx, i) => `
-                <button class="bg-pink-500 text-white rounded-lg font-bold shadow-md active:scale-95 whitespace-nowrap ${sizeClass}" data-pos="${i}">${this.wordPool[poolIdx].word}</button>
+                <button class="bg-pink-500 text-white rounded-lg font-bold shadow-md active:scale-95 whitespace-nowrap ${sizeClass}" data-pos="${i}">${escapeHTML(this.wordPool[poolIdx].word)}</button>
             `).join('');
 
             slotContainer.querySelectorAll('[data-pos]').forEach(btn =>
@@ -144,7 +242,7 @@ export class SentencesApp extends BaseGameComponent {
     render() {
         if (!this.container) return;
         const { item } = this.currentData;
-        const originText = item.back.sentenceOrigin || item.back.main || item.back.definition;
+        const originText = this.aiTranslation || item.back.sentenceOrigin || item.back.main || item.back.definition;
 
         const count = this.wordPool.length;
         let btnHeight = 'min-h-[5rem]';
@@ -154,6 +252,11 @@ export class SentencesApp extends BaseGameComponent {
         if (count > 12) { btnHeight = 'min-h-[3rem]'; textSize = 'text-lg'; padding = 'px-2 py-1'; }
         else if (count > 8) { btnHeight = 'min-h-[4rem]'; textSize = 'text-2xl'; padding = 'px-3 py-2'; }
 
+        let hintHtml = '';
+        if (this.aiHint) {
+            hintHtml = `<div class="text-xs text-pink-500 dark:text-pink-400 font-medium mt-1 text-center">${escapeHTML(this.aiHint)}</div>`;
+        }
+
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'sent', id: item.id, color: 'pink', showRandom: true })}
 
@@ -161,6 +264,7 @@ export class SentencesApp extends BaseGameComponent {
                 ${this.renderSplitLayout(
                     `<div id="sent-question-box" class="bg-white dark:bg-dark-card p-4 landscape:p-2 rounded-3xl landscape:rounded-2xl shadow-sm text-center border-2 border-gray-100 dark:border-dark-border cursor-pointer active:scale-95 transition-transform hover:border-pink-200 group">
                         <h2 class="text-xl landscape:text-base font-bold text-gray-800 dark:text-white mt-1" data-fit="true">${this.textService.smartWrap(originText)}</h2>
+                        ${hintHtml}
                     </div>
                     <div id="sent-slots" class="flex flex-wrap justify-center content-start gap-2 landscape:gap-1 min-h-[5rem] landscape:min-h-[3rem] p-4 landscape:p-2 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all overflow-y-auto custom-scrollbar flex-1">
                     </div>`,
@@ -168,7 +272,7 @@ export class SentencesApp extends BaseGameComponent {
                         <div class="flex flex-wrap justify-center gap-2 landscape:gap-1 pb-4 landscape:pb-1">
                             ${this.wordPool.map((w, i) => `
                                 <button class="flex-grow bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl ${padding} ${btnHeight} landscape:min-h-0 landscape:py-1 ${textSize} landscape:text-base font-bold text-gray-700 dark:text-white shadow-sm hover:border-pink-400 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center ${w.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
-                                    <span class="w-full text-center">${w.word}</span>
+                                    <span class="w-full text-center">${escapeHTML(w.word)}</span>
                                 </button>
                             `).join('')}
                         </div>

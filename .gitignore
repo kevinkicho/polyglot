@@ -7,6 +7,9 @@ dist/
 # Firebase cache
 .firebase/
 
+# Service account key (contains secrets)
+scripts/serviceAccountKey.json
+
 # System Files (Junk files)
 .DS_Store
 Thumbs.db

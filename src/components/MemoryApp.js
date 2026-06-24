@@ -1,4 +1,7 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { aiService } from '../services/aiService';
+import { generateMemoryPairs, getStrugglingWords } from '../services/aiContentService';
+import { escapeHTML } from '../utils/sanitize';
 
 export class MemoryApp extends BaseGameComponent {
     constructor() {
@@ -6,11 +9,18 @@ export class MemoryApp extends BaseGameComponent {
         this.cards = [];
         this.flippedIndices = [];
         this.matchesFound = 0;
+        this._abortCtrl = null;
     }
 
     mount(elementId) {
         super.mount(elementId);
         this.startNewGame();
+    }
+
+    unmount() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        super.unmount();
     }
 
     startNewGame() {
@@ -34,6 +44,93 @@ export class MemoryApp extends BaseGameComponent {
 
         this.cards = deck.sort(() => 0.5 - Math.random());
         this.render();
+
+        if (aiService.isAvailable()) {
+            this.loadAIGame(list);
+        }
+    }
+
+    next() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        this.startNewGame();
+    }
+    prev() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        this.startNewGame();
+    }
+    random() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        this.startNewGame();
+    }
+
+    async loadAIGame(list) {
+        if (!list || list.length < 4) return;
+
+        this._abortCtrl = new AbortController();
+        const ctrl = this._abortCtrl;
+        const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+        const struggling = getStrugglingWords(list);
+        if (!struggling.length) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            return;
+        }
+
+        const targetWord = struggling[Math.floor(Math.random() * struggling.length)];
+        const s = this.settingsService.get();
+
+        try {
+            const result = await generateMemoryPairs(targetWord, s.targetLang, {
+                originLang: s.originLang,
+                signal: ctrl.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (this._abortCtrl !== ctrl) return;
+            this._abortCtrl = null;
+
+            if (!result || !result.pairs || result.pairs.length < 4) return;
+
+            const pairs = result.pairs.slice(0, 6);
+            const aiIdBase = Date.now();
+
+            let deck = [];
+            pairs.forEach((pair, i) => {
+                const pairId = aiIdBase + i;
+                deck.push({ id: pairId, type: 'target', text: pair.word, pairId: pairId, matched: false, aiGenerated: true });
+                deck.push({ id: pairId, type: 'origin', text: pair.translation, pairId: pairId, matched: false, aiGenerated: true });
+            });
+
+            if (pairs.length < 6) {
+                const existingWords = new Set(pairs.map(p => p.word.toLowerCase()));
+                const localItems = list
+                    .filter(item => item.front?.main && !existingWords.has(item.front.main.toLowerCase()))
+                    .sort(() => Math.random() - 0.5);
+                let localIdx = 0;
+                while (deck.length / 2 < 6 && localIdx < localItems.length) {
+                    const item = localItems[localIdx++];
+                    deck.push({ id: item.id, type: 'target', text: item.front.main, pairId: item.id, matched: false });
+                    deck.push({ id: item.id, type: 'origin', text: item.back.main || item.back.definition, pairId: item.id, matched: false });
+                }
+            }
+
+            deck.sort(() => 0.5 - Math.random());
+
+            if (this.isProcessing) return;
+
+            this.flippedIndices = [];
+            this.matchesFound = 0;
+            this.cards = deck;
+            this.render();
+        } catch (err) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+        }
     }
 
     setCategory(cat) {
@@ -85,10 +182,6 @@ export class MemoryApp extends BaseGameComponent {
         }
     }
 
-    next() { this.startNewGame(); }
-    prev() { this.startNewGame(); }
-    random() { this.startNewGame(); }
-
     render() {
         if (!this.container) return;
 
@@ -104,7 +197,7 @@ export class MemoryApp extends BaseGameComponent {
                         const isFlipped = this.flippedIndices.includes(i) || c.matched;
 
                         const content = isFlipped
-                            ? `<div class="w-full h-full flex items-center justify-center rotate-y-180 p-1"><span class="card-text font-bold text-center leading-tight select-none w-full">${this.textService.smartWrap(c.text)}</span></div>`
+                            ? `<div class="w-full h-full flex items-center justify-center rotate-y-180 p-1"><span class="card-text font-bold text-center leading-tight select-none w-full">${c.aiGenerated ? escapeHTML(c.text) : this.textService.smartWrap(c.text)}</span></div>`
                             : ``;
 
                         const bg = isFlipped

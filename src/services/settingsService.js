@@ -28,7 +28,11 @@ class SettingsService {
             blanksDoubleClick: false,
 
             // Effects
-            comboEffects: true
+            comboEffects: true,
+
+            // AI Tutor
+            llmApiUrl: 'http://localhost:60879',
+            llmModel: 'llama3.2:3b'
         };
         this.settings = this.load();
     }

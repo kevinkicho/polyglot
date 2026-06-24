@@ -32,6 +32,8 @@ export class BaseGameComponent {
         this._timers = [];
         /** @type {number[]} */
         this._animFrames = [];
+        /** @type {Map<string, {event: string, handler: Function}>} */
+        this._bindings = new Map();
     }
 
     // --- Lifecycle ---
@@ -39,6 +41,22 @@ export class BaseGameComponent {
     mount(elementId) {
         this.container = document.getElementById(elementId);
         this.updateCategories();
+        if (window.visualViewport) {
+            this._viewportHandler = () => {
+                if (!this.container) return;
+                const bottomBar = this.container.querySelector('.fixed.bottom-0');
+                if (bottomBar) {
+                    const vh = window.visualViewport.height;
+                    const diff = window.innerHeight - vh;
+                    if (diff > 100) {
+                        bottomBar.style.bottom = `${diff}px`;
+                    } else {
+                        bottomBar.style.bottom = '';
+                    }
+                }
+            };
+            window.visualViewport.addEventListener('resize', this._viewportHandler);
+        }
     }
 
     unmount() {
@@ -50,6 +68,15 @@ export class BaseGameComponent {
             document.removeEventListener('keydown', this._keyHandler);
             this._keyHandler = null;
         }
+        if (this._containerHandler) {
+            this.container?.removeEventListener('click', this._containerHandler);
+            this._containerHandler = null;
+        }
+        if (this._viewportHandler && window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._viewportHandler);
+            this._viewportHandler = null;
+        }
+        this._bindings.clear();
         audioService.stop();
         this.isProcessing = false;
     }
@@ -191,8 +218,20 @@ export class BaseGameComponent {
 
     bind(selector, event, handler) {
         if (!this.container) return;
-        const el = this.container.querySelector(selector);
-        if (el) el.addEventListener(event, handler);
+        const key = `${event}::${selector}`;
+        this._bindings.set(key, { event, selector, handler });
+        if (!this._containerHandler) {
+            this._containerHandler = (e) => {
+                for (const b of this._bindings.values()) {
+                    if (b.event !== e.type) continue;
+                    const target = e.target.closest(b.selector);
+                    if (target && this.container?.contains(target)) {
+                        b.handler.call(this, e, target);
+                    }
+                }
+            };
+            this.container.addEventListener('click', this._containerHandler);
+        }
     }
 
     closeGame() {
@@ -290,7 +329,7 @@ export class BaseGameComponent {
         return `
             <div class="w-full overflow-x-auto whitespace-nowrap px-4 pb-2 mb-2 landscape:pb-1 landscape:mb-1 flex gap-2 landscape:gap-1 no-scrollbar" role="tablist" aria-label="Category filter">
                 ${this.categories.map(cat => `
-                    <button class="category-pill px-4 py-1 landscape:px-2 landscape:py-0.5 landscape:text-xs rounded-full text-sm font-bold border ${this.currentCategory === cat ? `bg-${color}-500 text-white border-${color}-500` : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}" role="tab" aria-selected="${this.currentCategory === cat}">
+                    <button class="category-pill px-4 py-1 landscape:px-2 landscape:py-1 landscape:min-h-[36px] landscape:text-xs rounded-full text-sm font-bold border ${this.currentCategory === cat ? `bg-${color}-500 text-white border-${color}-500` : 'bg-white dark:bg-dark-card text-gray-500 border-gray-200 dark:border-gray-700'}" data-cat="${cat}" role="tab" aria-selected="${this.currentCategory === cat}">
                         ${cat}
                     </button>
                 `).join('')}
@@ -343,8 +382,10 @@ export class BaseGameComponent {
         this.bind(`#${prefix}-next-btn`, 'click', () => this.next());
         this.bind(`#${prefix}-random-btn`, 'click', () => this.random());
 
-        // ID navigation
-        const idInput = this.container?.querySelector(`#${prefix}-id-input`);
+        if (!this.container) return;
+
+        // ID navigation delegation
+        const idInput = this.container.querySelector(`#${prefix}-id-input`);
         if (idInput) {
             idInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') this.gotoId(idInput.value); });
             idInput.addEventListener('click', (e) => e.stopPropagation());
@@ -354,19 +395,17 @@ export class BaseGameComponent {
             if (input) this.gotoId(input.value);
         });
 
-        // Category pills
-        this.container?.querySelectorAll('.category-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setCategory(e.currentTarget.dataset.cat));
+        // Category pills via delegation
+        this.bind('.category-pill', 'click', (e) => {
+            if (e.dataset?.cat) this.setCategory(e.dataset.cat);
         });
 
         // Keyboard navigation
         this._keyHandler = (e) => {
-            // Don't intercept when user is typing in an input
             if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
             if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); this.prev(); }
             else if (e.key === 'Escape') { e.preventDefault(); this.closeGame(); }
-            // Delegate to subclass handler if it exists
             else if (this.handleKeyPress) { this.handleKeyPress(e); }
         };
         document.addEventListener('keydown', this._keyHandler);

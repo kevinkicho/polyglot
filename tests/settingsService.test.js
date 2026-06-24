@@ -44,7 +44,7 @@ describe('SettingsService', () => {
             expect(s.volume).toBe(0.5);
             // Defaults preserved
             expect(s.originLang).toBe('en');
-            expect(s.showVocab).toBe(true);
+            expect(s.comboEffects).toBe(true);
         });
     });
 

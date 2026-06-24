@@ -2,6 +2,10 @@ import { settingsService } from './settingsService';
 import { escapeHTML } from '../utils/sanitize';
 
 class TextService {
+    constructor() {
+        this._smartWrapCache = new Map();
+    }
+
     /**
      * The Main "SmartFit" Function.
      * Maximizes font size within a container without wrapping.
@@ -42,26 +46,31 @@ class TextService {
             el.style.whiteSpace = 'nowrap';
         }
 
-        // Shrink from max until everything fits
-        let currentSize = max;
-        el.style.fontSize = `${currentSize}px`;
-
         const overflows = () => {
             if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) return true;
-            // Also check each child div's content width
             for (const d of innerDivs) {
                 if (d.scrollWidth > d.clientWidth) return true;
             }
             return false;
         };
 
-        while (overflows() && currentSize > min) {
-            currentSize--;
-            el.style.fontSize = `${currentSize}px`;
+        let low = min, high = max, best = min;
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            el.style.fontSize = `${mid}px`;
+            if (overflows()) {
+                high = mid - 1;
+            } else {
+                best = mid;
+                low = mid + 1;
+            }
         }
+        el.style.fontSize = `${best}px`;
 
-        if (currentSize <= min) {
-            el.style.fontSize = `${min}px`;
+        if (best <= min && overflows()) {
+            el.style.whiteSpace = 'normal';
+            el.style.overflowWrap = 'break-word';
+            el.style.wordBreak = 'break-word';
         }
     }
 
@@ -85,16 +94,22 @@ class TextService {
      */
     smartWrap(text) {
         if (!text) return "";
+        if (this._smartWrapCache.has(text)) return this._smartWrapCache.get(text);
+
         const separatorRegex = /[\/·・･,、。]+/;
+        let result;
 
         if (separatorRegex.test(text)) {
-            return text.split(separatorRegex)
+            result = text.split(separatorRegex)
                 .filter(part => part.trim().length > 0)
                 .map(part => `<div class="w-full my-1 whitespace-nowrap">${escapeHTML(part.trim())}</div>`)
                 .join('');
+        } else {
+            result = escapeHTML(text);
         }
 
-        return escapeHTML(text);
+        this._smartWrapCache.set(text, result);
+        return result;
     }
 
     /**
@@ -202,7 +217,6 @@ class TextService {
 
         if (currentSize <= min) {
             el.style.fontSize = `${min}px`;
-            // At min size, allow emergency word breaks within chunks too
             phraseChunks.forEach(chunk => {
                 chunk.style.whiteSpace = 'normal';
             });

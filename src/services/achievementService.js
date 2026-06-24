@@ -84,7 +84,7 @@ class AchievementService {
             window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: data }));
             
             // Play a sound if available
-            const audio = new Audio('/sounds/achievement.mp3'); // Optional
+            const audio = new Audio('/sounds/achievement.wav');
             audio.play().catch(() => {}); 
         }
     }

@@ -53,6 +53,7 @@ module.exports = {
         { from: "src/manifest.json", to: "manifest.json" },
         { from: "src/sw.js", to: "sw.js" },
         { from: "src/icons", to: "icons", noErrorOnMissing: true },
+        { from: "src/sounds", to: "sounds", noErrorOnMissing: true },
       ],
     }),
   ],

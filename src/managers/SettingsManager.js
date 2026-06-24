@@ -54,17 +54,15 @@ class SettingsManager {
         this.bindSetting('target-select', 'targetLang', onLanguageChange);
         this.bindSetting('origin-select', 'originLang', onLanguageChange);
 
-        // AI Tutor settings (text inputs — save on blur/change)
-        ['llm-api-url', 'llmApiUrl', 'llm-api-key', 'llmApiKey', 'llm-model', 'llmModel'].forEach((_, i, arr) => {
-            if (i % 2 !== 0) return;
-            const elId = arr[i], key = arr[i + 1];
+        const bindTextSetting = (elId, key) => {
             const el = document.getElementById(elId);
-            if (el) {
-                const save = () => settingsService.set(key, el.value.trim());
-                el.addEventListener('change', save);
-                el.addEventListener('blur', save);
-            }
-        });
+            if (!el) return;
+            const save = () => settingsService.set(key, el.value.trim());
+            el.addEventListener('change', save);
+            el.addEventListener('blur', save);
+        };
+        bindTextSetting('llm-api-url', 'llmApiUrl');
+        bindTextSetting('llm-model', 'llmModel');
 
         // Accordion Logic
         [
@@ -133,10 +131,8 @@ class SettingsManager {
         setChk('toggle-blanks-autoplay', s.blanksAutoPlayCorrect !== false);
         setChk('toggle-combo-effects', s.comboEffects !== false);
 
-        // AI Tutor
-        setVal('llm-api-url', s.llmApiUrl || '');
-        setVal('llm-api-key', s.llmApiKey || '');
-        setVal('llm-model', s.llmModel || '');
+        setVal('llm-api-url', s.llmApiUrl);
+        setVal('llm-model', s.llmModel);
     }
 }
 

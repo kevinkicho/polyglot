@@ -247,3 +247,30 @@ input:focus-visible {
 .dark input:focus-visible {
     outline-color: #818cf8;
 }
+
+/* =========================================
+   9. GAME VIEW HELPERS
+   ========================================= */
+.game-view {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.game-view-scroll {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+/* Minimum touch target size for interactive elements */
+.touch-target {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Prevent pull-to-refresh on game areas */
+#grav-game-area,
+.game-area {
+    overscroll-behavior: contain;
+    touch-action: none;
+}

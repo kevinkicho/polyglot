@@ -1,10 +1,15 @@
 import { BaseGameComponent } from './BaseGameComponent';
+import { aiService } from '../services/aiService';
+import { generateDecoderExercise, getStrugglingWords } from '../services/aiContentService';
+import { escapeHTML } from '../utils/sanitize';
 
 export class DecoderApp extends BaseGameComponent {
     constructor() {
         super();
         this.builtChars = [];
         this.charPool = [];
+        this.aiHint = '';
+        this._abortCtrl = null;
     }
 
     mount(elementId) {
@@ -12,8 +17,38 @@ export class DecoderApp extends BaseGameComponent {
         this.random();
     }
 
+    unmount() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        super.unmount();
+    }
+
+    next(id = null) {
+        this.isProcessing = false;
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        if (id !== null) {
+            const idx = this.vocabService.findIndexById(id);
+            if (idx !== -1) this.currentIndex = idx;
+        } else {
+            const list = this.vocabService.getAll();
+            this.currentIndex = (this.currentIndex + 1) % list.length;
+        }
+        this.loadGame();
+    }
+
+    prev() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        const list = this.vocabService.getAll();
+        this.currentIndex = (this.currentIndex - 1 + list.length) % list.length;
+        this.loadGame();
+    }
+
     loadGame() {
         this.isProcessing = false;
+        this.builtChars = [];
+        this.aiHint = '';
         const list = this.vocabService.getAll();
         if (!list.length) return;
         const item = list[this.currentIndex];
@@ -29,6 +64,63 @@ export class DecoderApp extends BaseGameComponent {
 
         this.render();
         this.setTimeout(() => this.playAudio(), 300);
+
+        if (aiService.isAvailable()) {
+            this.loadAIGame(list);
+        }
+    }
+
+    async loadAIGame(list) {
+        if (!list || !list.length) return;
+
+        this._abortCtrl = new AbortController();
+        const ctrl = this._abortCtrl;
+        const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+        const struggling = getStrugglingWords(list);
+        if (!struggling.length) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            return;
+        }
+
+        const targetWord = struggling[Math.floor(Math.random() * struggling.length)];
+        const s = this.settingsService.get();
+
+        try {
+            const result = await generateDecoderExercise(targetWord, s.targetLang, {
+                originLang: s.originLang,
+                signal: ctrl.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (this._abortCtrl !== ctrl) return;
+            this._abortCtrl = null;
+
+            if (!result || !result.word || !result.characters || result.characters.length === 0) return;
+
+            const forbiddenChars = /[\/·・･,、。.\s\t\n]/;
+            const chars = result.characters.filter(c => !forbiddenChars.test(c));
+            if (chars.length === 0) return;
+
+            const cleanTargetWord = chars.join('');
+            if (!cleanTargetWord) return;
+
+            const item = list.find(i => i.id === targetWord.id) || list[this.currentIndex];
+
+            const newIndex = list.findIndex(i => i.id === targetWord.id);
+            if (newIndex !== -1) this.currentIndex = newIndex;
+
+            this.charPool = chars.map((char, i) => ({ char, id: i, used: false })).sort(() => 0.5 - Math.random());
+            this.builtChars = [];
+            this.aiHint = result.hint || '';
+            this.currentData = { item, chars, targetWord: cleanTargetWord };
+            this.render();
+        } catch (err) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+        }
     }
 
     playAudio() {
@@ -80,7 +172,7 @@ export class DecoderApp extends BaseGameComponent {
             slotsContainer.innerHTML = '<span class="text-gray-400 text-sm self-center font-medium animate-pulse w-full text-center">Listen & Tap Tiles</span>';
         } else {
             slotsContainer.innerHTML = this.builtChars.map((poolIdx, i) => `
-                <button class="bg-blue-500 text-white rounded-lg px-4 py-2 font-black text-xl shadow-md active:scale-95 min-w-[3rem]" data-pos="${i}">${this.charPool[poolIdx].char}</button>
+                <button class="bg-blue-500 text-white rounded-lg px-4 py-2 font-black text-xl shadow-md active:scale-95 min-w-[3rem]" data-pos="${i}">${escapeHTML(this.charPool[poolIdx].char)}</button>
             `).join('');
 
             slotsContainer.querySelectorAll('[data-pos]').forEach(btn =>
@@ -102,7 +194,7 @@ export class DecoderApp extends BaseGameComponent {
 
             const qBox = this.container.querySelector('#dec-q-box-content');
             if (qBox) {
-                qBox.innerHTML = `<h2 class="text-4xl font-black text-indigo-600 dark:text-white animate-celebrate">${this.currentData.item.front.main}</h2>`;
+                qBox.innerHTML = `<h2 class="text-4xl font-black text-indigo-600 dark:text-white animate-celebrate">${escapeHTML(this.currentData.item.front.main)}</h2>`;
             }
 
             this.setTimeout(() => this.transitionTo(() => this.next()), 1200);
@@ -115,6 +207,11 @@ export class DecoderApp extends BaseGameComponent {
 
         const charCount = this.charPool.length;
         const gridCols = Math.max(4, Math.ceil(charCount / 2.2));
+
+        let hintHtml = '';
+        if (this.aiHint) {
+            hintHtml = `<div class="text-xs text-blue-500 dark:text-blue-400 font-medium text-center">${escapeHTML(this.aiHint)}</div>`;
+        }
 
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'dec', id: item.id, color: 'blue', showRandom: true })}
@@ -129,6 +226,7 @@ export class DecoderApp extends BaseGameComponent {
                                 <svg class="w-8 h-8 landscape:w-5 landscape:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
                             </div>
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-widest opacity-20">Tap to Replay</span>
+                            ${hintHtml}
                         </div>
                     </div>
                     <div id="dec-slots" class="flex flex-wrap justify-center gap-2 landscape:gap-1 min-h-[4rem] landscape:min-h-[3rem] p-3 landscape:p-2 bg-gray-100 dark:bg-dark-bg/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 transition-all flex-1">
@@ -136,8 +234,8 @@ export class DecoderApp extends BaseGameComponent {
                     `<div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                         <div class="grid gap-1 pb-4 landscape:pb-1 content-start" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
                             ${this.charPool.map((c, i) => `
-                                <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square font-black text-gray-700 dark:text-white shadow-sm hover:border-blue-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
-                                    <span class="tile-text w-full text-center leading-none whitespace-nowrap">${c.char}</span>
+                                <button class="choice-tile bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-gray-700 rounded-xl aspect-square min-h-[48px] min-w-[48px] font-black text-gray-700 dark:text-white shadow-sm hover:border-blue-400 active:scale-95 transition-all p-0 flex items-center justify-center overflow-hidden ${c.used ? 'opacity-20 pointer-events-none' : ''}" data-index="${i}">
+                                    <span class="tile-text w-full text-center leading-none whitespace-nowrap">${escapeHTML(c.char)}</span>
                                 </button>
                             `).join('')}
                         </div>

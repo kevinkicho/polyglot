@@ -2,11 +2,18 @@ import { BaseGameComponent } from './BaseGameComponent';
 import { quizService } from '../services/quizService';
 import { comboManager } from '../managers/ComboManager';
 import { settingsService } from '../services/settingsService';
+import { aiService } from '../services/aiService';
+import { generateQuizQuestion, getStrugglingWords } from '../services/aiContentService';
+import { escapeHTML } from '../utils/sanitize';
 
 export class QuizApp extends BaseGameComponent {
     constructor() {
         super();
         this.selectedAnswerId = null;
+        this.aiQuestion = null;
+        this.aiChoices = [];
+        this.aiCorrectIndex = -1;
+        this._abortCtrl = null;
     }
 
     mount(elementId) {
@@ -15,9 +22,20 @@ export class QuizApp extends BaseGameComponent {
         else this.render();
     }
 
+    unmount() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
+        super.unmount();
+    }
+
     refresh() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         if (this.currentData && this.currentData.target) {
             this.currentData = quizService.generateQuestion(this.currentData.target.id);
+            this.aiQuestion = null;
+            this.aiChoices = [];
+            this.aiCorrectIndex = -1;
             this.render();
         } else {
             this.random();
@@ -34,14 +52,23 @@ export class QuizApp extends BaseGameComponent {
 
         const target = list[Math.floor(Math.random() * list.length)];
         this.currentData = quizService.generateQuestion(target.id);
+        this.aiQuestion = null;
+        this.aiChoices = [];
+        this.aiCorrectIndex = -1;
 
         this.render();
+
+        if (aiService.isAvailable()) {
+            this.loadAIQuestion(list);
+        }
     }
 
     next(id = null) {
         this.isProcessing = false;
         this.selectedAnswerId = null;
         this.audioService.stop();
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
 
         const list = this.getFilteredList();
         if (list.length === 0) return;
@@ -55,11 +82,20 @@ export class QuizApp extends BaseGameComponent {
         }
 
         this.currentData = quizService.generateQuestion(id);
+        this.aiQuestion = null;
+        this.aiChoices = [];
+        this.aiCorrectIndex = -1;
         if (this.currentData && window.saveGameHistory) window.saveGameHistory('quiz', this.currentData.target.id);
         this.render();
+
+        if (aiService.isAvailable()) {
+            this.loadAIQuestion(list);
+        }
     }
 
     prev() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         if (this.currentData) {
             const list = this.getFilteredList();
             if (list.length === 0) return;
@@ -70,6 +106,69 @@ export class QuizApp extends BaseGameComponent {
             else listIdx = (listIdx - 1 + list.length) % list.length;
 
             this.next(list[listIdx].id);
+        }
+    }
+
+    async loadAIQuestion(list) {
+        if (!this.currentData || !this.currentData.target) return;
+
+        this._abortCtrl = new AbortController();
+        const ctrl = this._abortCtrl;
+        const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+        const struggling = getStrugglingWords(list);
+        if (!struggling.length) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            return;
+        }
+
+        const target = this.currentData.target;
+        const others = list.filter(i => i.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+        const s = this.settingsService.get();
+
+        try {
+            const result = await generateQuizQuestion(target, others, s.targetLang, {
+                originLang: s.originLang,
+                signal: ctrl.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (this._abortCtrl !== ctrl) return;
+            this._abortCtrl = null;
+
+            if (!result) return;
+
+            const targetId = target.id;
+
+            const aiChoiceItems = result.choices.map((choiceText, i) => {
+                if (i === result.correctIndex) {
+                    return { id: targetId, front: target.front, back: target.back, _aiChoiceText: choiceText };
+                }
+                const match = others.find(o => (o.back?.definition || o.back?.main) === choiceText);
+                if (match) {
+                    return { id: match.id, front: match.front, back: match.back, _aiChoiceText: choiceText };
+                }
+                return { id: -(i + 1), front: { main: choiceText }, back: { main: choiceText, definition: choiceText }, _aiChoiceText: choiceText };
+            });
+
+            for (let i = aiChoiceItems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [aiChoiceItems[i], aiChoiceItems[j]] = [aiChoiceItems[j], aiChoiceItems[i]];
+            }
+
+            const newCorrectIndex = aiChoiceItems.findIndex(c => c.id === targetId);
+
+            this.aiQuestion = result.question;
+            this.aiChoices = aiChoiceItems;
+            this.aiCorrectIndex = newCorrectIndex;
+
+            this.currentData = { target, choices: aiChoiceItems };
+            this.render();
+        } catch (err) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
         }
     }
 
@@ -118,6 +217,14 @@ export class QuizApp extends BaseGameComponent {
             el.classList.add('bg-red-500', 'border-red-600', 'text-white');
             el.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
             if (settingsService.get().comboEffects !== false) comboManager.dropRank();
+
+            if (this.aiCorrectIndex >= 0) {
+                const correctBtn = this.container?.querySelectorAll('.quiz-option')[this.aiCorrectIndex];
+                if (correctBtn) {
+                    correctBtn.classList.add('bg-green-500', 'border-green-600', 'text-white');
+                    correctBtn.classList.remove('bg-white', 'dark:bg-dark-card', 'text-gray-700', 'dark:text-white');
+                }
+            }
         }
         if (correct) {
             const fullText = this.currentData.target.front.main;
@@ -139,10 +246,14 @@ export class QuizApp extends BaseGameComponent {
         }
     }
 
+
+
     render() {
         if (!this.container) return;
         if (!this.currentData) { this.renderError('Not enough vocabulary in this category (need 4+).', 'quiz'); return; }
         const { target, choices } = this.currentData;
+
+        const questionText = this.aiQuestion || target.front.main;
 
         this.container.innerHTML = `
             ${this.renderHeader({ prefix: 'quiz', id: target.id, color: 'purple', showRandom: true })}
@@ -152,12 +263,13 @@ export class QuizApp extends BaseGameComponent {
 
                 ${this.renderSplitLayout(
                     `<div id="quiz-question-box" class="flex-1 min-h-[120px] w-full bg-white dark:bg-dark-card rounded-[2rem] landscape:rounded-2xl shadow-xl border-2 border-indigo-100 dark:border-dark-border p-1 flex flex-col items-center justify-center overflow-hidden">
-                        <span class="quiz-question-text font-semibold text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${this.textService.smartWrap(target.front.main)}</span>
+                        <span class="quiz-question-text font-semibold text-gray-800 dark:text-white text-center leading-tight w-full break-words" data-fit="true">${this.aiQuestion ? escapeHTML(questionText) : this.textService.smartWrap(questionText)}</span>
+                        ${this.aiQuestion ? `<span class="text-xs text-gray-400 dark:text-gray-500 mt-1">${escapeHTML(target.front.main)}</span>` : ''}
                     </div>`,
                     `<div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 landscape:gap-1.5 min-h-0">
-                        ${choices.map(c => `
-                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 landscape:p-1 overflow-hidden w-full h-full" data-id="${c.id}">
-                                <div class="quiz-choice-text text-lg font-normal text-gray-700 dark:text-white text-center leading-tight w-full">${this.textService.smartWrap(c.back.definition)}</div>
+                        ${choices.map((c, i) => `
+                            <button class="quiz-option bg-white dark:bg-dark-card border-2 border-transparent rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md flex flex-col justify-center items-center p-2 landscape:p-1 overflow-hidden w-full h-full" data-id="${c.id}" data-index="${i}">
+                                <div class="quiz-choice-text text-lg font-normal text-gray-700 dark:text-white text-center leading-tight w-full">${c._aiChoiceText ? escapeHTML(c._aiChoiceText) : this.textService.smartWrap(c.back.definition)}</div>
                             </button>
                         `).join('')}
                     </div>`,
@@ -165,16 +277,7 @@ export class QuizApp extends BaseGameComponent {
                 )}
             </div>
 
-            <div class="fixed bottom-0 left-0 right-0 p-6 landscape:p-1.5 z-40 bg-gradient-to-t from-gray-100 via-gray-100 to-transparent dark:from-dark-bg pointer-events-none">
-                <div class="max-w-md mx-auto flex gap-4 landscape:gap-2 pointer-events-auto">
-                    <button id="quiz-prev-btn" class="flex-1 h-16 landscape:h-9 bg-white border border-gray-200 rounded-3xl landscape:rounded-xl shadow-sm flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <button id="quiz-next-btn" class="flex-1 h-16 landscape:h-9 bg-indigo-600 text-white rounded-3xl landscape:rounded-xl shadow-xl flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 landscape:h-5 landscape:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                </div>
-            </div>
+            ${this.renderFooter({ prefix: 'quiz', color: 'indigo' })}
         `;
 
         this.bindCommonEvents('quiz');

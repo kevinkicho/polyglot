@@ -1,9 +1,10 @@
 import { BaseGameComponent } from './BaseGameComponent';
 import { comboManager } from '../managers/ComboManager';
 import { settingsService } from '../services/settingsService';
+import { aiService } from '../services/aiService';
+import { generateGravityExercise, getStrugglingWords } from '../services/aiContentService';
+import { escapeHTML } from '../utils/sanitize';
 
-// crossTime = seconds for an asteroid to fall from top to bottom
-// spawnRate in ms, maxAsteroids = cap on screen at once
 const DIFFICULTY = {
     easy:   { crossTime: 8.0, spawnRate: 3000, speedUp: 0.12, maxAsteroids: 4 },
     medium: { crossTime: 5.0, spawnRate: 2200, speedUp: 0.18, maxAsteroids: 5 },
@@ -25,6 +26,7 @@ export class GravityApp extends BaseGameComponent {
         this.WIN_SCORE = 500;
         this.difficulty = 'medium';
         this.isPaused = false;
+        this._abortCtrl = null;
     }
 
     mount(elementId) {
@@ -34,23 +36,29 @@ export class GravityApp extends BaseGameComponent {
     }
 
     unmount() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         this.stopGame();
         super.unmount();
     }
 
     refresh() {
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         this.stopGame();
         this.renderLayout();
         this.showDifficultyPicker();
     }
 
-    next() { this.stopGame(); this.renderLayout(); this.showDifficultyPicker(); }
+    next() { this._abortCtrl?.abort(); this._abortCtrl = null; this.stopGame(); this.renderLayout(); this.showDifficultyPicker(); }
     prev() { this.next(); }
     random() { this.next(); }
     loadGame() {}
 
     setCategory(cat) {
         this.currentCategory = cat;
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
         this.stopGame();
         this.renderLayout();
         this.showDifficultyPicker();
@@ -98,6 +106,10 @@ export class GravityApp extends BaseGameComponent {
         this.crossTime = diff.crossTime;
         this.asteroids = [];
         this.activeTargets = [];
+        this._aiWordPool = null;
+        this._aiTargets = null;
+        this._abortCtrl?.abort();
+        this._abortCtrl = null;
 
         this.updateStats();
         this.updatePauseBtn();
@@ -106,7 +118,6 @@ export class GravityApp extends BaseGameComponent {
         this.fillTargetSlot(1);
         this.fillTargetSlot(2);
 
-        // Event delegation: single handler on game area catches all asteroid clicks
         gameArea.addEventListener('pointerdown', (e) => {
             if (this.isPaused) return;
             const astEl = e.target.closest('.grav-asteroid');
@@ -116,7 +127,6 @@ export class GravityApp extends BaseGameComponent {
             if (id) this.handleAsteroidClick(id, astEl);
         });
 
-        // Target box clicks: play target-language pronunciation as hint
         this.container.querySelectorAll('[id^="grav-target-box-"]').forEach(box => {
             box.style.cursor = 'pointer';
             box.onclick = () => {
@@ -135,6 +145,66 @@ export class GravityApp extends BaseGameComponent {
 
         this.lastSpawnTime = performance.now();
         this.animationFrameId = requestAnimationFrame((t) => this.gameLoop(t));
+
+        if (aiService.isAvailable()) {
+            this.loadAIContent();
+        }
+    }
+
+    async loadAIContent() {
+        const list = this.getFilteredList();
+        if (!list || list.length < 4) return;
+
+        this._abortCtrl = new AbortController();
+        const ctrl = this._abortCtrl;
+        const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+        const struggling = getStrugglingWords(list);
+        if (!struggling.length) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+            return;
+        }
+
+        const targetWord = struggling[Math.floor(Math.random() * struggling.length)];
+        const s = this.settingsService.get();
+
+        try {
+            const result = await generateGravityExercise(targetWord, s.targetLang, {
+                originLang: s.originLang,
+                signal: ctrl.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (this._abortCtrl !== ctrl) return;
+            this._abortCtrl = null;
+
+            if (!result || !result.targetWord || !result.targetMeaning) return;
+
+            const aiWords = [result.targetWord, ...result.distractorWords].filter(Boolean);
+            const allItems = this.getFilteredList();
+
+            this._aiWordPool = aiWords.map(word => {
+                const match = allItems.find(item => item.front?.main === word);
+                if (match) return { id: match.id, front: match.front, back: match.back, _aiWord: word };
+                return { id: -Date.now() - Math.floor(Math.random() * 10000), front: { main: word }, back: { main: word, definition: result.targetMeaning }, _aiWord: word };
+            });
+
+            const targetItem = allItems.find(i => i.id === targetWord.id) || allItems[0];
+            this._aiTargets = [
+                { item: targetItem, meaning: result.targetMeaning, slotIdx: -1, aiMeaning: true },
+                ...result.distractorMeanings.map((m, idx) => ({
+                    item: { id: -(idx + 2) * 10000, front: { main: m }, back: { main: m, definition: m } },
+                    meaning: m,
+                    slotIdx: -1,
+                    aiMeaning: true,
+                })),
+            ];
+        } catch (err) {
+            clearTimeout(timeout);
+            this._abortCtrl = null;
+        }
     }
 
     pauseGame() {
@@ -211,6 +281,23 @@ export class GravityApp extends BaseGameComponent {
 
     fillTargetSlot(slotIdx) {
         const list = this.getFilteredList();
+
+        if (this._aiTargets && this._aiTargets.length > 0 && this.activeTargets.length < 3) {
+            const aiTarget = this._aiTargets.shift();
+            const item = list.find(i => i.id === aiTarget.item.id) || list[Math.floor(Math.random() * list.length)];
+            const meaning = aiTarget.meaning;
+
+            const existingIdx = this.activeTargets.findIndex(t => t.slotIdx === slotIdx);
+            if (existingIdx !== -1) {
+                this.activeTargets[existingIdx] = { item, meaning, slotIdx };
+            } else {
+                this.activeTargets.push({ item, meaning, slotIdx });
+            }
+
+            this.updateTargetDisplay(slotIdx);
+            return;
+        }
+
         if (list.length === 0) return;
 
         let newItem;
@@ -234,32 +321,42 @@ export class GravityApp extends BaseGameComponent {
 
     spawnAsteroid() {
         const list = this.getFilteredList();
-        if (list.length === 0) return;
 
-        const gameArea = this.container.querySelector('#grav-game-area');
-        if (!gameArea) return;
+        const wordPool = this._aiWordPool && this._aiWordPool.length > 0
+            ? [...this._aiWordPool]
+            : null;
 
         let item;
         if (Math.random() < 0.5 && this.activeTargets.length > 0) {
             const target = this.activeTargets[Math.floor(Math.random() * this.activeTargets.length)];
-            if (this.asteroids.some(a => a.item.id === target.item.id)) {
+            if (wordPool) {
+                const match = wordPool.find(w => w.id === target.item.id);
+                if (match && !this.asteroids.some(a => a._aiWord && a._aiWord === match._aiWord)) {
+                    item = match;
+                } else {
+                    item = list[Math.floor(Math.random() * list.length)];
+                }
+            } else if (this.asteroids.some(a => a.item.id === target.item.id)) {
                 item = list[Math.floor(Math.random() * list.length)];
             } else {
                 item = target.item;
             }
+        } else if (wordPool) {
+            const available = wordPool.filter(w => !this.asteroids.some(a => a._aiWord && a._aiWord === w._aiWord));
+            item = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : list[Math.floor(Math.random() * list.length)];
         } else {
             item = list[Math.floor(Math.random() * list.length)];
         }
 
-        // Skip spawn if already at max
         const diff = DIFFICULTY[this.difficulty];
         if (this.asteroids.length >= diff.maxAsteroids) return;
 
+        const gameArea = this.container.querySelector('#grav-game-area');
+        if (!gameArea) return;
         const width = gameArea.clientWidth;
         const astW = window.innerWidth >= 768 ? 180 : 120;
         const astH = window.innerWidth >= 768 ? 72 : 56;
 
-        // Find x that doesn't overlap asteroids near the top (y < astH * 2)
         const nearTop = this.asteroids.filter(a => a.y < astH * 2);
         let x, attempts = 0;
         do {
@@ -267,19 +364,20 @@ export class GravityApp extends BaseGameComponent {
             attempts++;
         } while (attempts < 10 && nearTop.some(a => Math.abs(a.x - x) < astW * 0.8));
 
+        const initialY = -astH;
         const el = document.createElement('div');
         el.className = 'grav-asteroid';
         el.dataset.itemId = item.id;
-        el.style.cssText = `position:absolute; left:${x}px; top:${-astH}px; width:${astW}px; height:${astH}px; background:linear-gradient(135deg, #1e293b 0%, #312e81 100%); border-radius:16px; border:2px solid rgba(129,140,248,0.5); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; box-shadow:0 4px 15px rgba(99,102,241,0.2); user-select:none; touch-action:manipulation;`;
-        el.innerHTML = `<span class="grav-ast-text font-black text-white text-center leading-none drop-shadow-md" style="pointer-events:none; width:calc(100% - 8px); height:calc(100% - 8px); display:flex; align-items:center; justify-content:center;">${this.textService.smartWrap(item.front.main)}</span>`;
+        el.style.cssText = `position:absolute; left:${x}px; top:0; width:${astW}px; height:${astH}px; transform:translateY(${initialY}px); background:linear-gradient(135deg, #1e293b 0%, #312e81 100%); border-radius:16px; border:2px solid rgba(129,140,248,0.5); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; box-shadow:0 4px 15px rgba(99,102,241,0.2); user-select:none; touch-action:manipulation; will-change:transform;`;
+        const displayText = item._aiWord || item.front.main;
+        el.innerHTML = `<span class="grav-ast-text font-black text-white text-center leading-none drop-shadow-md" style="pointer-events:none; width:calc(100% - 8px); height:calc(100% - 8px); display:flex; align-items:center; justify-content:center;">${item._aiWord ? escapeHTML(displayText) : this.textService.smartWrap(displayText)}</span>`;
 
         gameArea.appendChild(el);
 
-        // Fit text to fill the asteroid box
         const textEl = el.querySelector('.grav-ast-text');
         if (textEl) this.textService.fitText(textEl, 10, astH - 8);
 
-        this.asteroids.push({ item, x, y: -astH, el });
+        this.asteroids.push({ item, x, y: -astH, el, _aiWord: item._aiWord || null });
     }
 
     handleAsteroidClick(id, el) {
@@ -287,7 +385,6 @@ export class GravityApp extends BaseGameComponent {
         if (el.dataset.clicked) return;
         el.dataset.clicked = '1';
 
-        // dataset values are strings; item.id may be number — use loose equality
         const matchedTarget = this.activeTargets.find(t => t.item.id == id);
 
         if (matchedTarget) {
@@ -324,7 +421,6 @@ export class GravityApp extends BaseGameComponent {
 
             const diff = DIFFICULTY[this.difficulty];
             if (this.score % 50 === 0) {
-                // Reduce cross time (= faster fall) but cap at minimum 1.5s
                 this.crossTime = Math.max(1.5, this.crossTime - diff.speedUp);
                 this.spawnRate = Math.max(800, this.spawnRate - 100);
             }
@@ -380,7 +476,6 @@ export class GravityApp extends BaseGameComponent {
         if (!gameArea) return;
         const floorY = gameArea.clientHeight;
 
-        // Compute fall speed relative to viewport: px/frame = height / (crossTime * ~60fps)
         const fallSpeed = floorY / (this.crossTime * 60);
 
         const diff = DIFFICULTY[this.difficulty];
@@ -392,7 +487,7 @@ export class GravityApp extends BaseGameComponent {
         for (let i = this.asteroids.length - 1; i >= 0; i--) {
             const ast = this.asteroids[i];
             ast.y += fallSpeed;
-            ast.el.style.top = ast.y + 'px';
+            ast.el.style.transform = `translateY(${ast.y}px)`;
 
             const astH = ast.el.offsetHeight || 56;
             if (ast.y > floorY - astH) {
@@ -453,7 +548,11 @@ export class GravityApp extends BaseGameComponent {
         const livesEl = this.container.querySelector('#grav-lives');
         const progressEl = this.container.querySelector('#grav-progress');
         if (scoreEl) scoreEl.textContent = this.score;
-        if (livesEl) livesEl.innerHTML = '❤️'.repeat(this.lives);
+        if (livesEl) {
+            livesEl.innerHTML = Array.from({ length: this.lives }, () =>
+                `<svg class="w-4 h-4 inline-block fill-red-500" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`
+            ).join('');
+        }
         if (progressEl) progressEl.style.width = `${Math.min(100, (this.score / this.WIN_SCORE) * 100)}%`;
     }
 
@@ -461,9 +560,8 @@ export class GravityApp extends BaseGameComponent {
         const target = this.activeTargets.find(t => t.slotIdx === slotIdx);
         const el = document.getElementById(`grav-target-text-${slotIdx}`);
         if (el && target) {
-            el.innerHTML = this.textService.smartWrap(target.meaning);
+            el.innerHTML = target.aiMeaning ? escapeHTML(target.meaning) : this.textService.smartWrap(target.meaning);
             this.textService.fitText(el, 10, 60);
-            // fitText overrides display — restore vertical centering
             el.style.display = 'flex';
             el.style.flexDirection = 'column';
             el.style.alignItems = 'center';
@@ -473,25 +571,23 @@ export class GravityApp extends BaseGameComponent {
 
     renderLayout() {
         this.container.innerHTML = `
-            <div class="fixed top-0 left-0 right-0 h-14 landscape:h-11 z-40 px-4 landscape:px-3 flex justify-between items-center bg-slate-900/95 backdrop-blur-sm border-b border-indigo-500/30">
-                <div class="flex items-center gap-3">
-                    <span id="grav-lives" class="text-lg leading-none">${'❤️'.repeat(5)}</span>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-indigo-300 font-bold uppercase">Score</span>
-                        <span id="grav-score" class="text-xl font-black text-white">0</span>
-                        <span class="text-xs text-indigo-400">/ ${this.WIN_SCORE}</span>
-                    </div>
-                    <div class="w-20 md:w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div id="grav-progress" class="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full transition-all duration-300" style="width:0%"></div>
+            <div class="fixed top-0 left-0 right-0 h-14 landscape:h-11 z-40 px-4 landscape:px-3 flex justify-between items-center bg-slate-900/95 backdrop-blur-sm border-b border-indigo-500/30 gap-2">
+                <div class="flex items-center gap-1.5 landscape:gap-2 min-w-0 shrink">
+                    <span id="grav-lives" class="text-base leading-none flex gap-0.5 shrink-0">${Array.from({ length: 5 }, () =>
+                        `<svg class="w-3.5 h-3.5 fill-red-500" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`
+                    ).join('')}</span>
+                    <div class="flex items-center gap-1 landscape:gap-2">
+                        <span class="text-[10px] landscape:text-xs text-indigo-300 font-bold uppercase shrink-0">Sc</span>
+                        <span id="grav-score" class="text-base landscape:text-xl font-black text-white">0</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="flex gap-1 overflow-x-auto no-scrollbar max-w-[40vw] md:max-w-none">
+                <div class="flex items-center gap-1.5 shrink min-w-0">
+                    <div class="flex gap-1 overflow-x-auto no-scrollbar max-w-[35vw] md:max-w-[200px] min-w-0">
                         ${this.categories.map(cat => `
-                            <button class="category-pill px-3 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${this.currentCategory === cat ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-700 text-indigo-300 border-slate-600 hover:border-indigo-400'}" data-cat="${cat}">${cat}</button>
+                            <button class="category-pill px-2 py-1 min-h-[32px] rounded-full text-[10px] font-bold border whitespace-nowrap shrink-0 ${this.currentCategory === cat ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-700 text-indigo-300 border-slate-600 hover:border-indigo-400'}" data-cat="${cat}">${cat}</button>
                         `).join('')}
                     </div>
-                    <button id="grav-close-btn" class="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded-full transition-colors shrink-0 cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <button id="grav-close-btn" class="p-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded-full transition-colors shrink-0 cursor-pointer"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
             </div>
 
@@ -523,5 +619,4 @@ export class GravityApp extends BaseGameComponent {
         });
     }
 }
-
 export const gravityApp = new GravityApp();
