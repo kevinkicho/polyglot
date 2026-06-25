@@ -7,8 +7,9 @@ dist/
 # Firebase cache
 .firebase/
 
-# Service account key (contains secrets)
+# Service account keys (contains secrets)
 scripts/serviceAccountKey.json
+polyglot121725-firebase-adminsdk-*.json
 
 # System Files (Junk files)
 .DS_Store

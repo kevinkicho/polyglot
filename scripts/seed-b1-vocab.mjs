@@ -34,7 +34,8 @@ let firebaseAdmin;
 let db;
 
 try {
-  firebaseAdmin = await import('firebase-admin');
+  const mod = await import('firebase-admin');
+  firebaseAdmin = mod.default || mod;
 } catch {
   console.error('Missing dependency: firebase-admin');
   console.error('Install it with: npm install firebase-admin');
