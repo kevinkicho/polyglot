@@ -1,4 +1,4 @@
-const CACHE_NAME = 'polyglot-v4';
+const CACHE_NAME = 'polyglot-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -9,14 +9,14 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching App Shell v4');
+      console.log('[SW] Caching App Shell v5');
       return cache.addAll(APP_SHELL);
     })
   );
   self.skipWaiting();
 });
 
-// 2. Activate & Clean Old Caches
+// 2. Activate, Clean Old Caches & Force Reload
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
@@ -26,9 +26,13 @@ self.addEventListener('activate', (event) => {
           return caches.delete(key);
         }
       }));
+    }).then(() => self.clients.claim()).then(() => {
+      // Force all open tabs to reload so they use the new SW and fresh chunks
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => client.navigate(client.url));
+      });
     })
   );
-  self.clients.claim();
 });
 
 // 3. Fetch Handler
@@ -71,16 +75,23 @@ self.addEventListener('fetch', (event) => {
   }
 
   // D. JS bundles & app assets (Cache First with network update)
-  // Matches code-split chunks: main.bundle.js, firebase.bundle.js, vendors.bundle.js
-  // and production hashed files: main.abc123.js
   if (url.pathname.endsWith('.js') && url.origin === self.location.origin) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((cached) => {
           const fetchPromise = fetch(event.request).then((networkResponse) => {
+            // Update cache with fresh copy
             cache.put(event.request, networkResponse.clone());
             return networkResponse;
-          }).catch(() => cached);
+          }).catch(() => {
+            // Network failed (404 or offline) — if we had a cached copy, use it,
+            // otherwise there's nothing we can do
+            if (cached) return cached;
+            // Delete stale entry so it doesn't block future retries
+            cache.delete(event.request);
+            return new Response('', { status: 404, statusText: 'Not Found' });
+          });
+          // Serve cached immediately if available, otherwise wait for network
           return cached || fetchPromise;
         });
       })
