@@ -1,6 +1,6 @@
 class SettingsService {
     constructor() {
-        this.VERSION = 1; // Bump to force-clear old localStorage settings
+        this.VERSION = 2; // Bump to force-clear old localStorage settings
         this.defaults = {
             targetLang: 'ja',
             originLang: 'en',

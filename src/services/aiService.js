@@ -4,8 +4,8 @@ class AiService {
     _getConfig() {
         const s = settingsService.get();
         return {
-            url: s.llmApiUrl.replace(/\/+$/, ''),
-            model: s.llmModel,
+            url: s.llmApiUrl?.replace(/\/+$/, '') || 'http://localhost:11434',
+            model: s.llmModel || 'gemma4:31b-cloud',
         };
     }
 
