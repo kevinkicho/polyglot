@@ -1,5 +1,6 @@
 class SettingsService {
     constructor() {
+        this.VERSION = 1; // Bump to force-clear old localStorage settings
         this.defaults = {
             targetLang: 'ja',
             originLang: 'en',
@@ -39,9 +40,13 @@ class SettingsService {
 
     load() {
         try {
+            const savedVersion = parseInt(localStorage.getItem('polyglot_settings_version') || '0');
+            if (savedVersion < this.VERSION) {
+                localStorage.removeItem('polyglot_settings');
+                localStorage.setItem('polyglot_settings_version', this.VERSION);
+                return { ...this.defaults };
+            }
             const saved = localStorage.getItem('polyglot_settings');
-            // Merge saved settings with defaults, but ensure unwanted keys (like old fonts) don't persist if we wanted to strip them
-            // For now, simple spread is fine, as unused keys will just be ignored by UI.
             return saved ? { ...this.defaults, ...JSON.parse(saved) } : { ...this.defaults };
         } catch (e) {
             return { ...this.defaults };
@@ -50,6 +55,7 @@ class SettingsService {
 
     save() {
         localStorage.setItem('polyglot_settings', JSON.stringify(this.settings));
+        localStorage.setItem('polyglot_settings_version', this.VERSION);
     }
 
     get() {
