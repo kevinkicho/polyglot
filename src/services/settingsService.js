@@ -31,8 +31,8 @@ class SettingsService {
             comboEffects: true,
 
             // AI Tutor
-            llmApiUrl: 'http://localhost:60879',
-            llmModel: 'llama3.2:3b'
+            llmApiUrl: 'http://localhost:11434',
+            llmModel: 'gemma4:31b-cloud'
         };
         this.settings = this.load();
     }

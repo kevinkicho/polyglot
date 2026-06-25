@@ -166,7 +166,7 @@ Dynamically sizes text to fill its container using **binary search** (O(log n) i
 | **Sentences** | Win Animation, Word Audio on Tap |
 | **Blanks** | Double Click, Answer Audio, Auto-Play Correct |
 | **Effects** | Combo Streak Effects toggle (rank display + particles) |
-| **AI Tutor** | Ollama URL (default `http://localhost:60879`), Model selector |
+| **AI Tutor** | Ollama URL (default `http://localhost:11434`), Model selector (default: `gemma4:31b-cloud`) |
 
 ---
 
@@ -176,7 +176,7 @@ Polyglot.AI integrates with any OpenAI-compatible LLM server (Ollama recommended
 
 - **Dynamic content**: AI generates hints, cultural notes, example sentences, and full exercises for each game mode
 - **17 generators**: One per game mode + comprehension questions and cultural notes
-- **Configurable**: Set server URL and model in Settings (default: `llama3.2:3b`)
+- **Configurable**: Set server URL and model in Settings (default: `gemma4:31b-cloud` on port `11434`)
 - **Graceful fallback**: If AI is unavailable, games use built-in content
 - **Abort controller**: AI requests are cancelled on navigation for responsiveness
 

@@ -305,21 +305,16 @@
                     <div id="ai-options" class="settings-content space-y-4 px-2 pt-2">
                         <div>
                             <label class="block text-xs font-bold text-gray-400 mb-1">Ollama URL</label>
-                            <input type="text" id="llm-api-url" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="http://localhost:60879">
+                            <input type="text" id="llm-api-url" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="http://localhost:11434">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-400 mb-1">Model</label>
-                            <input type="text" id="llm-model" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="llama3.2:3b" list="llm-model-list">
+                            <input type="text" id="llm-model" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="gemma4:31b-cloud" list="llm-model-list">
                             <datalist id="llm-model-list">
-                                <option value="llama3.2:3b">
-                                <option value="llama3.1:8b">
-                                <option value="gemma2:9b">
-                                <option value="mistral:7b">
-                                <option value="qwen2.5:7b">
-                                <option value="phi3:mini">
+                                <option value="gemma4:31b-cloud">
                             </datalist>
                         </div>
-                        <p class="text-[10px] text-gray-400 leading-tight">Enter the Ollama server URL with port (default: http://localhost:60879). On Android, set the port used by Ollama4Android.</p>
+                        <p class="text-[10px] text-gray-400 leading-tight">Enter the Ollama server URL with port (default: http://localhost:11434). Desktop/laptop uses Ollama; Android uses Ollama4Android.</p>
                     </div>
                 </div>
             </div>

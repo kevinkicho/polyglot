@@ -91,7 +91,7 @@ export class ChatApp {
         const s = settingsService.get();
         return {
             url: s.llmApiUrl.replace(/\/+$/, ''),
-            model: s.llmModel || 'llama3.2:3b',
+            model: s.llmModel || 'gemma4:31b-cloud',
         };
     }
 
