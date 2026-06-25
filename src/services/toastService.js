@@ -53,7 +53,7 @@ class ToastService {
             this._ensureContainer();
 
             const overlay = document.createElement('div');
-            overlay.className = 'fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center pointer-events-auto';
+            overlay.className = 'fixed inset-0 bg-black/40 z-[10001] flex items-center justify-center pointer-events-auto';
             overlay.innerHTML = `
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 mx-4 max-w-sm w-full toast-enter">
                     <p class="text-gray-800 dark:text-white font-medium text-center mb-5">${message}</p>

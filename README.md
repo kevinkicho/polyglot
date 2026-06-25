@@ -82,7 +82,7 @@ The application uses a modular architecture with services handling business logi
 | 13 | **Speech** | Pronunciation practice with speech recognition |
 | 14 | **Decoder** | Listen and reconstruct words from scrambled characters |
 | 15 | **Gravity** | Falling asteroids — tap correct words before they hit the ground |
-| 16 | **AI Tutor** (Chat) | 5 chat modes (Conversation, Reading, Grammar, Vocabulary, Stories) with pronunciation feedback |
+| 16 | **AI Tutor** (Chat) | 8 chat modes (Conversation, Reading, Grammar, Vocabulary, Stories, Role Play, Pronunciation, Free Chat) with pronunciation feedback |
 
 ---
 
@@ -97,7 +97,7 @@ All 16 game components extend `BaseGameComponent`, which provides:
 - **Navigation**: `next()`, `prev()`, `random()`, `gotoId()` with SRS-weighted random selection
 - **SRS integration**: `recordAnswer(vocabId, correct)` updates Leitner box levels
 - **HTML rendering**: `renderHeader()`, `renderFooter()`, `renderCategoryPills()`, `renderError()`, `renderSplitLayout()`
-- **Event binding**: `bindCommonEvents(prefix)` — uses **event delegation** (single listener per container)
+- **Event binding**: `bindCommonEvents(prefix)` — uses **event delegation** (single listener per event type per container, supports any DOM event)
 - **Service accessors**: `vocabService`, `audioService`, `scoreService`, `settingsService`, `textService`, `toast`
 - **Responsive layout**: `renderSplitLayout()` stacks vertically in portrait, splits 50/50 in landscape
 - **Mobile keyboard**: `VisualViewport` API adjusts fixed bottom bars when keyboard opens
@@ -267,7 +267,7 @@ Version 4 with four caching strategies:
 | :--- | :--- |
 | **Binary search fitText** | O(log n) font sizing instead of linear scan — up to 190x fewer layout reflows |
 | **SmartWrap memoization** | Regex split results cached by input string |
-| **Event delegation** | Single click listener per container vs N individual listeners |
+| **Event delegation** | Single listener per event type per container vs N individual listeners; supports any DOM event |
 | **CSS transforms** | Gravity asteroid movement uses GPU-composited `translateY` |
 | **Code splitting** | Each game is a separate webpack chunk, loaded on demand |
 | **Firebase chunk** | Firebase SDK split into its own vendor chunk |

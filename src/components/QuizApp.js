@@ -294,10 +294,10 @@ export class QuizApp extends BaseGameComponent {
             this.vocabService.findIndexById(newId) !== -1 ? this.next(newId) : this.toast.warning('ID not found');
         });
 
-        this.container.querySelectorAll('.quiz-option').forEach(btn => btn.addEventListener('click', (e) => {
-            const text = btn.querySelector('.quiz-choice-text').innerText;
-            this.handleOptionClick(parseInt(e.currentTarget.dataset.id), e.currentTarget, text);
-        }));
+        this.bind('.quiz-option', 'click', (e, el) => {
+            const text = el.querySelector('.quiz-choice-text').innerText;
+            this.handleOptionClick(parseInt(el.dataset.id), el, text);
+        });
 
         this.raf(() => {
             if (!this.container) return;

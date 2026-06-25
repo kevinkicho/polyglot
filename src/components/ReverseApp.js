@@ -142,10 +142,9 @@ export class ReverseApp extends BaseGameComponent {
             el.classList.add('text-white', 'border-red-600', 'shake');
             this.setTimeout(() => {
                 this.isProcessing = false;
-                el.classList.remove('shake');
+                el.classList.remove('shake', 'text-white', 'border-red-600');
                 el.classList.replace('bg-red-500', 'bg-white');
-                el.classList.replace('bg-red-500', 'dark:bg-dark-card');
-                el.classList.remove('text-white', 'border-red-600');
+                el.classList.add('dark:bg-dark-card');
             }, 500);
         }
     }
@@ -176,7 +175,7 @@ export class ReverseApp extends BaseGameComponent {
                     </div>`,
                     `<div class="grid grid-cols-2 gap-3 landscape:gap-1.5 flex-1 min-h-0">
                         ${choices.map(c => `
-                            <button class="choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-1 rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md text-xl landscape:text-base font-bold text-gray-700 dark:text-white transition-all active:scale-98 text-center flex flex-col items-center justify-center whitespace-nowrap overflow-hidden w-full h-full" data-id="${c.id}">
+                            <button class="choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-1 rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md text-xl landscape:text-base font-bold text-gray-700 dark:text-white transition-all active:scale-95 text-center flex flex-col items-center justify-center whitespace-nowrap overflow-hidden w-full h-full" data-id="${c.id}">
                                 <span class="choice-text w-full px-1">${c._aiWord ? escapeHTML(c._aiWord) : this.textService.smartWrap(c.front.main)}</span>
                             </button>
                         `).join('')}
@@ -189,7 +188,7 @@ export class ReverseApp extends BaseGameComponent {
 
         this.bindCommonEvents('rev');
         this.bind('#rev-q-box', 'click', () => this.playHint());
-        this.container.querySelectorAll('.choice-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleChoice(parseInt(e.currentTarget.dataset.id), e.currentTarget)));
+        this.bind('.choice-btn', 'click', (e, el) => this.handleChoice(parseInt(el.dataset.id), el));
 
         this.raf(() => {
             if (!this.container) return;

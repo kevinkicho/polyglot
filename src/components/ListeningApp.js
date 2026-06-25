@@ -431,7 +431,7 @@ export class ListeningApp extends BaseGameComponent {
                     <div class="text-lg font-bold text-gray-700 dark:text-white text-center px-4">${escapeHTML(question.question)}</div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-lg">
                         ${question.choices.map((choice, i) => `
-                            <button class="comp-choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-4 rounded-2xl shadow-sm hover:shadow-md text-base font-bold text-gray-700 dark:text-white transition-all active:scale-98 text-left" data-index="${i}">
+                            <button class="comp-choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-4 rounded-2xl shadow-sm hover:shadow-md text-base font-bold text-gray-700 dark:text-white transition-all active:scale-95 text-left" data-index="${i}">
                                 <span class="w-full text-center block">${escapeHTML(choice)}</span>
                             </button>
                         `).join('')}
@@ -492,7 +492,7 @@ export class ListeningApp extends BaseGameComponent {
                     </div>`,
                     `<div class="grid grid-cols-1 md:grid-cols-2 gap-2 landscape:gap-1.5 pb-8 landscape:pb-2 w-full landscape:justify-center landscape:content-center landscape:h-full">
                         ${choices.map(c => `
-                            <button class="choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-4 landscape:p-2 rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md text-xl landscape:text-base font-bold text-gray-700 dark:text-white transition-all active:scale-98 text-left flex items-center overflow-hidden" data-id="${c.id}">
+                            <button class="choice-btn bg-white dark:bg-dark-card border-2 border-gray-100 dark:border-dark-border p-4 landscape:p-2 rounded-2xl landscape:rounded-xl shadow-sm hover:shadow-md text-xl landscape:text-base font-bold text-gray-700 dark:text-white transition-all active:scale-95 text-left flex items-center overflow-hidden" data-id="${c.id}">
                                 <span class="choice-text w-full px-2 leading-relaxed text-center">${this.textService.smartWrap(getLabel(c))}</span>
                             </button>
                         `).join('')}

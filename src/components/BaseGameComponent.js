@@ -34,6 +34,8 @@ export class BaseGameComponent {
         this._animFrames = [];
         /** @type {Map<string, {event: string, handler: Function}>} */
         this._bindings = new Map();
+        /** @type {Map<string, Function>} */
+        this._eventHandlers = new Map();
     }
 
     // --- Lifecycle ---
@@ -68,9 +70,11 @@ export class BaseGameComponent {
             document.removeEventListener('keydown', this._keyHandler);
             this._keyHandler = null;
         }
-        if (this._containerHandler) {
-            this.container?.removeEventListener('click', this._containerHandler);
-            this._containerHandler = null;
+        if (this._eventHandlers && this.container) {
+            for (const [event, handler] of this._eventHandlers) {
+                this.container.removeEventListener(event, handler);
+            }
+            this._eventHandlers.clear();
         }
         if (this._viewportHandler && window.visualViewport) {
             window.visualViewport.removeEventListener('resize', this._viewportHandler);
@@ -220,8 +224,8 @@ export class BaseGameComponent {
         if (!this.container) return;
         const key = `${event}::${selector}`;
         this._bindings.set(key, { event, selector, handler });
-        if (!this._containerHandler) {
-            this._containerHandler = (e) => {
+        if (!this._eventHandlers.has(event)) {
+            const dispatch = (e) => {
                 for (const b of this._bindings.values()) {
                     if (b.event !== e.type) continue;
                     const target = e.target.closest(b.selector);
@@ -230,7 +234,8 @@ export class BaseGameComponent {
                     }
                 }
             };
-            this.container.addEventListener('click', this._containerHandler);
+            this._eventHandlers.set(event, dispatch);
+            this.container.addEventListener(event, dispatch);
         }
     }
 
