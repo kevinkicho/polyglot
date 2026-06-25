@@ -75,7 +75,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // D. JS bundles & app assets (Cache First with network update)
-  if (url.pathname.endsWith('.js') && url.origin === self.location.origin) {
+  // Exclude sw.js itself so the browser can detect updates
+  if (url.pathname.endsWith('.js') && url.pathname !== '/sw.js' && url.origin === self.location.origin) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((cached) => {
@@ -100,6 +101,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   // E. All other requests (Cache First, fall back to Network)
+  // Exclude index.html so fresh HTML is always served (prevents stale chunk refs)
+  if (url.pathname === '/index.html' || url.pathname === '') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
