@@ -368,7 +368,12 @@ FORMAT RULES:
 
             let errorMsg = 'Connection failed. ';
             if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                errorMsg += `Could not reach ${config.url}. Make sure your LLM server is running.`;
+                const isMixed = location.protocol === 'https:' && config.url.startsWith('http:');
+                if (isMixed) {
+                    errorMsg += `Blocked: this page is HTTPS but your Ollama server is HTTP. Solutions: (1) Use Ollama4Android on this device, (2) access the app over HTTP, or (3) configure Ollama with HTTPS.`;
+                } else {
+                    errorMsg += `Could not reach ${config.url}. Make sure your LLM server is running.`;
+                }
             } else {
                 errorMsg += err.message;
             }
@@ -573,7 +578,7 @@ FORMAT RULES:
                     ${!hasConfig ? `
                         <div class="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700 rounded-2xl text-center">
                             <p class="text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">API not configured</p>
-                            <p class="text-xs text-amber-600 dark:text-amber-400">Go to Settings > AI Tutor to set your Ollama API URL and model</p>
+                            <p class="text-xs text-amber-600 dark:text-amber-400">Go to Settings > AI Tutor to set your Ollama URL and model, then tap "Test Connection"</p>
                         </div>
                     ` : `
                         <div class="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-2xl flex items-center justify-center gap-2">
