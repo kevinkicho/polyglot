@@ -387,7 +387,7 @@ FORMAT RULES:
     }
 
     _updateStreamingMessage(text) {
-        const typingMsg = this.messages.find(m => m.isTyping);
+        const typingMsg = this.messages.find(m => m.isTyping || m.isStreaming);
         if (!typingMsg) return;
         typingMsg.content = text;
         typingMsg.isTyping = false;
