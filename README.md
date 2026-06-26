@@ -7,6 +7,10 @@
   <img src="screenshots/demo-landscape.gif" width="667" alt="Polyglot.AI Demo Landscape">
 </p>
 
+<p align="center">
+  <img src="screenshots/ai-tutor-demo.gif" width="375" alt="AI Tutor Demo — 8 Chat Modes">
+</p>
+
 ---
 
 ## Tech Stack
@@ -29,7 +33,7 @@ The application uses a modular architecture with services handling business logi
 | :--- | :--- |
 | **`src/index.html`** | SPA shell with main menu, settings modals, and dynamic view containers for all 16 game modes. |
 | **`src/index.js`** | Entry point. Initializes core services (vocab, score, SRS) and managers (View, Auth, UI). |
-| **`src/sw.js`** | Service Worker (v4). Network-first for vocab data, stale-while-revalidate for JS bundles, cache-first for app shell. |
+| **`src/sw.js`** | Service Worker (v5). Network-first for vocab data, cache-first for JS bundles (excludes sw.js itself), always-fresh index.html. |
 | **`src/config/roles.js`** | Configurable admin email list with `isAdmin(user)` helper. |
 | **`src/config/gameTypes.js`** | Game type constants used by score service and database paths. |
 | **`src/utils/sanitize.js`** | HTML/JS sanitization utility (`escapeHTML`). |
@@ -179,6 +183,36 @@ Polyglot.AI integrates with any OpenAI-compatible LLM server (Ollama recommended
 - **Configurable**: Set server URL and model in Settings (default: `gemma4:31b-cloud` on port `11434`)
 - **Graceful fallback**: If AI is unavailable, games use built-in content
 - **Abort controller**: AI requests are cancelled on navigation for responsiveness
+- **Mixed content detection**: Warns when HTTPS page tries to reach HTTP Ollama server
+
+### AI Tutor (8 Chat Modes)
+
+The AI Tutor provides real-time conversational practice powered by Krashen's i+1 comprehensible input theory:
+
+| Mode | What it does |
+| :--- | :--- |
+| **Conversation** | Natural chat in your target language with difficulty adaptation and periodic comprehension checks |
+| **Guided Reading** | Generates graded reading passages with vocabulary breakdown, comprehension questions, and read-aloud prompts |
+| **Grammar** | Teaches grammar through pattern recognition — shows examples, asks you to notice the rule, then practices |
+| **Word Explorer** | Deep dives into words: collocations, cultural nuances, mnemonics, common learner mistakes |
+| **Stories** | Short stories using your vocabulary with comprehension questions and "what happens next?" prompts |
+| **Role Play** | Real-life scenarios (ordering food, job interview, shopping) with hint templates when stuck |
+| **Pronunciation** | Speech recognition + LLM feedback — speaks a phrase, gets pronunciation tips and minimal pair drills |
+| **Free Chat** | Ask anything about the language, culture, or learning strategies |
+
+**Key features:**
+- **Vocabulary-aware**: Injects your SRS struggling words (box 1-2) into the system prompt for targeted review
+- **Interleaved review**: Every 5 turns in Conversation mode, spontaneously quizzes you on vocabulary
+- **Streaming responses**: SSE streaming for real-time token-by-token display
+- **Chat history**: Last 50 messages per mode saved to Firebase
+- **Voice input**: Web Speech API integration for speaking practice
+- **TTS playback**: Listen to any assistant response in your target language
+
+**Setup:**
+1. Install Ollama on your computer or Ollama4Android on your phone
+2. Pull a model: `ollama pull gemma4:31b-cloud`
+3. Open Settings > AI Tutor, verify the URL and model, tap "Test Connection"
+4. On Android APK: enable `setMixedContentMode(MIXED_CONTENT_ALWAYS_ALLOW)` in WebView settings for HTTPS→HTTP access
 
 ---
 
@@ -249,7 +283,7 @@ Polyglot.AI integrates with any OpenAI-compatible LLM server (Ollama recommended
 
 ## Service Worker (PWA)
 
-Version 4 with four caching strategies:
+Version 5 with four caching strategies:
 
 | Strategy | Scope | Behavior |
 | :--- | :--- | :--- |
