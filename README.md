@@ -4,11 +4,10 @@
 
 <p align="center">
   <img src="screenshots/demo-portrait.gif" width="375" alt="Polyglot.AI Demo Portrait">
-  <img src="screenshots/demo-landscape.gif" width="667" alt="Polyglot.AI Demo Landscape">
+  <img src="screenshots/ai-tutor-demo.gif" width="375" alt="AI Tutor Demo">
 </p>
-
 <p align="center">
-  <img src="screenshots/ai-tutor-demo.gif" width="375" alt="AI Tutor Demo — 8 Chat Modes">
+  <img src="screenshots/demo-landscape.gif" width="100%" alt="Polyglot.AI Demo Landscape">
 </p>
 
 ---
@@ -29,41 +28,94 @@
 
 The application uses a modular architecture with services handling business logic, managers orchestrating state, and components handling game UI. All 16 game components extend a shared `BaseGameComponent` base class.
 
-| File Path | Description |
+### Entry Points
+
+| File | Description |
 | :--- | :--- |
-| **`src/index.html`** | SPA shell with main menu, settings modals, and dynamic view containers for all 16 game modes. |
-| **`src/index.js`** | Entry point. Initializes core services (vocab, score, SRS) and managers (View, Auth, UI). |
-| **`src/sw.js`** | Service Worker (v5). Network-first for vocab data, cache-first for JS bundles (excludes sw.js itself), always-fresh index.html. |
-| **`src/config/roles.js`** | Configurable admin email list with `isAdmin(user)` helper. |
-| **`src/config/gameTypes.js`** | Game type constants used by score service and database paths. |
-| **`src/utils/sanitize.js`** | HTML/JS sanitization utility (`escapeHTML`). |
-| **`src/managers/`** | App-wide orchestrators: |
-| | **`ViewManager.js`** — SPA router with `history.pushState`, dynamic code-split imports for all 16 games. |
-| | **`AuthManager.js`** — Firebase user sessions, Google sign-in, anonymous-to-permanent data migration. |
-| | **`UIManager.js`** — Delegates to ScoreChartManager, AchievementManager, and SettingsManager. |
-| | **`ScoreChartManager.js`** — Weekly score chart rendering, daily/weekly toggle, bar tooltips. |
-| | **`AchievementManager.js`** — Achievement popup notifications and achievement list modal. |
-| | **`SettingsManager.js`** — Settings modal, dark mode, volume, language selects, per-game settings, AI config. |
-| | **`EditorManager.js`** — Admin content editing with lazy-loaded dictionary service. |
-| | **`ComboManager.js`** — Streak state, fuse timer, draggable combo UI, 20 rank tiers with particle effects. |
-| **`src/services/`** | Core business logic: |
-| | **`textService.js`** — CJK text processing, fitText (binary search), tokenization, smart wrapping with overflow fallback. |
-| | **`audioService.js`** — TTS via Web Speech API with language-specific voice selection. |
-| | **`vocabService.js`** — Firebase realtime sync, language remapping (front/back faces), subscriber pattern. |
-| | **`scoreService.js`** — Score tracking, daily stats, achievement triggers, streak tracking. |
-| | **`srsService.js`** — Leitner-box spaced repetition (5 boxes, weighted random selection, due-item intervals). |
-| | **`toastService.js`** — Toast/snackbar notifications (success/error/info/warning/confirm). |
-| | **`achievementService.js`** — Gamification badges and unlock logic. |
-| | **`settingsService.js`** — User preferences persisted to localStorage. |
-| | **`dictionaryService.js`** — CJK dictionary lookups (lazy-loaded on first use). |
-| | **`quizService.js`** — Multiple-choice quiz question generator. |
-| | **`blanksService.js`** — Fill-in-the-blank question generator. |
-| | **`aiService.js`** — Generic Ollama/OpenAI-compatible LLM chat client. |
-| | **`aiContentService.js`** — AI-powered exercise generators (17 generators for all game modes). |
-| | **`offlineQueue.js`** — IndexedDB-backed offline write queue, auto-flushes on reconnect. |
-| | **`firebase.js`** — Firebase app initialization and re-exports. |
-| **`src/components/`** | 16 game classes extending `BaseGameComponent`: FlashcardApp, QuizApp, BlanksApp, SentencesApp, ConstructorApp, FinderApp, MatchApp, MemoryApp, ListeningApp, WritingApp, TrueFalseApp, ReverseApp, SpeechApp, DecoderApp, GravityApp, ChatApp. |
-| **`tests/`** | 6 unit test suites (101 tests): settingsService, srsService, toastService, sanitize, gameTypes, aiContentService. |
+| `src/index.html` | SPA shell with main menu, settings modals, and dynamic view containers for all 16 game modes |
+| `src/index.js` | Entry point — initializes core services (vocab, score, SRS) and managers (View, Auth, UI) |
+| `src/sw.js` | Service Worker (v5) — cache-first for JS, network-first for vocab data, always-fresh index.html |
+
+### Config & Utilities
+
+| File | Description |
+| :--- | :--- |
+| `src/config/roles.js` | Configurable admin email list with `isAdmin(user)` helper |
+| `src/config/gameTypes.js` | Game type constants used by score service and database paths |
+| `src/utils/sanitize.js` | HTML/JS sanitization utility (`escapeHTML`) |
+
+### Managers (`src/managers/`)
+
+App-wide orchestrators:
+
+| File | Description |
+| :--- | :--- |
+| `ViewManager.js` | SPA router with `history.pushState`, dynamic code-split imports for all 16 games |
+| `AuthManager.js` | Firebase user sessions, Google sign-in, anonymous-to-permanent data migration |
+| `UIManager.js` | Delegates to ScoreChartManager, AchievementManager, and SettingsManager |
+| `ScoreChartManager.js` | Weekly score chart rendering, daily/weekly toggle, bar tooltips |
+| `AchievementManager.js` | Achievement popup notifications and achievement list modal |
+| `SettingsManager.js` | Settings modal, dark mode, volume, language selects, per-game settings, AI config |
+| `EditorManager.js` | Admin content editing with lazy-loaded dictionary service |
+| `ComboManager.js` | Streak state, fuse timer, draggable combo UI, 20 rank tiers with particle effects |
+
+### Services (`src/services/`)
+
+Core business logic:
+
+| File | Description |
+| :--- | :--- |
+| `textService.js` | CJK text processing, fitText (binary search), tokenization, smart wrapping with overflow fallback |
+| `audioService.js` | TTS via Web Speech API with language-specific voice selection |
+| `vocabService.js` | Firebase realtime sync, language remapping (front/back faces), subscriber pattern |
+| `scoreService.js` | Score tracking, daily stats, achievement triggers, streak tracking |
+| `srsService.js` | Leitner-box spaced repetition (5 boxes, weighted random selection, due-item intervals) |
+| `toastService.js` | Toast/snackbar notifications (success/error/info/warning/confirm) |
+| `achievementService.js` | Gamification badges and unlock logic |
+| `settingsService.js` | User preferences persisted to localStorage |
+| `dictionaryService.js` | CJK dictionary lookups (lazy-loaded on first use) |
+| `quizService.js` | Multiple-choice quiz question generator |
+| `blanksService.js` | Fill-in-the-blank question generator |
+| `aiService.js` | Generic Ollama/OpenAI-compatible LLM chat client |
+| `aiContentService.js` | AI-powered exercise generators (17 generators for all game modes) |
+| `offlineQueue.js` | IndexedDB-backed offline write queue, auto-flushes on reconnect |
+| `firebase.js` | Firebase app initialization and re-exports |
+
+### Components (`src/components/`)
+
+16 game classes extending `BaseGameComponent`:
+
+| File | Game Mode |
+| :--- | :--- |
+| `FlashcardApp.js` | 3D flip cards with smart text fitting |
+| `QuizApp.js` | 4-option multiple choice |
+| `SentencesApp.js` | Build sentences from jumbled words |
+| `BlanksApp.js` | Fill in the blank |
+| `ListeningApp.js` | Audio-based comprehension |
+| `MatchApp.js` | Pair words with meanings |
+| `MemoryApp.js` | Find hidden pairs |
+| `FinderApp.js` | 3x3 grid word finder |
+| `ConstructorApp.js` | Build words character-by-character |
+| `WritingApp.js` | Type the translation |
+| `TrueFalseApp.js` | Quick yes/no vocabulary checks |
+| `ReverseApp.js` | Pick word matching definition |
+| `SpeechApp.js` | Pronunciation practice |
+| `DecoderApp.js` | Reconstruct words from scrambled characters |
+| `GravityApp.js` | Falling asteroids word game |
+| `ChatApp.js` | AI Tutor — 8 chat modes with streaming |
+
+### Tests (`tests/`)
+
+6 unit test suites (101 tests):
+
+| File | Tests | Coverage |
+| :--- | :--- | :--- |
+| `aiContentService.test.js` | 69 | AI exercise generator parsing & fallback |
+| `settingsService.test.js` | 4 | Defaults, set/persist, merge, corrupted localStorage |
+| `srsService.test.js` | 11 | Box defaults, correct/wrong answers, cap at 5, weighted random |
+| `toastService.test.js` | 7 | Container creation, toast elements, auto-remove, confirm promise |
+| `sanitize.test.js` | 7 | HTML escaping, XSS prevention |
+| `gameTypes.test.js` | 3 | Game type constants |
 
 ---
 
