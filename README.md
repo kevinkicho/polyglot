@@ -17,8 +17,8 @@
 - **Frontend**: Vanilla JS (ES Modules), Webpack 5 (code-split chunks), Tailwind CSS 3.4
 - **Backend**: Firebase Realtime Database (v9+ modular SDK), Firebase Auth (Google + Anonymous)
 - **PWA**: Service Worker with cache-first strategy and IndexedDB offline write queue
-- **AI**: Ollama-compatible LLM integration for dynamically generated exercises and AI Tutor chat
-- **Testing**: Vitest + jsdom (101 unit tests)
+- **AI**: Ollama Cloud (via a server-side proxy that holds `OLLAMA_API_KEY`) for generated exercises and AI Tutor chat
+- **Testing**: Vitest + jsdom (123 unit tests)
 - **Deployment**: Firebase Hosting
 - **Responsive**: Portrait + landscape layouts for mobile, tablet, and desktop via custom `landscape:` Tailwind variant
 
@@ -76,7 +76,8 @@ Core business logic:
 | `dictionaryService.js` | CJK dictionary lookups (lazy-loaded on first use) |
 | `quizService.js` | Multiple-choice quiz question generator |
 | `blanksService.js` | Fill-in-the-blank question generator |
-| `aiService.js` | Generic Ollama/OpenAI-compatible LLM chat client |
+| `ollamaConfig.js` | Ollama Cloud model id + proxy base URL (no API key) |
+| `aiService.js` | Ollama Cloud chat client; sends the Firebase ID token to the proxy |
 | `aiContentService.js` | AI-powered exercise generators (17 generators for all game modes) |
 | `offlineQueue.js` | IndexedDB-backed offline write queue, auto-flushes on reconnect |
 | `firebase.js` | Firebase app initialization and re-exports |
@@ -106,16 +107,19 @@ Core business logic:
 
 ### Tests (`tests/`)
 
-6 unit test suites (101 tests):
+9 unit test suites (123 tests):
 
 | File | Tests | Coverage |
 | :--- | :--- | :--- |
 | `aiContentService.test.js` | 69 | AI exercise generator parsing & fallback |
-| `settingsService.test.js` | 4 | Defaults, set/persist, merge, corrupted localStorage |
+| `settingsService.test.js` | 5 | Defaults, set/persist, merge, drops saved Ollama URL, corrupted localStorage |
 | `srsService.test.js` | 11 | Box defaults, correct/wrong answers, cap at 5, weighted random |
 | `toastService.test.js` | 7 | Container creation, toast elements, auto-remove, confirm promise |
 | `sanitize.test.js` | 7 | HTML escaping, XSS prevention |
 | `gameTypes.test.js` | 3 | Game type constants |
+| `ollamaConfig.test.js` | 8 | Cloud model ids, proxy URL, error text, no API key in client source |
+| `aiService.test.js` | 5 | Proxy chat uses the Firebase ID token, not an API key |
+| `ollamaProxy.test.js` | 8 | Allowlist, token check, key injection, upstream auth, rate limit |
 
 ---
 
@@ -222,20 +226,20 @@ Dynamically sizes text to fill its container using **binary search** (O(log n) i
 | **Sentences** | Win Animation, Word Audio on Tap |
 | **Blanks** | Double Click, Answer Audio, Auto-Play Correct |
 | **Effects** | Combo Streak Effects toggle (rank display + particles) |
-| **AI Tutor** | Ollama URL (default `http://localhost:11434`), Model selector (default: `gemma4:31b-cloud`) |
+| **AI Tutor** | Ollama Cloud model (default `gemma4:31b`) and Test Connection. No server URL. |
 
 ---
 
-## AI Integration (Ollama)
+## AI Integration (Ollama Cloud)
 
-Polyglot.AI integrates with any OpenAI-compatible LLM server (Ollama recommended):
+Polyglot.AI calls [Ollama Cloud](https://docs.ollama.com/cloud) only. The browser never sees the API key.
 
 - **Dynamic content**: AI generates hints, cultural notes, example sentences, and full exercises for each game mode
 - **17 generators**: One per game mode + comprehension questions and cultural notes
-- **Configurable**: Set server URL and model in Settings (default: `gemma4:31b-cloud` on port `11434`)
+- **Model**: Settings → AI Tutor. Default `gemma4:31b` (the direct Cloud API id; the CLI tag `gemma4:31b-cloud` is rewritten to that)
+- **Proxy**: `functions/server.js` verifies the Firebase ID token, then calls `https://ollama.com` with `Authorization: Bearer $OLLAMA_API_KEY`
 - **Graceful fallback**: If AI is unavailable, games use built-in content
 - **Abort controller**: AI requests are cancelled on navigation for responsiveness
-- **Mixed content detection**: Warns when HTTPS page tries to reach HTTP Ollama server
 
 ### AI Tutor (8 Chat Modes)
 
@@ -260,11 +264,7 @@ The AI Tutor provides real-time conversational practice powered by Krashen's i+1
 - **Voice input**: Web Speech API integration for speaking practice
 - **TTS playback**: Listen to any assistant response in your target language
 
-**Setup:**
-1. Install Ollama on your computer or Ollama4Android on your phone
-2. Pull a model: `ollama pull gemma4:31b-cloud`
-3. Open Settings > AI Tutor, verify the URL and model, tap "Test Connection"
-4. On Android APK: enable `setMixedContentMode(MIXED_CONTENT_ALWAYS_ALLOW)` in WebView settings for HTTPS→HTTP access
+**Setup:** see [Ollama Cloud proxy](#ollama-cloud-proxy) below. After the proxy is running, open Settings → AI Tutor and tap Test Connection.
 
 ---
 
@@ -364,7 +364,7 @@ Version 5 with four caching strategies:
 
 ## Testing
 
-101 unit tests across 6 suites using **Vitest** with **jsdom**:
+123 unit tests across 9 suites using **Vitest** with **jsdom**:
 
 ```bash
 npm test          # Run all tests
@@ -374,11 +374,14 @@ npx vitest        # Watch mode
 | Test File | Tests | Coverage |
 | :--- | :--- | :--- |
 | `tests/aiContentService.test.js` | 69 | AI exercise generator parsing & fallback |
-| `tests/settingsService.test.js` | 4 | Defaults, set/persist, merge, corrupted localStorage |
+| `tests/settingsService.test.js` | 5 | Defaults, set/persist, merge, drops saved Ollama URL, corrupted localStorage |
 | `tests/srsService.test.js` | 11 | Box defaults, correct/wrong answers, cap at 5, weighted random distribution |
 | `tests/toastService.test.js` | 7 | Container creation, toast elements, auto-remove, confirm promise |
 | `tests/sanitize.test.js` | 7 | HTML escaping, XSS prevention |
 | `tests/gameTypes.test.js` | 3 | Game type constants |
+| `tests/ollamaConfig.test.js` | 8 | Cloud model ids, proxy URL, error text, no API key in client source |
+| `tests/aiService.test.js` | 5 | Proxy chat uses the Firebase ID token, not an API key |
+| `tests/ollamaProxy.test.js` | 8 | Allowlist, token check, key injection, upstream auth, rate limit |
 
 ---
 
@@ -391,10 +394,71 @@ npm run build     # Production build
 npm test          # Run unit tests
 ```
 
+AI calls from `npm start` go to `/ollama-proxy`, which the dev server forwards to `http://127.0.0.1:8787`. Start the proxy first (next section) or Test Connection and the tutor will report that the proxy is not running.
+
+## Ollama Cloud proxy
+
+The key lives only in the proxy process. Name: **`OLLAMA_API_KEY`**.
+
+Create a key at [ollama.com/settings/keys](https://ollama.com/settings/keys). Direct Cloud requests use model ids such as `gemma4:31b` ([docs](https://docs.ollama.com/cloud)).
+
+### Local
+
+```bash
+cp .env.example .env
+# set OLLAMA_API_KEY in .env — this file is gitignored
+
+npm run proxy     # http://127.0.0.1:8787  (terminal 1)
+npm start         # http://localhost:8080  (terminal 2)
+```
+
+`npm start` proxies `/ollama-proxy/*` to port 8787. To point the browser at another origin, set `OLLAMA_PROXY_URL` before `npm start` or `npm run build` (webpack inlines that URL; it is not a secret). To move the local proxy, set `PORT` for `npm run proxy` and `OLLAMA_PROXY_TARGET` (default `http://127.0.0.1:8787`) for `npm start`.
+
+The proxy checks the Firebase ID token (`polyglot121725`) and allows 60 requests per minute per user (`RATE_LIMIT_PER_MIN`). Signed-in users, including anonymous sign-in, can spend the key.
+
+### Deploy
+
+Deploy the Cloud Run service **before** Firebase Hosting. Hosting rewrites `/ollama-proxy/**` to the service; that rewrite fails if the service does not exist yet.
+
+```bash
+# 1. Secret (once). Paste the key when prompted, or pipe it in.
+gcloud secrets create OLLAMA_API_KEY --project polyglot121725 --replication-policy=automatic
+printf '%s' 'YOUR_OLLAMA_API_KEY' | gcloud secrets versions add OLLAMA_API_KEY --data-file=- --project polyglot121725
+
+# 2. Proxy. Service name must stay ollama-proxy, region us-central1.
+gcloud run deploy ollama-proxy \
+  --source functions \
+  --region us-central1 \
+  --project polyglot121725 \
+  --allow-unauthenticated \
+  --timeout 300 \
+  --set-secrets OLLAMA_API_KEY=OLLAMA_API_KEY:latest
+
+# If deploy cannot read the secret, grant the Cloud Run runtime service account
+# roles/secretmanager.secretAccessor on OLLAMA_API_KEY, then deploy again.
+
+# 3. Web app. /ollama-proxy on the Hosting site is the proxy.
+npm run build
+npx firebase deploy --only hosting
+```
+
+Optional: call Cloud Run directly (Hosting can buffer streamed tokens). After step 2, copy the service URL and rebuild:
+
+```bash
+OLLAMA_PROXY_URL=https://ollama-proxy-XXXXX-uc.a.run.app npm run build
+npx firebase deploy --only hosting
+```
+
+The Cloud Run URL must be an origin only — do not put the API key in it. Default CORS origins are localhost:8080 and `polyglot121725.web.app` / `polyglot121725.firebaseapp.com`. Add a custom domain with `CORS_ORIGINS` on the Cloud Run service.
+
+Rotate the key by adding a new secret version and redeploying Cloud Run. Do not commit `.env`.
+
 ## Deployment
 
 ```bash
 npm run build                    # Build production bundle
-npx firebase deploy              # Deploy to Firebase Hosting
+npx firebase deploy --only hosting
 npx firebase deploy --only database  # Deploy database rules only
 ```
+
+Hosting deploy expects the `ollama-proxy` Cloud Run service in `us-central1`. See [Ollama Cloud proxy](#ollama-cloud-proxy).

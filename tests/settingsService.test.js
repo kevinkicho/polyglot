@@ -48,6 +48,23 @@ describe('SettingsService', () => {
         });
     });
 
+    it('drops a saved Ollama server URL', () => {
+        store['polyglot_settings_version'] = '2';
+        store['polyglot_settings'] = JSON.stringify({
+            llmApiUrl: 'http://localhost:11434',
+            llmModel: 'gemma4:31b-cloud',
+            targetLang: 'ko',
+        });
+        vi.resetModules();
+
+        return import('../src/services/settingsService.js').then(mod => {
+            const s = mod.settingsService.get();
+            expect(s.llmApiUrl).toBeUndefined();
+            expect(s.llmModel).toBe('gemma4:31b-cloud');
+            expect(s.targetLang).toBe('ko');
+        });
+    });
+
     it('handles corrupted localStorage gracefully', () => {
         store['polyglot_settings'] = '{invalid json!!!';
         vi.resetModules();

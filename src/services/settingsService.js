@@ -31,9 +31,8 @@ class SettingsService {
             // Effects
             comboEffects: true,
 
-            // AI Tutor
-            llmApiUrl: 'http://localhost:11434',
-            llmModel: 'gemma4:31b-cloud'
+            // AI Tutor — Ollama Cloud model id (https://docs.ollama.com/cloud)
+            llmModel: 'gemma4:31b'
         };
         this.settings = this.load();
     }
@@ -47,7 +46,9 @@ class SettingsService {
                 return { ...this.defaults };
             }
             const saved = localStorage.getItem('polyglot_settings');
-            return saved ? { ...this.defaults, ...JSON.parse(saved) } : { ...this.defaults };
+            const merged = saved ? { ...this.defaults, ...JSON.parse(saved) } : { ...this.defaults };
+            delete merged.llmApiUrl;
+            return merged;
         } catch (e) {
             return { ...this.defaults };
         }

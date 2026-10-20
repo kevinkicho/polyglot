@@ -304,17 +304,13 @@
                     <button id="ai-accordion-btn" class="flex justify-between w-full font-bold dark:text-white text-left items-center py-2"><span>AI Tutor</span><span id="accordion-arrow-ai" class="arrow">▼</span></button>
                     <div id="ai-options" class="settings-content space-y-4 px-2 pt-2">
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-1">Ollama URL</label>
-                            <input type="text" id="llm-api-url" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="http://localhost:11434">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-1">Model</label>
-                            <input type="text" id="llm-model" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="gemma4:31b-cloud" list="llm-model-list">
+                            <label class="block text-xs font-bold text-gray-400 mb-1">Ollama Cloud model</label>
+                            <input type="text" id="llm-model" class="w-full bg-gray-50 dark:bg-black border dark:border-gray-800 p-2.5 rounded-xl text-sm text-gray-900 dark:text-white" placeholder="gemma4:31b" list="llm-model-list">
                             <datalist id="llm-model-list">
-                                <option value="gemma4:31b-cloud">
+                                <option value="gemma4:31b">
                             </datalist>
                         </div>
-                        <p class="text-[10px] text-gray-400 leading-tight">Enter the Ollama server URL with port (default: http://localhost:11434). Desktop/laptop uses Ollama; Android uses Ollama4Android.</p>
+                        <p class="text-[10px] text-gray-400 leading-tight">AI uses Ollama Cloud. The default model is gemma4:31b. The API key stays on the server. Test Connection lists models on the account.</p>
                         <button id="llm-test-btn" class="w-full py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer">Test Connection</button>
                         <div id="llm-test-result" class="hidden text-xs rounded-xl p-2 text-center font-bold"></div>
                     </div>
