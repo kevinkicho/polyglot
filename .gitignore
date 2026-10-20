@@ -11,6 +11,12 @@ dist/
 scripts/serviceAccountKey.json
 polyglot121725-firebase-adminsdk-*.json
 
+# Ollama Cloud key and local proxy env. Commit .env.example only.
+.env
+.env.local
+functions/.env
+functions/node_modules/
+
 # System Files (Junk files)
 .DS_Store
 Thumbs.db

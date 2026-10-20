@@ -4,6 +4,8 @@ import { srsService } from '../services/srsService';
 import { escapeHTML } from '../utils/sanitize';
 import { audioService } from '../services/audioService';
 import { db, ref, get, set, auth } from '../services/firebase';
+import { aiService, describeAiError } from '../services/aiService';
+import { resolveCloudModel } from '../services/ollamaConfig';
 
 const LANG_NAMES = {
     ja: 'Japanese', ko: 'Korean', zh: 'Chinese', en: 'English',
@@ -90,8 +92,7 @@ export class ChatApp {
     getApiConfig() {
         const s = settingsService.get();
         return {
-            url: s.llmApiUrl.replace(/\/+$/, ''),
-            model: s.llmModel || 'gemma4:31b-cloud',
+            model: resolveCloudModel(s.llmModel),
         };
     }
 
@@ -276,10 +277,6 @@ FORMAT RULES:
         if (this.isStreaming) return;
 
         const config = this.getApiConfig();
-        if (!config.url) {
-            this.addMessage('assistant', 'Please set your Ollama API URL in Settings first. Go to Settings > AI Tutor to configure.');
-            return;
-        }
 
         if (!isSystemKickoff) {
             this.addMessage('user', userMessage);
@@ -303,23 +300,12 @@ FORMAT RULES:
         try {
             this.abortController = new AbortController();
 
-            const res = await fetch(`${config.url}/v1/chat/completions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: config.model,
-                    messages: apiMessages,
-                    stream: true,
-                    temperature: 0.8,
-                    max_tokens: 1024,
-                }),
+            const res = await aiService.chatStream(apiMessages, {
+                model: config.model,
+                temperature: 0.8,
+                maxTokens: 1024,
                 signal: this.abortController.signal,
             });
-
-            if (!res.ok) {
-                const errText = await res.text().catch(() => res.statusText);
-                throw new Error(`API error ${res.status}: ${errText}`);
-            }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -366,18 +352,7 @@ FORMAT RULES:
                 return;
             }
 
-            let errorMsg = 'Connection failed. ';
-            if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                const isMixed = location.protocol === 'https:' && config.url.startsWith('http:');
-                if (isMixed) {
-                    errorMsg += `Blocked: this page is HTTPS but your Ollama server is HTTP. Solutions: (1) Use Ollama4Android on this device, (2) access the app over HTTP, or (3) configure Ollama with HTTPS.`;
-                } else {
-                    errorMsg += `Could not reach ${config.url}. Make sure your LLM server is running.`;
-                }
-            } else {
-                errorMsg += err.message;
-            }
-            this.addMessage('assistant', errorMsg);
+            this.addMessage('assistant', describeAiError(err));
         } finally {
             this.isStreaming = false;
             this.abortController = null;
@@ -553,7 +528,6 @@ FORMAT RULES:
         const s = settingsService.get();
         const target = LANG_NAMES[s.targetLang] || s.targetLang;
         const config = this.getApiConfig();
-        const hasConfig = !!config.url;
 
         this.container.innerHTML = `
             <div class="fixed top-0 left-0 right-0 h-14 landscape:h-11 z-40 px-4 landscape:px-3 flex justify-between items-center bg-gradient-to-r from-violet-600 to-indigo-600 shadow-lg">
@@ -575,18 +549,11 @@ FORMAT RULES:
                         <p class="text-sm text-gray-500 dark:text-gray-400">Choose a learning mode to start</p>
                     </div>
 
-                    ${!hasConfig ? `
-                        <div class="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700 rounded-2xl text-center">
-                            <p class="text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">API not configured</p>
-                            <p class="text-xs text-amber-600 dark:text-amber-400">Go to Settings > AI Tutor to set your Ollama URL and model, then tap "Test Connection"</p>
-                        </div>
-                    ` : `
-                        <div class="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-2xl flex items-center justify-center gap-2">
-                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span class="text-xs font-bold text-green-700 dark:text-green-300">Ollama</span>
-                            ${config.model ? `<span class="text-xs text-green-500">${escapeHTML(config.model)}</span>` : ''}
-                        </div>
-                    `}
+                    <div class="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-2xl flex items-center justify-center gap-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-xs font-bold text-green-700 dark:text-green-300">Ollama Cloud</span>
+                        <span class="text-xs text-green-500">${escapeHTML(config.model)}</span>
+                    </div>
 
                     <div class="grid grid-cols-2 landscape:grid-cols-4 gap-3 landscape:gap-2">
                         ${CHAT_MODES.map(mode => `

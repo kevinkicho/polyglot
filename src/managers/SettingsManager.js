@@ -1,5 +1,7 @@
 import { settingsService } from '../services/settingsService';
 import { vocabService } from '../services/vocabService';
+import { aiService, describeAiError } from '../services/aiService';
+import { resolveCloudModel } from '../services/ollamaConfig';
 
 
 class SettingsManager {
@@ -61,10 +63,9 @@ class SettingsManager {
             el.addEventListener('change', save);
             el.addEventListener('blur', save);
         };
-        bindTextSetting('llm-api-url', 'llmApiUrl');
         bindTextSetting('llm-model', 'llmModel');
 
-        // Test Connection button
+        // Test Connection button — hits Ollama Cloud through the proxy.
         const testBtn = document.getElementById('llm-test-btn');
         if (testBtn) {
             testBtn.addEventListener('click', async () => {
@@ -72,45 +73,33 @@ class SettingsManager {
                 if (!resultEl) return;
                 resultEl.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700', 'bg-amber-100', 'text-amber-700');
                 resultEl.classList.add('bg-amber-100', 'text-amber-700');
-                resultEl.textContent = 'Testing...';
+                resultEl.textContent = 'Testing Ollama Cloud...';
                 testBtn.disabled = true;
 
-                const s = settingsService.get();
-                const url = (s.llmApiUrl || '').replace(/\/+$/, '');
-
-                if (!url) {
-                    resultEl.classList.remove('bg-amber-100', 'text-amber-700');
-                    resultEl.classList.add('bg-red-100', 'text-red-700');
-                    resultEl.textContent = 'No URL configured';
-                    testBtn.disabled = false;
-                    return;
-                }
-
-                const isMixedContent = location.protocol === 'https:' && url.startsWith('http:');
-
                 try {
-                    const res = await fetch(`${url}/api/tags`, { method: 'GET', signal: AbortSignal.timeout(5000) });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const models = (data.models || []).map(m => m.name).join(', ');
-                        resultEl.classList.remove('bg-amber-100', 'text-amber-700');
-                        resultEl.classList.add('bg-green-100', 'text-green-700');
-                        resultEl.textContent = `Connected! ${models ? 'Models: ' + models : ''}`;
-                    } else {
-                        resultEl.classList.remove('bg-amber-100', 'text-amber-700');
-                        resultEl.classList.add('bg-red-100', 'text-red-700');
-                        resultEl.textContent = `Server responded with ${res.status}`;
+                    const models = await aiService.testConnection({ signal: AbortSignal.timeout(20000) });
+                    const list = document.getElementById('llm-model-list');
+                    if (list && models.length) {
+                        const seen = new Set(Array.from(list.options).map((opt) => opt.value));
+                        models.forEach((name) => {
+                            if (seen.has(name)) return;
+                            const option = document.createElement('option');
+                            option.value = name;
+                            list.appendChild(option);
+                        });
                     }
+                    resultEl.classList.remove('bg-amber-100', 'text-amber-700');
+                    resultEl.classList.add('bg-green-100', 'text-green-700');
+                    const preview = models.slice(0, 8).join(', ');
+                    resultEl.textContent = preview
+                        ? `Connected to Ollama Cloud. Models: ${preview}`
+                        : 'Connected to Ollama Cloud.';
                 } catch (err) {
                     resultEl.classList.remove('bg-amber-100', 'text-amber-700');
                     resultEl.classList.add('bg-red-100', 'text-red-700');
-                    if (isMixedContent) {
-                        resultEl.textContent = `Blocked: HTTPS page cannot reach HTTP server. Use Ollama4Android on this device, or access over HTTP.`;
-                    } else if (err.name === 'TimeoutError') {
-                        resultEl.textContent = `Timeout - server at ${url} not responding (5s)`;
-                    } else {
-                        resultEl.textContent = `Failed: ${err.message || 'Could not reach server'}`;
-                    }
+                    resultEl.textContent = err.name === 'TimeoutError'
+                        ? 'Ollama Cloud did not respond in time. Try again.'
+                        : describeAiError(err);
                 }
                 testBtn.disabled = false;
             });
@@ -183,8 +172,7 @@ class SettingsManager {
         setChk('toggle-blanks-autoplay', s.blanksAutoPlayCorrect !== false);
         setChk('toggle-combo-effects', s.comboEffects !== false);
 
-        setVal('llm-api-url', s.llmApiUrl);
-        setVal('llm-model', s.llmModel);
+        setVal('llm-model', resolveCloudModel(s.llmModel));
     }
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'polyglot-v5';
+const CACHE_NAME = 'polyglot-v6';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -9,7 +9,7 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching App Shell v5');
+      console.log('[SW] Caching App Shell v6');
       return cache.addAll(APP_SHELL);
     })
   );
@@ -38,6 +38,12 @@ self.addEventListener('activate', (event) => {
 // 3. Fetch Handler
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // AI proxy and any non-GET request always go to the network.
+  // The service worker must not cache Ollama Cloud responses.
+  if (event.request.method !== 'GET' || url.pathname.startsWith('/ollama-proxy')) {
+    return;
+  }
 
   // A. Handle Google Fonts (Cache First)
   if (url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com') {

@@ -1,8 +1,34 @@
+const fs = require('fs');
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require("copy-webpack-plugin");
 
+// Load repo-root .env for the dev server / build. Only OLLAMA_PROXY_URL is
+// inlined into the bundle below — never OLLAMA_API_KEY.
+(function loadLocalEnv() {
+  const envPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (process.env[key] !== undefined) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+})();
+
 const isProduction = process.env.NODE_ENV === 'production';
+const ollamaProxyTarget = process.env.OLLAMA_PROXY_TARGET || 'http://127.0.0.1:8787';
 
 module.exports = {
   mode: isProduction ? 'production' : 'development',
@@ -17,6 +43,16 @@ module.exports = {
     static: './dist',
     hot: true,
     port: 8080,
+    proxy: [
+      {
+        context: ['/ollama-proxy'],
+        target: ollamaProxyTarget,
+        pathRewrite: { '^/ollama-proxy': '' },
+        changeOrigin: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
+    ],
   },
   optimization: {
     splitChunks: {
@@ -37,6 +73,9 @@ module.exports = {
     },
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.OLLAMA_PROXY_URL': JSON.stringify(process.env.OLLAMA_PROXY_URL || ''),
+    }),
     new HtmlWebpackPlugin({
       template: './src/index.html',
       ...(isProduction && {
